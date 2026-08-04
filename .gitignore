@@ -1,0 +1,12 @@
+# Build output
+/bin/
+/dist/
+*.test
+*.out
+
+# Go
+vendor/
+
+# Local overrides
+*.local.yaml
+.env
