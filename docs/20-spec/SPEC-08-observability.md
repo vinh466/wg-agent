@@ -3,10 +3,10 @@ id: SPEC-08
 title: Metrics, logs and audit
 prefix: OBS
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-01, SPEC-03]
 adrs: []
 milestone: M3
@@ -31,7 +31,7 @@ Prometheus metrics, structured logging, audit logging.
 | Metric | Type | Labels |
 |---|---|---|
 | `wg_agent_build_info` | gauge | `version`, `commit`, `go_version` |
-| `wg_agent_interfaces_total` | gauge | `managed` |
+| `wg_agent_interfaces_total` | gauge | `ownership` |
 | `wg_agent_interface_up` | gauge | `interface` |
 | `wg_agent_interface_peers` | gauge | `interface` |
 | `wg_agent_peers_online` | gauge | `interface` |
@@ -55,6 +55,10 @@ states the recommended threshold.
 This is the most operationally significant metric: it reveals that something outside the
 agent is modifying WireGuard. Differences in kernel-owned fields are excluded by
 `REQ-RCN-012`.
+
+The `ownership` label on `wg_agent_interfaces_total` carries the orphan count without a
+dedicated metric. Since `REQ-RCN-035` leaves orphan cleanup to an operator, a non-zero
+`ownership="ORPHANED"` series is the alert that cleanup is outstanding.
 
 ## 3. Logs
 
@@ -82,7 +86,7 @@ Example record:
 {
   "ts": "2026-08-03T10:22:31Z",
   "request_id": "01J...",
-  "principal": "spiffe://corp/svc/vpn-controller",
+  "principal": "token/vpn-controller",
   "action": "CreatePeer",
   "resource": "interface/wg0/peer/AbC...=",
   "result": "OK",

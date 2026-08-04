@@ -3,13 +3,13 @@ id: SPEC-02
 title: Forward policy and NAT
 prefix: FWD
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-01]
 adrs: [ADR-0006, ADR-0008]
-milestone: M4
+milestone: M2
 ---
 
 # SPEC-02: Forward policy and NAT
@@ -23,6 +23,12 @@ agent manages.
 - Conceptual explanation and worked examples → [connectivity model](../40-concepts/connectivity-model.md)
 - Choosing a topology → [topology patterns](../50-guides/topology-patterns.md)
 - Related validation rules → [SPEC-07](SPEC-07-validation.md)
+- Which requirements land in which milestone → [roadmap](../60-planning/roadmap.md)
+
+This module is delivered in two parts. The `ALLOW`/`DENY` axes and the forwarding sysctl are
+required by the default `ForwardPolicySpec`, so they arrive with the first release; NAT,
+`ALLOW_LIST` and uplink forwarding follow later. The roadmap holds the split, because a
+schedule is not a normative statement.
 
 ## 2. ForwardPolicySpec
 

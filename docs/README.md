@@ -92,7 +92,7 @@ the API contract in front of the product definition.
 3. [Roadmap](60-planning/roadmap.md) — current milestone
 
 ### Operating a node
-1. [Guides](50-guides/README.md) — install, mTLS, diagnostics
+1. [Guides](50-guides/README.md) — install, listeners and tokens, diagnostics
 2. [Topology patterns](50-guides/topology-patterns.md) — pick a configuration
 
 ### Proposing a change

@@ -3,10 +3,10 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-01, SPEC-02]
 adrs: [ADR-0001]
 milestone: M1
@@ -28,7 +28,8 @@ fields the agent enforces and which the kernel owns.
 
 > **REQ-RCN-001** — The agent MUST persist desired state to disk and restore it on startup.
 
-> **REQ-RCN-002** — The store MUST hold only `spec` values and `instance_id`.
+> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id` and the deletion
+> records defined in section 6.
 
 > **REQ-RCN-050** — The store MUST NOT hold `status` values or any traffic counter.
 
@@ -112,22 +113,56 @@ trace.
  8. spec.enabled?             → bring up or down
  9. Forwarding sysctl matches?→ set per SPEC-02 section 5
 10. nftables rules match?     → sync table inet wg_agent
-11. Write status and observed_generation
+11. Write status and conditions
 ```
+
+> **REQ-RCN-036** — Each full reconcile pass MUST classify every WireGuard link absent from
+> desired state as `FOREIGN` or `ORPHANED`, per section 6.
 
 > **REQ-RCN-023** — The agent MUST use incremental peer updates rather than whole-list
 > replacement, except during `BatchUpdatePeers` with `replace_all = true` and during a full
 > reconcile.
 
-## 6. Unmanaged interfaces
+## 6. Interfaces outside desired state
 
-> **REQ-RCN-030** — A WireGuard interface present on the host but absent from desired state
+A WireGuard link on the host that desired state does not describe falls into one of two cases,
+and conflating them costs an operator real time: a `FOREIGN` link belongs to somebody else and
+must never be touched, while an `ORPHANED` link is the agent's own leftover and wants cleaning
+up.
+
+### 6.1. Foreign interfaces
+
+> **REQ-RCN-030** — A WireGuard interface present on the host that the agent never created
 > MUST NOT be deleted or modified by the agent.
 
 > **REQ-RCN-031** — The agent MUST report such an interface in `ListInterfaces` with
-> `status.managed = false`.
+> `status.ownership = FOREIGN`.
 
 Deleting resources created by another party is unacceptable behavior for an agent.
+
+### 6.2. Deletion and orphans
+
+> **REQ-RCN-032** — `DeleteInterface` MUST remove the link from the kernel and the spec from
+> the store.
+
+> **REQ-RCN-038** — Deleting an interface MUST delete its peers from the store within the same
+> transaction.
+
+> **REQ-RCN-033** — When link removal does not complete, the agent MUST retain a deletion
+> record naming that interface.
+
+> **REQ-RCN-034** — An interface holding a deletion record whose link still exists MUST be
+> reported with `status.ownership = ORPHANED`.
+
+> **REQ-RCN-035** — The agent MUST NOT delete or modify an orphaned link on its own.
+
+> **REQ-RCN-037** — The agent MUST clear the deletion record once the link is absent.
+
+The deletion record is what distinguishes an orphan from a foreign link across a restart:
+without it the agent has no memory that the link was ever its own. Automatic cleanup of
+orphans is deliberately absent — an operator removes the link, and the record clears itself on
+the next pass under `REQ-RCN-037`. Reclaiming orphans automatically is a candidate
+enhancement, not v1 behavior.
 
 ## 7. Error handling
 
@@ -142,5 +177,5 @@ Deleting resources created by another party is unacceptable behavior for an agen
 
 ## 8. Open questions
 
-- Full-reconcile duration at 10,000 peers, which determines the default
-  `reconcile.interval`. See [open questions](../60-planning/open-questions.md), OQ-04.
+None. The scale targets that set the default `reconcile.interval` are fixed by `REQ-LIF-040`
+in [SPEC-10](SPEC-10-lifecycle.md).

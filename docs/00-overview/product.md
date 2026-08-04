@@ -15,7 +15,8 @@ to the platform layer above it.
 ┌─────────────────────────────────────────────┐
 │  Platform / SaaS / Panel / Terraform / K8s  │  ← Org, user, billing, RBAC, IPAM
 └──────────────────────┬──────────────────────┘
-                       │ gRPC / REST (mTLS)
+                       │ gRPC / REST over a local transport
+                       │ (unix socket or loopback HTTP)
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼
    ┌─────────┐    ┌─────────┐    ┌─────────┐
@@ -23,6 +24,11 @@ to the platform layer above it.
    │ node-a  │    │ node-b  │    │ node-c  │
    └─────────┘    └─────────┘    └─────────┘
 ```
+
+Both agent listeners are local to the node under
+[ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md). A platform on another host
+supplies its own hop — an SSH tunnel, or a component co-located with the agent. Direct
+cross-host management over mTLS is deferred.
 
 ## Intended consumers
 
@@ -49,7 +55,8 @@ string.
 - Client `.conf` generation and QR codes
 - Forward policy: peer-to-peer, interface-to-interface, egress
 - NAT through nftables
-- Metrics, health, audit log, diagnostics
+- Metrics, health, audit log, per-interface diagnostics and a node overview endpoint
+- Installation, update and removal through a script over a released `.deb`
 
 **IPv4 only.** See [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md).
 
@@ -74,6 +81,10 @@ reuse.
 | Policy routing for full-tunnel clients | Client-side concern |
 | Host DNS management | Client-side concern |
 | IPv6 | Deferred — [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md) |
+| Remote management over TCP with mTLS, and node enrollment | Deferred — [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md) |
+| Per-principal request rate limiting | Deferred until the API has production traffic to size a limit against |
+| A signed APT repository | Deferred — [ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md) ships an install script over a released `.deb` |
+| Zero-downtime interface key rotation | Deferred. `REQ-KEY-004` warns that rotation disconnects peers |
 | Userspace WireGuard (boringtun) | Deferred |
 | Network namespaces | Deferred |
 | Overlapping subnets across interfaces | Requires network namespaces |
@@ -85,8 +96,8 @@ reuse.
 
 The differentiator is:
 
-> **Declarative reconciliation, durable desired state, an mTLS-protected API, and
-> first-class Terraform and Kubernetes support.**
+> **Declarative reconciliation, durable desired state, an API that runs least-privilege and
+> local by default, and first-class Terraform and Kubernetes support.**
 
 Plus one property the architecture provides for free: **the data plane runs independently
 of the agent.** When the agent crashes or is being upgraded, the kernel keeps forwarding

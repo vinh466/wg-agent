@@ -4,8 +4,8 @@
 
 ```
                     ┌───────────────────────────────┐
-                    │   gRPC  :  Unix socket / mTLS │
-                    │   REST  :  grpc-gateway       │
+                    │  unix socket · loopback HTTP  │
+                    │  gRPC + REST · grpc-gateway   │
                     └───────────────┬───────────────┘
                                     │
                     ┌───────────────▼───────────────┐
@@ -64,14 +64,14 @@ links, assigning addresses, setting MTU and adding routes all belong to netlink.
 ## Repository layout
 
 ```
-cmd/wg-agent/              entrypoint, flags, wiring
+cmd/wg-agent/              entrypoint and subcommands per SPEC-12
 api/proto/wgagent/v1/      .proto — source of truth for the API
 gen/                       generated code (gRPC, gateway, OpenAPI) — committed
 internal/
-  server/                  gRPC server, gateway, listeners, TLS
-  auth/                    mTLS peer identity, principal extraction
+  server/                  gRPC server, gateway, listeners
+  auth/                    socket peer credentials, token lookup, principal extraction
   audit/                   audit log writer
-  service/                 business logic: interface, peer, key, config, diagnose
+  service/                 business logic: interface, peer, key, config, diagnose, overview
   store/                   bbolt desired state, schema migration
   reconcile/               reconcile engine, work queue, backoff
   platform/
@@ -84,8 +84,9 @@ internal/
   validate/                validation rules per SPEC-07
   errors/                  error model, reason codes
 packaging/
-  systemd/                 unit, sysusers, tmpfiles, logrotate
-  debian/                  nfpm configuration → .deb
+  systemd/                 unit, sysusers, tmpfiles, logrotate, /etc/default sample
+  debian/                  nfpm configuration and maintainer scripts → .deb
+install.sh                 install, update, uninstall — REQ-CFG-029
 docs/                      documentation — start at docs/README.md
 ```
 

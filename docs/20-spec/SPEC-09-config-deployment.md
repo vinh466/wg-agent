@@ -3,12 +3,12 @@ id: SPEC-09
 title: Configuration, packaging and deployment
 prefix: CFG
 status: Accepted
-version: 1.1
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-05]
-adrs: [ADR-0002]
+adrs: [ADR-0002, ADR-0009]
 milestone: M2
 ---
 
@@ -31,26 +31,28 @@ Configuration keys, system requirements, the systemd unit, packaging.
 > **REQ-CFG-002** — The agent MUST refuse to start on encountering an unrecognized
 > configuration key rather than ignoring it silently.
 
+> **REQ-CFG-004** — The systemd unit MUST load `/etc/default/wg-agent` through
+> `EnvironmentFile`.
+
+> **REQ-CFG-005** — Loading `/etc/default/wg-agent` MUST tolerate the file being absent.
+
+`REQ-CFG-004` gives the deployment the shape an operator expects from a Debian service: the
+YAML file holds structure, and `/etc/default/wg-agent` holds the per-host overrides that
+`REQ-CFG-001` already exposes as `WG_AGENT_<PATH>` variables. The port below picks 9585 to sit
+beside the metrics listener on 9586 rather than contend for 8080.
+
 ```yaml
 server:
   unix_socket: /run/wg-agent/wg-agent.sock
   socket_mode: "0660"
   socket_group: wg-agent
-  tcp:
-    enabled: false
-    address: "127.0.0.1:8443"
-    tls:
-      cert_file: /etc/wg-agent/tls/server.crt
-      key_file:  /etc/wg-agent/tls/server.key
-      client_ca_file: /etc/wg-agent/tls/client-ca.crt
-      min_version: "1.3"
+  http:
+    enabled: false                   # the install script turns this on — REQ-CFG-031
+    address: "127.0.0.1:9585"        # loopback only — REQ-SEC-070
 
 security:
   allow_server_generated_keys: true
-  allowed_client_identities: []      # empty = any certificate signed by the trusted CA
-  roles:
-    "spiffe://corp/svc/vpn-controller": admin
-    "spiffe://corp/svc/monitoring":     reader
+  token_file: /etc/wg-agent/tokens.yaml   # mode 0600 — REQ-SEC-074
 
 state:
   path: /var/lib/wg-agent/state.db
@@ -87,6 +89,25 @@ log:
   format: json
 ```
 
+### 2.1. Token file
+
+> **REQ-CFG-003** — The token file MUST map each token value to exactly one role and one
+> label.
+
+```yaml
+tokens:
+  - token: <opaque string>
+    role: admin
+    label: vpn-controller
+  - token: <opaque string>
+    role: reader
+    label: monitoring
+```
+
+`label` supplies the principal recorded in the audit log under
+[SPEC-08](SPEC-08-observability.md). The token value itself is sensitive data under
+`REQ-SEC-076` and never appears in a record.
+
 ## 3. System requirements
 
 The real constraint is the kernel, not the distribution.
@@ -121,6 +142,7 @@ RestrictNamespaces=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
+EnvironmentFile=-/etc/default/wg-agent
 ReadWritePaths=/var/lib/wg-agent /run/wg-agent /proc/sys/net/ipv4/conf
 ```
 
@@ -137,9 +159,18 @@ ReadWritePaths=/var/lib/wg-agent /run/wg-agent /proc/sys/net/ipv4/conf
 > package MAY fall back to `ProtectKernelTunables=no`.
 
 Documentation states plainly that the fallback is a hardening trade-off. Carve-out behavior
-for `/proc/sys` is inconsistent across systemd versions and requires verification on every
-target distribution during M2 — a real risk rather than a formality. See
-[open questions](../60-planning/open-questions.md), OQ-05.
+for `/proc/sys` is inconsistent across systemd versions, so the combination is verified rather
+than assumed.
+
+> **REQ-CFG-013** — The test suite MUST verify the `REQ-CFG-011` combination against every
+> systemd version shipped by the distributions in section 3.
+
+The verification runs the packaged unit under a container whose PID 1 is the target
+distribution's own systemd, asserting that the agent writes
+`net.ipv4.conf.<iface>.forwarding` while the rest of `/proc/sys` stays read-only. A container
+reproduces the systemd version and the mount-namespace behavior that decide the outcome, which
+makes it a sufficient gate; the writes land in the container's own network namespace and
+cannot disturb the host.
 
 ## 5. Packaging
 
@@ -150,6 +181,81 @@ target distribution during M2 — a real risk rather than a formality. See
 > creating the account, a `tmpfiles.d` entry creating the runtime directory, a logrotate
 > configuration for the audit log, and a sample configuration file.
 
-> **REQ-CFG-022** — The `postinst` script MUST NOT enable the TCP listener.
+> **REQ-CFG-038** — The `.deb` package MUST ship an `/etc/default/wg-agent` file containing
+> only commented examples.
 
-The post-installation default is the unix socket.
+> **REQ-CFG-022** — The `postinst` script MUST NOT enable the HTTP listener.
+
+The post-installation default is the unix socket alone. Enabling the HTTP listener is an
+explicit operator action, which is what the install script in section 6 performs. Installing
+the package on its own leaves the agent reachable only over the socket.
+
+### 5.1. Conffiles
+
+> **REQ-CFG-023** — The package MUST declare `/etc/wg-agent/config.yaml` and
+> `/etc/default/wg-agent` as conffiles.
+
+> **REQ-CFG-024** — The package MUST NOT declare the token file as a conffile.
+
+Without `REQ-CFG-023` an upgrade overwrites operator edits. `REQ-CFG-024` is the counterpart:
+the token file is generated rather than authored, so a conffile prompt on every upgrade would
+be noise, and dpkg comparing its contents would be meaningless.
+
+### 5.2. Maintainer scripts
+
+> **REQ-CFG-025** — `prerm` MUST stop the service before any file is removed.
+
+> **REQ-CFG-026** — `postrm purge` MUST remove the configuration, the token file and the
+> store.
+
+> **REQ-CFG-027** — Package removal MUST NOT delete any WireGuard link, at any removal level.
+
+> **REQ-CFG-028** — `postrm purge` MUST print the names of the WireGuard links left behind.
+
+`REQ-CFG-027` follows the rule the agent applies to itself: `REQ-RCN-030` forbids touching a
+link it did not create and `REQ-RCN-035` forbids removing an orphan on its own. Removing a
+control plane is not a reason to drop live tunnels. `REQ-CFG-028` keeps that from becoming a
+silent leak — an operator learns what remains as it becomes theirs to handle.
+Reasoning in [ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md).
+
+## 6. Install script
+
+> **REQ-CFG-029** — The repository MUST publish an install script supporting the `install`,
+> `update` and `uninstall` subcommands.
+
+> **REQ-CFG-030** — The install script MUST verify the checksum of a downloaded artifact
+> before installing it.
+
+> **REQ-CFG-031** — On `install`, the script MUST write a configuration enabling the HTTP
+> listener on a loopback address.
+
+> **REQ-CFG-032** — On `install`, the script MUST generate one `admin` token when no token
+> file exists.
+
+> **REQ-CFG-033** — On completion, the script MUST print the listener address together with
+> any token generated during that run.
+
+> **REQ-CFG-034** — On `uninstall`, the script MUST leave WireGuard links in place by default.
+
+> **REQ-CFG-035** — The script MUST accept `uninstall --remove-links`, which deletes the
+> WireGuard links the agent manages.
+
+> **REQ-CFG-036** — The release pipeline MUST publish a `.deb` and its checksum for `amd64`
+> and `arm64`.
+
+The script fetches the package matching the host architecture, verifies it against
+`REQ-CFG-030`, and hands it to the package manager. `update` repeats that sequence, so
+`apt upgrade` alone does not reach the agent — the trade accepted in
+[ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md).
+
+Token issuance sits with the script rather than with `postinst` so that generating a value and
+displaying it are one action, which is what `REQ-CLI-011` and `REQ-CLI-012` in
+[SPEC-12](SPEC-12-cli.md) require: a token is shown once, as it is created, and never again.
+`REQ-CFG-033` therefore prints a token only on a run that created one. Re-running
+`install` on a node that already has a token reports the address alone and leaves the
+credential untouched, and `wg-agent token regen` is the way to replace a lost one.
+
+A package installed on its own, without the script, has no token and no HTTP listener under
+`REQ-CFG-022`. That agent is reachable over the unix socket, which grants `admin` through
+`REQ-SEC-077`, so it is fully usable — the script adds the loopback API rather than enabling
+basic operation.

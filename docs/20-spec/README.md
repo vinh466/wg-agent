@@ -50,7 +50,7 @@ requirement marked `Implemented` has at least one referencing test.
 | ID | Module | Prefix | Status | Milestone |
 |---|---|---|---|---|
 | [SPEC-01](SPEC-01-resource-model.md) | Resource model | `RES` | Accepted | M0 |
-| [SPEC-02](SPEC-02-forward-policy.md) | Forward policy and NAT | `FWD` | Accepted | M4 |
+| [SPEC-02](SPEC-02-forward-policy.md) | Forward policy and NAT | `FWD` | Accepted | M2, NAT at M4 |
 | [SPEC-03](SPEC-03-state-reconcile.md) | Desired state and reconcile | `RCN` | Accepted | M1 |
 | [SPEC-04](SPEC-04-api-conventions.md) | API conventions, concurrency, errors | `API` | Accepted | M0 |
 | [SPEC-05](SPEC-05-security.md) | Security, authentication, authorization | `SEC` | Accepted | M2 |
@@ -59,10 +59,13 @@ requirement marked `Implemented` has at least one referencing test.
 | [SPEC-08](SPEC-08-observability.md) | Metrics, logs, audit | `OBS` | Accepted | M3 |
 | [SPEC-09](SPEC-09-config-deployment.md) | Configuration, packaging, deployment | `CFG` | Accepted | M2 |
 | [SPEC-10](SPEC-10-lifecycle.md) | Lifecycle: upgrade, backup, DR | `LIF` | **Draft** | M3 |
-| [SPEC-11](SPEC-11-diagnostics.md) | Diagnostics | `DIA` | **Draft** | M1 |
+| [SPEC-11](SPEC-11-diagnostics.md) | Diagnostics and node overview | `DIA` | Accepted | M1 |
+| [SPEC-12](SPEC-12-cli.md) | Command line surface | `CLI` | Accepted | M2 |
 
-SPEC-10 and SPEC-11 remain `Draft`. They cover two gaps found during the end-to-end
-review and recorded in [open questions](../60-planning/open-questions.md).
+SPEC-10 remains `Draft`. Three of its decisions are unsettled — export encryption, partial
+import and downward migration — and all three sit at M3, outside the MVP. Approving a module
+whose own text says *Undecided* would drain the status vocabulary of meaning, so it waits for
+those answers. Every module the MVP depends on is `Accepted`.
 
 ## Module boundaries
 
@@ -76,13 +79,14 @@ To prevent duplication, each topic has exactly one home:
 | Reconcile algorithm | SPEC-03 | — |
 | Field ownership during reconcile | SPEC-03 | SPEC-01 |
 | RPC shapes, error codes, revisions | SPEC-04 | — |
-| Listeners, TLS, roles | SPEC-05 | SPEC-09 (which covers configuration only) |
+| Listeners, authentication, roles | SPEC-05 | SPEC-09 (which covers configuration only) |
 | Key generation, rotation, storage | SPEC-06 | — |
 | Validation rules and severities | SPEC-07 | Other modules reference only |
 | Metric names, log fields | SPEC-08 | — |
-| Configuration keys, systemd, packaging | SPEC-09 | — |
+| Configuration keys, systemd, packaging, install script | SPEC-09 | SPEC-12 (which covers commands only) |
 | Backup, upgrade, migration | SPEC-10 | — |
-| Diagnostic check list | SPEC-11 | — |
+| Diagnostic check list, node overview | SPEC-11 | SPEC-08 (which covers continuous signals) |
+| CLI subcommands, token issuance | SPEC-12 | SPEC-05 (which covers token semantics) |
 
 When the correct module is unclear, place the requirement where a reader would look first
 and cross-reference from the other location.

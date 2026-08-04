@@ -13,10 +13,11 @@ either — use [40-concepts](../40-concepts/).
 
 | Guide | Milestone |
 |---|---|
-| Installation and startup | M2 |
-| Enabling mTLS for remote access | M2 |
+| Installing, updating and removing the agent | M2 |
+| Issuing and rotating API tokens | M2 |
+| Reaching an agent from another host through a tunnel | M2 |
+| Reading the node overview | M1 |
 | Diagnosing connectivity failures | M1 |
 | Backup and restore onto a new node | M3 |
 | Upgrading the agent | M3 |
-| Zero-downtime server key rotation | M3 |
 | Terraform integration | M5 |

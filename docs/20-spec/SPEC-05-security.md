@@ -3,12 +3,12 @@ id: SPEC-05
 title: Security, authentication and authorization
 prefix: SEC
 status: Accepted
-version: 1.1
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-04]
-adrs: [ADR-0007]
+adrs: [ADR-0007, ADR-0009]
 milestone: M2
 ---
 
@@ -16,7 +16,8 @@ milestone: M2
 
 ## 1. Scope
 
-Listeners, mTLS, authorization, least-privilege execution, handling of sensitive data.
+Listeners, authentication, authorization, least-privilege execution, handling of sensitive
+data.
 
 **Not in this module:**
 - WireGuard key generation and storage → [SPEC-06](SPEC-06-key-management.md)
@@ -27,8 +28,11 @@ Listeners, mTLS, authorization, least-privilege execution, handling of sensitive
 The agent runs with `CAP_NET_ADMIN` and can create tunnels into an internal network. An
 exposed endpoint is equivalent to a compromised network.
 
-The core privilege boundary: **a client calling the API over the network is not root on the
-node.** Every decision in this module follows from that boundary.
+The privilege boundary in v1 is **the host**. Both listeners are local, so a caller reaching
+the API has already obtained execution on the node. The controls that matter are therefore
+file permission on the socket and on the token file, plus role separation between callers —
+not transport cryptography. [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md)
+records the reasoning and the conditions for widening the boundary.
 
 ## 3. Listeners
 
@@ -36,34 +40,61 @@ node.** Every decision in this module follows from that boundary.
 
 > **REQ-SEC-060** — The agent MUST NOT listen on TCP by default.
 
-> **REQ-SEC-002** — The agent MUST NOT bind `0.0.0.0` by default in any configuration.
-
 > **REQ-SEC-003** — The unix socket MUST have mode `0660` with a configurable group.
 
-> **REQ-SEC-004** — When TCP is enabled, mTLS MUST be enabled unless the explicit
-> `--insecure-no-auth` flag is set.
+> **REQ-SEC-070** — When the HTTP listener is enabled, the agent MUST refuse to start unless
+> its bind address is a loopback address.
 
-> **REQ-SEC-005** — With `--insecure-no-auth`, the agent MUST refuse to start when the bind
-> address is not a loopback address.
+`REQ-SEC-070` is a startup check rather than a runtime one, so a configuration error surfaces
+at deployment instead of on first request.
 
-> **REQ-SEC-061** — With `--insecure-no-auth`, the agent MUST emit a periodic `WARN` log
-> entry for the lifetime of the process.
+## 4. Authentication
 
-## 4. mTLS
+Each listener carries exactly one identity source. The unix socket derives identity from the
+kernel through peer credentials; the HTTP listener derives it from a bearer token.
 
-> **REQ-SEC-010** — TLS MUST be version 1.3 or later.
+> **REQ-SEC-071** — Every request arriving on the HTTP listener other than the health
+> endpoint MUST carry a bearer token in the `Authorization` header.
 
-> **REQ-SEC-011** — The agent MUST verify client certificates against the configured CA
-> bundle.
+> **REQ-SEC-080** — The health endpoint MUST be served without authentication.
 
-> **REQ-SEC-012** — Client identity MUST be taken from the SPIFFE URI SAN when present and
-> from the Subject CN otherwise.
+`REQ-SEC-080` keeps a liveness probe from needing a credential. The endpoint reports only
+whether the agent is serving, so it discloses nothing an attacker on the host could not
+observe from the process table. The node overview is a different matter and stays behind a
+token, because it names interfaces, addresses and peer counts.
 
-> **REQ-SEC-013** — The agent SHOULD reload certificates on `SIGHUP` to support short-lived
-> certificate rotation.
+> **REQ-SEC-072** — The agent MUST refuse to start when the HTTP listener is enabled and no
+> token is configured.
 
-> **REQ-SEC-014** — When `allowed_client_identities` is non-empty, the agent MUST reject
-> identities outside the list even when the certificate is otherwise valid.
+> **REQ-SEC-078** — A request whose token is missing or unrecognized MUST be rejected with
+> `UNAUTHENTICATED`.
+
+> **REQ-SEC-073** — Token comparison MUST be constant-time.
+
+> **REQ-SEC-074** — The agent MUST reject a token file granting any access beyond its owner.
+
+> **REQ-SEC-082** — The token file MUST be owned by the account running the agent.
+
+`REQ-SEC-074` and `REQ-SEC-082` are one control split in two. Mode `0600` alone leaves the
+file unreadable by the agent whenever the writing command ran as a different account, and the
+agent then refuses to start under `REQ-SEC-072`. `REQ-RCN-004` states the same pairing for the
+store.
+
+> **REQ-SEC-075** — Each configured token MUST map to exactly one role.
+
+> **REQ-SEC-076** — A token value MUST NOT appear in any log entry, audit record or API
+> response.
+
+> **REQ-SEC-081** — The agent MUST reload the token file on `SIGHUP`.
+
+> **REQ-SEC-079** — The principal attributed to a request MUST be `unix/<uid>` on the unix
+> socket and `token/<label>` on the HTTP listener.
+
+`REQ-SEC-079` gives [SPEC-08](SPEC-08-observability.md) a stable audit identity from either
+listener without exposing the token value.
+
+A bearer token has no expiry and is not bound to a caller. Revocation is an edit to the token
+file followed by a reload, which is proportionate while the trust boundary is the host.
 
 ## 5. Authorization
 
@@ -71,11 +102,17 @@ node.** Every decision in this module follows from that boundary.
 
 | Role | Permitted |
 |---|---|
-| `reader` | Read-only RPCs: Get, List, Status, Watch, Diagnose, Health |
+| `reader` | Read-only RPCs: Get, List, Status, Watch, Diagnose, Overview, Health |
 | `admin` | All operations |
+
+> **REQ-SEC-077** — A caller connected over the unix socket MUST be granted the `admin` role.
 
 > **REQ-SEC-021** — An identity absent from the role mapping MUST be rejected with
 > `PERMISSION_DENIED`.
+
+`REQ-SEC-077` places the access decision for the unix socket in the socket's mode and group
+under `REQ-SEC-003`: membership of that group is the grant. Splitting local callers by role
+needs the HTTP listener, where each token carries its own role.
 
 Finer-grained RBAC belongs to the platform layer.
 
@@ -111,6 +148,7 @@ endpoint, and no level of authentication changes that.
 | Interface private key | Stored at `0600`. Never returned, never logged |
 | Server-generated peer private key | Never stored. Returned once. Never logged |
 | Preshared key | Stored. Never returned, never logged |
+| API token | Stored at `0600`. Never returned, never logged |
 | Public key | Not sensitive. Freely logged and returned |
 
 > **REQ-SEC-050** — Sensitive values MUST be represented by a dedicated type whose `String()`
@@ -122,8 +160,30 @@ endpoint, and no level of authentication changes that.
 `REQ-SEC-050` places redaction at the type level rather than relying on author discipline,
 which is the only way to make it dependable.
 
-## 9. Open questions
+## 9. Removed requirements
 
-- Certificate issuance and rotation for mTLS. The agent assumes certificates already exist
-  at configured paths; node enrollment is undecided. See
-  [open questions](../60-planning/open-questions.md), OQ-01.
+Removed in v1.2 by [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md), which
+confines v1 to local listeners. Remote management over TCP with mTLS is deferred; see the
+scope table in [product.md](../00-overview/product.md).
+
+~~**REQ-SEC-002**~~ — Default bind restriction. Replaced by the stronger `REQ-SEC-070`, which
+forbids a non-loopback bind outright rather than by default.
+
+~~**REQ-SEC-004**~~ — mTLS mandatory on TCP. No TCP listener accepts non-loopback traffic.
+
+~~**REQ-SEC-005**~~ — Loopback restriction under `--insecure-no-auth`. The flag no longer
+exists; `REQ-SEC-070` applies unconditionally.
+
+~~**REQ-SEC-061**~~ — Periodic `WARN` under `--insecure-no-auth`. The flag no longer exists.
+
+~~**REQ-SEC-010**~~ — Minimum TLS version. No TLS listener.
+
+~~**REQ-SEC-011**~~ — Client certificate verification against a CA bundle. No mTLS.
+
+~~**REQ-SEC-012**~~ — Identity from the SPIFFE URI SAN or Subject CN. Replaced by peer
+credentials and tokens under section 4.
+
+~~**REQ-SEC-013**~~ — Certificate reload on `SIGHUP`. No certificates.
+
+~~**REQ-SEC-014**~~ — `allowed_client_identities` enforcement. Replaced by the token to role
+mapping under `REQ-SEC-075`.

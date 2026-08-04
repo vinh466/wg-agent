@@ -3,10 +3,10 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: []
 adrs: [ADR-0001, ADR-0005]
 milestone: M0
@@ -88,14 +88,30 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 | `instance_id` | UUID generated when the link is created |
 | `created_at` | When the link was created |
 | `oper_state` | `UP` \| `DOWN` \| `ABSENT` |
-| `managed` | `false` when the interface exists on the host but not in desired state |
+| `ownership` | `MANAGED` \| `FOREIGN` \| `ORPHANED` — see `REQ-RES-017` |
 | `peer_count` | Peer count in the kernel |
-| `observed_generation` | The spec generation that finished reconciling |
 | `conditions` | `READY` / `PROGRESSING` / `DEGRADED` with `reason` and `message` |
 | `last_reconcile_at` | Timestamp |
 
 > **REQ-RES-015** — The agent MUST generate a fresh `instance_id` on every successful link
 > creation.
+
+> **REQ-RES-017** — `status.ownership` MUST take one of the three values below.
+
+| Value | Meaning |
+|---|---|
+| `MANAGED` | Present in desired state; the agent enforces the spec |
+| `FOREIGN` | A WireGuard link the agent never created; left untouched under `REQ-RCN-030` |
+| `ORPHANED` | Removed from desired state while its link survived; awaiting manual cleanup |
+
+A `FOREIGN` or `ORPHANED` interface has no entry in desired state, so `ListInterfaces` returns
+it with `status` populated and `spec` absent. `REQ-RES-001` separates the two precisely so
+that this case has a representation.
+
+`conditions` and `revision` together already answer whether a caller's write reached the
+kernel, because `REQ-API-020` applies a write before responding and `REQ-API-030` changes
+`revision` only when the spec changes. A separate `observed_generation` would restate that
+with a second identifier and no additional information.
 
 > **REQ-RES-016** — `status.listen_port` MUST report the port the kernel has bound,
 > including when `spec.listen_port` is `0`.

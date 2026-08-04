@@ -3,12 +3,12 @@ id: SPEC-06
 title: Key management
 prefix: KEY
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-01, SPEC-05]
-adrs: [ADR-0004]
+adrs: [ADR-0004, ADR-0009]
 milestone: M1
 ---
 
@@ -20,7 +20,7 @@ Generation, storage, rotation and export of WireGuard keys. Client config and QR
 generation.
 
 **Not in this module:**
-- API TLS certificates → [SPEC-05](SPEC-05-security.md)
+- API listeners and authentication tokens → [SPEC-05](SPEC-05-security.md)
 - Backing up the store that holds keys → [SPEC-10](SPEC-10-lifecycle.md)
 
 ## 2. Interface keys
@@ -38,8 +38,10 @@ generation.
 > **REQ-KEY-004** — The `RotateInterfaceKey` response MUST carry an explicit warning that
 > the operation disconnects every peer until each is updated with the new public key.
 
-Coordinating peer updates belongs to the platform layer. The zero-downtime rotation
-procedure is documented in [50-guides](../50-guides/README.md).
+Coordinating peer updates belongs to the platform layer. Rotation without disconnecting peers
+requires a second interface running in parallel; that work is deferred, and `REQ-KEY-004`
+makes the disruption explicit. See the scope table in
+[product.md](../00-overview/product.md).
 
 ## 3. Peer keys
 
@@ -59,18 +61,20 @@ procedure is documented in [50-guides](../50-guides/README.md).
 > **REQ-KEY-013** — The agent MUST NOT expose any API that returns an already generated
 > private key.
 
-> **REQ-KEY-014** — The agent MUST reject this mode with `PLAINTEXT_TRANSPORT_REJECTED` over
-> an unencrypted transport.
-
 > **REQ-KEY-015** — The agent MUST support a configuration flag that disables this mode
 > entirely.
+
+Both listeners are local under
+[ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md), so a generated private key
+never crosses a network segment and no transport check gates this mode. `REQ-KEY-015` remains
+the control for deployments that reject server-side generation outright.
 
 ### 3.3. Preshared keys
 
 > **REQ-KEY-020** — A preshared key MUST be write-only.
 
 > **REQ-KEY-021** — When `generate_preshared_key` is true, the agent MUST return the generated
-> value exactly once under the same constraints as `REQ-KEY-011` through `REQ-KEY-014`.
+> value exactly once under the same constraints as `REQ-KEY-011` through `REQ-KEY-013`.
 
 ## 4. Client config generation
 
@@ -115,7 +119,13 @@ The agent never alters host DNS configuration.
 Generated `AllowedIPs` is configuration advice, not enforcement — a client can widen it
 freely. The only security boundary is server-side `forward_policy`.
 
-## 5. Open questions
+## 5. Removed requirements
+
+~~**REQ-KEY-014**~~ — Removed in v1.2. Rejection of server-generated key mode over an
+unencrypted transport. [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md) confines
+both listeners to the host, leaving no transport the check could reject.
+
+## 6. Open questions
 
 - Envelope encryption of stored keys through an external KMS. Present protection is file
   mode `0600` plus a dedicated account, proportionate because anyone holding

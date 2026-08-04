@@ -6,7 +6,7 @@ status: Draft
 version: 0.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 depends_on: [SPEC-03, SPEC-06, SPEC-09]
 adrs: [ADR-0001]
 milestone: M3
@@ -108,15 +108,17 @@ disk-exhaustion incident waiting to occur.
 
 > **REQ-LIF-053** — The test suite MUST include benchmarks verifying those targets.
 
-| Dimension | Proposed target |
+| Dimension | Target |
 |---|---|
-| Interfaces per node | 50 |
-| Peers per interface | 2,000 |
-| Peers per node | 10,000 |
-| Full reconcile at maximum scale | under 2 s |
+| Interfaces per node | 10 |
+| Peers per interface | 250 |
+| Peers per node | 1,000 |
+| Full reconcile at maximum scale | under 1 s |
 
-Without concrete numbers no benchmark can be written, and the threshold for disabling
-`metrics.per_peer` under `REQ-OBS-003` cannot be established.
+The figures carry roughly twice the headroom over the intended deployment of five interfaces
+holding about a hundred peers each. Sizing to the deployment rather than to an aspirational
+number keeps the benchmark suite cheap enough to run on every change.
 
-### Undecided
-- The figures above are proposals pending benchmark confirmation at M1. See OQ-04.
+At 1,000 peers a node emits per-peer metrics well inside comfortable Prometheus cardinality,
+so `metrics.per_peer` stays enabled by default and `REQ-OBS-003` covers deployments that
+outgrow this target.

@@ -25,8 +25,12 @@ mapfile -t DOCS < <(find . -name '*.md' -not -path './99-archive/*' -not -name '
 
 # Normative requirement definitions. Guidance files use the reserved XXX area for
 # examples, so they are excluded from ID accounting.
+#
+# Two forms count as a definition: a live requirement `> **REQ-...**` and a removed one
+# `~~**REQ-...**~~` in a module's "Removed requirements" section. Removed IDs stay defined
+# so that check 3 does not report them, which is what keeps an ID retired instead of free.
 req_defs() {
-  grep -rhoP '^> \*\*REQ-[A-Z]{3}-\d{3}\*\*' 20-spec/ \
+  grep -rhoP '^(> \*\*|~~\*\*)REQ-[A-Z]{3}-\d{3}' 20-spec/ \
     --exclude=_template.md --exclude=README.md \
     | grep -oP 'REQ-[A-Z]{3}-\d{3}'
 }
