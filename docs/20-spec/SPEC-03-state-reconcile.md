@@ -3,10 +3,10 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.5
+version: 1.6
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-05
+updated: 2026-09-06
 depends_on: [SPEC-01, SPEC-02]
 adrs: [ADR-0001, ADR-0011]
 milestone: M1
@@ -40,6 +40,22 @@ fields the agent enforces and which the kernel owns.
 
 > **REQ-RCN-005** — On encountering a schema version newer than it understands, the agent
 > MUST refuse to start with a clear message rather than misinterpreting the data.
+
+> **REQ-RCN-006** — The agent MUST hold an exclusive lock on the store for as long as it is
+> serving.
+
+> **REQ-RCN-007** — A process writing the store without the agent MUST acquire that lock and
+> fail while another process holds it.
+
+The lock is what makes a write outside the agent safe. `REQ-CLI-002` lets several subcommands
+reach the store directly, which is the only way to act on a node before the agent has ever
+started; without a lock, one of them running beside a live agent would write behind its back
+and lose whichever change reconcile wrote next.
+
+An advisory lock on the store file is preferred to asking whether the agent is running. It
+guards the resource rather than a proxy for it, so it also serialises two commands against each
+other, and the kernel releases it when a holder dies — a socket or a pid file left behind by a
+crash answers the question wrongly.
 
 Implementation: bbolt — pure Go, no cgo, single file, transactional.
 

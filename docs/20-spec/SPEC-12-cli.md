@@ -3,10 +3,10 @@ id: SPEC-12
 title: Command line surface
 prefix: CLI
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-05
-updated: 2026-09-05
+updated: 2026-09-06
 depends_on: [SPEC-05, SPEC-09, SPEC-10]
 adrs: [ADR-0009, ADR-0010, ADR-0011]
 milestone: M2
@@ -38,16 +38,26 @@ agent, how an existing interface is adopted and released, and how tokens are iss
 | `export` | No | Export desired state per `REQ-LIF-020` |
 | `import` | No | Import desired state per `REQ-LIF-051` |
 | `doctor` | No | Print the adoption readiness report from `REQ-DIA-040` |
-| `adopt` | Yes | Bring an existing interface under management per `REQ-RCN-060` |
-| `release` | Yes | Stop managing an interface, leaving its link running, per `REQ-RCN-069` |
+| `adopt` | No — must be stopped | Bring an existing interface under management per `REQ-RCN-060` |
+| `release` | No — must be stopped | Stop managing an interface, leaving its link running, per `REQ-RCN-069` |
 | `overview` | Yes | Print the node overview from `REQ-DIA-020` |
 | `version` | No | Print version, commit and Go version |
 
-> **REQ-CLI-002** — Token and state subcommands MUST operate on files directly rather than
-> through the API.
+> **REQ-CLI-002** — The `token`, `export`, `import`, `adopt` and `release` subcommands MUST
+> operate on files directly rather than through the API.
 
 Operating on files is what lets an operator issue the first token before the agent has ever
 started, and recover a node whose agent refuses to start.
+
+Adoption belongs in that set for the same reason. It is the operation an operator performs
+*before* the agent manages anything on the node, so requiring a running agent to reach it
+inverts the order: the interface exists, the store does not, and there is nothing yet for a
+listener to serve. `REQ-RCN-007` is what keeps the direct write safe — the command acquires the
+store lock and fails while the agent holds it, so the two never write at once.
+
+The `AdoptInterface` and `ReleaseInterface` RPCs of [SPEC-04](SPEC-04-api-conventions.md) are
+unaffected. A platform still adopts over the API once the agent runs; the CLI adds the path that
+works before it does.
 
 `export` and `import` arrive with [SPEC-10](SPEC-10-lifecycle.md), which owns their behavior
 and sits a milestone later than the rest of this module. The commands the install script and
