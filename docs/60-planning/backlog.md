@@ -16,13 +16,13 @@ providers and Kubernetes operators. The near-term target is narrower: a single o
 managing their own node, adopting an interface that already exists, reaching the API locally
 behind one token.
 
-Against that narrower target, this file defers **102 of the 240 live requirements**, leaving
-138 in the near-term build. Deferring them explicitly is what keeps the count honest — the
+Against that narrower target, this file defers **98 of the 264 live requirements**, leaving
+166 in the near-term build. Deferring them explicitly is what keeps the count honest — the
 alternative is a milestone plan that looks achievable only because nobody counted.
 
 Reading the milestone numbers as the smaller slice does not work: M0 through M2 still carry
-210 of 240 requirements, because the machine-facing scaffolding is spread across the MVP
-modules rather than concentrated after them.
+234 of 264 requirements, because the machine-facing scaffolding is spread across the MVP
+modules rather than concentrated after them. Counts are as of the front-matter date.
 
 ## How to read an entry
 
@@ -41,10 +41,10 @@ modules rather than concentrated after them.
 | B-03 | Packaging, install script and release pipeline | 20 |
 | B-04 | Forward policy and NAT | 23 |
 | B-05 | API scaffolding for machine consumers | 14 |
-| B-06 | Interface diagnostics | 13 |
+| B-06 | Interface diagnostics | 9 |
 | B-07 | Orphan bookkeeping | 4 |
 | B-08 | Multi-principal machinery | 3 |
-| | **Total** | **102** |
+| | **Total** | **98** |
 
 ---
 
@@ -108,8 +108,9 @@ the install script solve distribution to strangers.
 `REQ-FWD-042`. Twenty-three requirements.
 
 **Keeps:** `REQ-FWD-020` (set `forwarding = 1` on the agent's own WireGuard interfaces) and
-`REQ-FWD-022` (never touch the sysctl of an interface the agent did not create — which needs
-the amendment described under [open questions](open-questions.md) once adoption exists).
+`REQ-FWD-022` (never touch the sysctl of an interface desired state does not describe, amended
+by [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) to test desired-state
+membership rather than creation) and `REQ-FWD-024`, which records the pre-adoption value.
 
 **Returns when:** a second interface exists, or peers need egress.
 
@@ -145,19 +146,22 @@ what is deferred is the promise not to break generated clients that nobody has g
 
 ## B-06 — Interface diagnostics
 
-**Defers:** `REQ-DIA-001` to `REQ-DIA-005`, `REQ-DIA-010`, `REQ-DIA-011`, `REQ-DIA-022` to
-`REQ-DIA-025`, `REQ-DIA-030`, `REQ-DIA-031`. Thirteen requirements.
+**Defers:** `REQ-DIA-001`, `REQ-DIA-004`, `REQ-DIA-010`, `REQ-DIA-011`, `REQ-DIA-022` to
+`REQ-DIA-025`, `REQ-DIA-031`. Nine requirements.
 
 **Keeps:** `REQ-DIA-020` and `REQ-DIA-021` — the node overview and its status vocabulary,
-reduced from nine components to the four that exist in the near-term build.
+reduced from nine components to the four that exist in the near-term build. Also
+`REQ-DIA-002`, `REQ-DIA-003`, `REQ-DIA-005` and `REQ-DIA-030`, which the adoption readiness
+report of `REQ-DIA-040` builds on: `REQ-DIA-041` adopts the finding shape of `REQ-DIA-002`,
+`REQ-CLI-005` renders the `hint` of `REQ-DIA-003`, and `REQ-DIA-030` supplies its closed
+`hint_code` set. The whole `REQ-DIA-040` to `REQ-DIA-047` group is near-term work.
 
 **Returns when:** B-04 returns. The fourteen-check `DiagnoseInterface` exists to debug the
 seven conditions that must hold for two peers to communicate, and those conditions are the
 forward policy this build does not enforce.
 
-One check is worth pulling forward ahead of the rest, and it is not in SPEC-11 today: nothing
-detects that another manager owns an interface. See the adoption discussion in
-[open questions](open-questions.md).
+One check is pulled forward ahead of the rest: `REQ-DIA-043` detects a contending `wg-quick`
+unit, which adoption depends on.
 
 ---
 

@@ -108,11 +108,11 @@ M0 through M2.
 
 [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) added adoption of an
 interface the agent did not create. It splits across the existing milestones rather than forming
-one of its own: `REQ-RCN-060` to `REQ-RCN-065` need the store and reconcile engine, so they land
-with M1, while `doctor` and `adopt` are a command surface and land with M2 alongside the rest of
-SPEC-12.
+one of its own: `REQ-RCN-060` to `REQ-RCN-069` need the store and reconcile engine, so they land
+with M1, while `doctor`, `adopt` and `release` are a command surface and land with M2 alongside
+the rest of SPEC-12.
 
-`REQ-DIA-040` to `REQ-DIA-044` sit with M1, matching the milestone SPEC-11 already carries.
+`REQ-DIA-040` to `REQ-DIA-047` sit with M1, matching the milestone SPEC-11 already carries.
 
 Adoption is the capability that makes the agent usable on a node where WireGuard already runs,
 which is the ordinary case rather than the exception. The MVP bar in the first section predates

@@ -85,6 +85,7 @@ To prevent duplication, each topic has exactly one home:
 | Metric names, log fields | SPEC-08 | — |
 | Configuration keys, systemd, packaging, install script | SPEC-09 | SPEC-12 (which covers commands only) |
 | Backup, upgrade, migration | SPEC-10 | — |
+| Adoption and release of an existing interface | SPEC-03 | SPEC-10 (which covers import of an export file only) |
 | Diagnostic check list, node overview | SPEC-11 | SPEC-08 (which covers continuous signals) |
 | CLI subcommands, token issuance | SPEC-12 | SPEC-05 (which covers token semantics) |
 

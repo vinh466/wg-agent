@@ -3,12 +3,12 @@ id: SPEC-02
 title: Forward policy and NAT
 prefix: FWD
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-05
 depends_on: [SPEC-01]
-adrs: [ADR-0006, ADR-0008]
+adrs: [ADR-0006, ADR-0008, ADR-0011]
 milestone: M2
 ---
 
@@ -122,14 +122,19 @@ than from a global variable.
 
 > **REQ-FWD-021** — The agent MUST NOT write the global `net.ipv4.ip_forward`.
 
-> **REQ-FWD-022** — The agent MUST NOT change the forwarding sysctl of an interface it did
-> not create, except as required by `REQ-FWD-023`.
+> **REQ-FWD-022** — The agent MUST NOT change the forwarding sysctl of an interface that
+> desired state does not describe, except as required by `REQ-FWD-023`.
 
 > **REQ-FWD-023** — When `external = ALLOW`, the agent MUST reject the spec with
 > `FORWARD_POLICY_NEEDS_UPLINK` unless `nat.enable_uplink_forwarding` is true.
 
 > **REQ-FWD-024** — The agent MUST record the original forwarding sysctl of each WireGuard
-> interface it creates and restore it on removal.
+> interface it creates or adopts and restore it on removal.
+
+Both requirements test desired-state membership rather than creation, because an interface
+adopted under `REQ-RCN-060` is managed without having been created by the agent. `REQ-RCN-030`
+is the single definition of that boundary; restating the creation test here would leave two
+answers to one question. The uplink is never in desired state, so it stays outside both.
 
 > **REQ-FWD-042** — The agent MUST NOT restore the forwarding sysctl on the uplink.
 

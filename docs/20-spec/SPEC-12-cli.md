@@ -3,7 +3,7 @@ id: SPEC-12
 title: Command line surface
 prefix: CLI
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-05
 updated: 2026-09-05
@@ -39,6 +39,7 @@ agent, how an existing interface is adopted, and how tokens are issued.
 | `import` | No | Import desired state per `REQ-LIF-051` |
 | `doctor` | No | Print the adoption readiness report from `REQ-DIA-040` |
 | `adopt` | Yes | Bring an existing interface under management per `REQ-RCN-060` |
+| `release` | Yes | Stop managing an interface, leaving its link running, per `REQ-RCN-069` |
 | `overview` | Yes | Print the node overview from `REQ-DIA-020` |
 | `version` | No | Print version, commit and Go version |
 
@@ -59,21 +60,25 @@ the agent's own state.
 
 ## 3. Adoption
 
-> **REQ-CLI-004** — `doctor` MUST run without a running agent.
+> **REQ-CLI-004** — `doctor` MUST compute the report of `REQ-DIA-040` from the kernel and the
+> filesystem directly rather than through the API.
 
-> **REQ-CLI-005** — `doctor` MUST print, for each `BLOCKER` finding, the operator action that
-> clears it.
+> **REQ-CLI-005** — `doctor` MUST render the `hint` of every finding it prints.
 
-> **REQ-CLI-006** — `adopt` MUST support a preview mode that prints the resulting spec without
-> writing it.
+> **REQ-CLI-006** — `adopt` MUST support a preview mode that prints the spec the request would
+> store, excluding write-only fields, without writing it.
 
-> **REQ-CLI-007** — `adopt` MUST refuse an interface whose readiness report contains a
-> `BLOCKER`, printing the findings.
+> **REQ-CLI-007** — `adopt` MUST refuse an interface whose report carries a `FAIL` finding,
+> printing the findings.
 
 `REQ-CLI-004` is what makes `doctor` useful before anything is configured: an operator meeting
-this agent for the first time runs it on a node where the API has never been reachable.
-`REQ-CLI-005` is the difference between a report and a diagnosis — naming an enabled
-`wg-quick` unit helps only when the output also says to disable it.
+this agent for the first time runs it on a node where the API has never been reachable, so the
+command cannot depend on a listener, a token or a store. `REQ-CLI-005` keeps remediation text in
+one home — `REQ-DIA-003` already requires `hint` to name a concrete corrective action, and the
+CLI renders it rather than authoring its own wording.
+
+`REQ-CLI-006` excludes write-only fields because the spec adoption stores holds the interface
+private key and every preshared key, which `REQ-CLI-022` and `REQ-SEC-050` forbid in output.
 
 The migration this supports costs no downtime. Disabling a `wg-quick` unit does not stop it, so
 the interface keeps running while the unit stops competing for the next boot; adoption then

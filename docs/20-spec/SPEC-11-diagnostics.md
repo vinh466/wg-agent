@@ -3,7 +3,7 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -16,9 +16,10 @@ milestone: M1
 
 ## 1. Scope
 
-Two read-only RPCs that answer questions from observable data instead of requiring an operator
-to log into the node: `GetOverview` for *is the agent working*, and `DiagnoseInterface` for
-*why is traffic not passing on this interface*.
+Reports that answer questions from observable data instead of requiring an operator to log into
+the node: `GetOverview` for *is the agent working*, `DiagnoseInterface` for *why is traffic not
+passing on this interface*, and the adoption readiness report of section 5 for *what would
+happen if this existing interface were adopted*.
 
 **Not in this module:**
 - Continuous metrics and logs → [SPEC-08](SPEC-08-observability.md)
@@ -151,48 +152,74 @@ guarantee traffic passes. Without the check that price becomes undiagnosable.
 
 ## 5. Adoption readiness
 
-A report describing what would happen if a `FOREIGN` interface were adopted under
-[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md), and what stands in the
-way. It runs before anything is written, which makes it the preview that the reconcile path
-does not otherwise offer.
+A report describing what adopting a `FOREIGN` interface would produce, and what stands in the
+way, under [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md). It runs before
+anything is written, which makes it the preview the reconcile path does not otherwise offer.
 
-> **REQ-DIA-040** — The agent MUST provide an adoption readiness report naming every
-> `FOREIGN` interface, the spec that adopting it would produce, and its findings.
+> **REQ-DIA-040** — The agent MUST provide an adoption readiness report naming every `FOREIGN`
+> interface, the spec fields adoption would read from the kernel, and its findings.
 
-> **REQ-DIA-041** — Each finding MUST carry a severity of `BLOCKER` or `WARNING`.
+> **REQ-DIA-041** — Each finding MUST carry the fields required by `REQ-DIA-002`.
 
-> **REQ-DIA-042** — The report MUST classify a finding as `BLOCKER` when adopting would
-> produce an interface the agent cannot correctly manage.
+> **REQ-DIA-042** — The report MUST record a `FAIL` result for a condition under which
+> adoption would produce an interface the agent cannot manage.
 
-> **REQ-DIA-043** — The report MUST classify a contending manager as a `BLOCKER`, identifying
-> it by an enabled `wg-quick` unit or a configuration file matching the interface name.
+> **REQ-DIA-043** — The report MUST record a `FAIL` result when a `wg-quick` unit for the
+> interface is enabled.
 
-> **REQ-DIA-044** — The report MUST classify a `wg-quick` directive with no equivalent in the
-> resource model as a `WARNING`, naming the directive.
+> **REQ-DIA-044** — The report MUST record a `WARN` result for a `wg-quick` directive with no
+> equivalent in the resource model, naming the directive.
 
-`REQ-DIA-005` already forbids diagnostics from altering state, and this report is diagnostics,
-so it inherits that guarantee rather than restating it.
+> **REQ-DIA-045** — The report MUST NOT take a spec field value from a `wg-quick`
+> configuration file.
+
+> **REQ-DIA-046** — The report MUST record a `WARN` result, rather than a `FAIL` result, for a
+> `wg-quick` configuration file it cannot parse.
+
+> **REQ-DIA-047** — The report MUST NOT include a private key or a preshared key.
+
+Reusing `REQ-DIA-002` gives every finding the same shape as a diagnostic check result,
+including the `hint_code` and `hint` that `REQ-DIA-003` and `REQ-DIA-030` already govern, so
+remediation text has one home and one closed identifier set. `REQ-DIA-005` forbids diagnostics
+from altering state, and this report is diagnostics, so it inherits that guarantee.
+
+`REQ-DIA-047` mirrors `REQ-DIA-024`. Adoption reads the interface private key and every
+preshared key from the kernel under `REQ-RCN-061` and `REQ-RCN-062`, so a report naming the
+fields it would store would otherwise disclose exactly what `REQ-RES-013`, `REQ-RES-022`,
+`REQ-KEY-002` and `REQ-SEC-050` forbid in any output.
+
+`REQ-DIA-043` names the enabled unit and nothing else. A `wg-quick` configuration file survives
+`systemctl disable` and describes an interface nobody is starting, so treating the file's
+presence as contention would refuse adoption on precisely the nodes it exists to serve.
 
 ### 5.1. Findings
 
-| Finding | Severity | Reason |
+| Finding | Result | Reason |
 |---|---|---|
-| An enabled `wg-quick` unit for this interface | `BLOCKER` | Both would manage the link, and the winner after a reboot is a race |
-| An address of the IPv6 family | `BLOCKER` | `REQ-VAL-020` rejects the family, so the adopted spec would be invalid |
-| `listen_port` or an address colliding with a managed interface | `BLOCKER` | `REQ-VAL-013` and `REQ-VAL-014` would reject the resulting spec |
-| The link is not of type WireGuard | `BLOCKER` | Nothing in the resource model describes it |
-| `PostUp` or `PostDown` present | `WARNING` | [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) forbids reproducing them, so disabling `wg-quick` loses their effect at the next boot |
-| `SaveConfig` enabled | `WARNING` | The file stops being updated once the agent manages the interface |
-| `DNS` or `Table` present | `WARNING` | Client-side and routing concerns the agent does not own |
-| A peer endpoint given as a hostname | `WARNING` | `REQ-VAL-033` already warns; the kernel stores only the resolved address |
+| An enabled `wg-quick` unit for this interface | `FAIL` | Both would manage the link, and the winner after a reboot is a race |
+| The spec adoption would produce fails validation | `FAIL` | `REQ-VAL-001` would block the write, so the adoption cannot complete |
+| A peer the kernel holds cannot be represented in `PeerSpec` | `FAIL` | `REQ-RCN-068` rejects the request |
+| The link carries no address | `FAIL` | `addresses` is a required field of `InterfaceSpec` |
+| `PostUp` or `PostDown` present | `WARN` | [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) forbids reproducing them, so disabling `wg-quick` loses their effect at the next boot |
+| `SaveConfig` enabled | `WARN` | The file stops being updated once the agent manages the interface |
+| `DNS` present | `WARN` | A client-side concern the agent does not own |
+| A peer holds an endpoint | `WARN` | `REQ-RCN-063` discards it, naming the peer |
+| The configuration file cannot be parsed | `WARN` | `REQ-DIA-046` — field values come from the kernel regardless |
 
-The `PostUp` warning is the one that costs an operator a working node. Rules installed by a
-hook survive adoption because nothing removes them, and disappear at the next boot because
-nothing recreates them. The gap between those two moments is where the report earns its place.
+The validation row references [SPEC-07](SPEC-07-validation.md) rather than restating its rules,
+which is what keeps the port, address and IPv6 predicates in the one module that owns them.
 
-A configuration file that cannot be parsed is itself a `WARNING`. Field values come from the
-kernel under `REQ-RCN-061`, so a malformed file costs the operator the directive warnings and
-nothing else.
+The `PostUp` warning is the one that costs an operator a working node. Rules installed by a hook
+survive adoption because nothing removes them, and disappear at the next boot because nothing
+recreates them. The gap between those two moments is where the report earns its place.
+
+### 5.2. Surface
+
+The report has no RPC of its own. `REQ-CLI-004` requires `doctor` to run on a node where the
+agent has never started, so the command computes the report locally, and the `Adopt` RPC carries
+it inside the `ADOPTION_BLOCKED` failure of `REQ-RCN-064`. An API caller therefore learns of a
+`FAIL` finding by attempting the adoption rather than by asking in advance, which is a
+limitation of this version and not a property worth preserving.
 
 ## 6. Implementation cost
 

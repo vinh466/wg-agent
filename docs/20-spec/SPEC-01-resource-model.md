@@ -3,7 +3,7 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -85,7 +85,7 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 |---|---|
 | `public_key` | Derived from the private key |
 | `listen_port` | The port the kernel has bound |
-| `instance_id` | UUID generated when the link is created |
+| `instance_id` | UUID assigned when the agent begins managing the link |
 | `created_at` | When the link was created |
 | `oper_state` | `UP` \| `DOWN` \| `ABSENT` |
 | `ownership` | `MANAGED` \| `FOREIGN` \| `ORPHANED` — see `REQ-RES-017` |
@@ -100,13 +100,16 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 
 Adoption is not creation, so `REQ-RES-015` does not reach it. An adopted interface still needs
 the identifier, because `REQ-RES-026` reads it to tell a counter reset from a running total.
+Adoption leaves the link running, so the kernel counters do not reset and the first sample a
+caller takes has no earlier value to be compared against. The adoption path that assigns the
+identifier is `REQ-RCN-061`.
 
 > **REQ-RES-017** — `status.ownership` MUST take one of the three values below.
 
 | Value | Meaning |
 |---|---|
 | `MANAGED` | Present in desired state; the agent enforces the spec |
-| `FOREIGN` | A WireGuard link the agent never created; left untouched under `REQ-RCN-030` |
+| `FOREIGN` | A WireGuard link absent from desired state that the agent never created; left untouched under `REQ-RCN-030` |
 | `ORPHANED` | Removed from desired state while its link survived; awaiting manual cleanup |
 
 A `FOREIGN` or `ORPHANED` interface has no entry in desired state, so `ListInterfaces` returns

@@ -3,7 +3,7 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.5
+version: 1.6
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -43,7 +43,7 @@ Service surface, REST mapping, write semantics, concurrency control, error model
 
 | Service | RPCs |
 |---|---|
-| `InterfaceService` | Create, Get, List, Update, Delete, RotateKey, Adopt |
+| `InterfaceService` | Create, Get, List, Update, Delete, RotateKey, Adopt, Release |
 | `PeerService` | Create, Get, List, Update, Delete, BatchUpdate |
 | `RuntimeService` | GetInterfaceStatus, ListPeerStatus, WatchPeerStatus |
 | `ConfigService` | GenerateClientConfig, GenerateKeyPair |
@@ -69,6 +69,7 @@ RPC has no faithful REST equivalent and a polling caller is served by the list f
 | `DELETE` | `/v1/interfaces/{name}` | DeleteInterface |
 | `POST` | `/v1/interfaces/{name}:rotateKey` | RotateInterfaceKey |
 | `POST` | `/v1/interfaces/{name}:adopt` | AdoptInterface |
+| `POST` | `/v1/interfaces/{name}:release` | ReleaseInterface |
 | `GET` | `/v1/interfaces/{name}/status` | GetInterfaceStatus |
 | `GET` | `/v1/interfaces/{name}:diagnose` | DiagnoseInterface |
 | `POST` | `/v1/interfaces/{name}/peers` | CreatePeer |
@@ -205,9 +206,10 @@ PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
 ADOPTION_BLOCKED
 ```
 
-`ADOPTION_BLOCKED` is returned when the readiness report of `REQ-DIA-040` contains a blocking
-finding. The findings themselves travel in the response rather than in the reason code, since
-`REQ-DIA-041` classifies more of them than a closed code set should carry.
+`REQ-RCN-064` is the requirement that returns `ADOPTION_BLOCKED`. The findings behind it travel
+in the response rather than in the reason code, because `REQ-DIA-042` through `REQ-DIA-046`
+classify more conditions than a closed code set should carry, and `REQ-DIA-030` already gives
+each one a stable `hint_code`.
 
 ## 8. Startup checks
 

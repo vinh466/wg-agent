@@ -3,7 +3,7 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -174,7 +174,7 @@ into desired state without disturbing the traffic already flowing through it, pe
 [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md).
 
 > **REQ-RCN-060** — The agent MUST bring an existing link under management only in response to
-> an explicit adoption request naming that interface.
+> an explicit adoption request naming an interface whose `status.ownership` is `FOREIGN`.
 
 > **REQ-RCN-061** — Adoption MUST populate the interface spec from kernel state, storing the
 > existing private key rather than generating one.
@@ -185,29 +185,60 @@ into desired state without disturbing the traffic already flowing through it, pe
 > **REQ-RCN-063** — Adoption MUST NOT store a peer endpoint, which stays kernel-owned under
 > `REQ-RCN-051`.
 
-> **REQ-RCN-064** — Adoption MUST leave the store unchanged when the readiness report of
-> `REQ-DIA-040` reports a blocking finding.
+> **REQ-RCN-066** — Adoption MUST source `forward_policy`, `nat` and `manage_routes` from the
+> adoption request, rejecting a request that omits any of them.
+
+> **REQ-RCN-067** — Adoption MUST reject a request naming a link absent from the host with
+> `INTERFACE_NOT_FOUND`.
+
+> **REQ-RCN-068** — Adoption MUST reject a request when a peer held by the kernel cannot be
+> represented in `PeerSpec`.
+
+> **REQ-RCN-064** — Adoption MUST fail with `ADOPTION_BLOCKED`, leaving the store unchanged,
+> when the report of `REQ-DIA-040` carries a `FAIL` finding for the interface named in the
+> request.
 
 > **REQ-RCN-065** — Adoption MUST write the interface and its peers in a single transaction.
 
-Every field originates in the kernel, so nothing is reconstructed:
+> **REQ-RCN-069** — The agent MUST support removing an interface from desired state while
+> leaving its link in the kernel, returning it to `FOREIGN`.
+
+The kernel supplies the fields it holds; the request supplies the ones it does not:
 
 | Spec field | Source |
 |---|---|
 | `private_key`, `listen_port`, `fwmark` | WireGuard device dump |
 | `addresses`, `mtu`, `enabled` | netlink link and address attributes |
 | Peer `public_key`, `preshared_key`, `allowed_ips`, `persistent_keepalive` | The same device dump |
+| `forward_policy`, `nat`, `manage_routes` | The adoption request, under `REQ-RCN-066` |
+| `instance_id` | Assigned under `REQ-RES-018` |
+
+`REQ-RCN-066` exists because the kernel holds no forward policy and no routing intent, so a
+default would be a guess applied to a live node. `intra_interface` defaults to `ALLOW` and the
+other two axes to `DENY` under `REQ-FWD-001`, `REQ-FWD-003` turns a `DENY` axis into a drop rule
+that step 10 of `REQ-RCN-022` would then install on traffic that was passing, and
+`manage_routes` defaults to `true`, which step 7 would act on. Naming both in the request keeps
+adoption a decision rather than a side effect, for the same reason `REQ-VAL-015` refuses an
+implicit takeover.
 
 `REQ-RCN-061` is what keeps established clients connected: an interface key that survives
 adoption leaves every client configuration valid. Generating one instead would disconnect every
-peer as onboarding completes, which is the outcome `REQ-KEY-004` warns about for rotation.
+peer as onboarding completes, which is the outcome `REQ-KEY-004` warns about for rotation. The
+key is stored, never returned — `REQ-RES-013` and `REQ-KEY-002` apply to an adopted interface
+exactly as they do to a created one.
+
+`REQ-RCN-063` accepts a known loss. A device dump does not distinguish an endpoint the kernel
+learned from a handshake from one an operator configured for a site-to-site peer, so adoption
+cannot tell which to keep, and keeping the wrong one would fight `REQ-RCN-051`. An operator who
+needs a static endpoint restates it after adoption, where the intent is unambiguous.
+
+`REQ-RCN-069` is the inverse transition. Without it the only exit from `MANAGED` is
+`REQ-RCN-032`, which removes the link from the kernel — an outage on the interface adoption
+exists to preserve.
 
 No separate ownership transition is needed. `REQ-RES-017` defines `MANAGED` as presence in
-desired state, so writing the spec is what changes `status.ownership`.
-
-A correctly adopted interface makes the next reconcile pass a no-op: steps 3 through 8 of
-`REQ-RCN-022` compare desired state against the kernel state it was just read from. An adoption
-that would not converge silently is therefore an adoption that was incomplete.
+desired state, so writing the spec is what changes `status.ownership`, and `REQ-RCN-069`
+reverses it by the same mechanism.
 
 ## 7. Error handling
 

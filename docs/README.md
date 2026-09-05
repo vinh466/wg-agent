@@ -197,12 +197,15 @@ Format `REQ-<AREA>-<NNN>`.
 | `CFG` | Configuration, packaging, deployment | SPEC-09 |
 | `LIF` | Lifecycle: upgrade, backup, DR | SPEC-10 |
 | `DIA` | Diagnostics | SPEC-11 |
+| `CLI` | Command line surface | SPEC-12 |
 
 Numbering rules:
 
 - Numbers are **never reused**, even after a requirement is removed
 - Numbers are **never reassigned** to insert a requirement — always take the next free one
-- A dropped requirement is struck through as `~~REQ-XXX-NNN~~ (removed in v1.2)`, not deleted
+- A new requirement group opens the next free decade, so a section reads as a block
+- A dropped requirement is struck through as `~~**REQ-XXX-NNN**~~ (removed in v1.2)`, not deleted,
+  with the emphasis inside the strikethrough so `check-docs.sh` still counts the ID as defined
 - `XXX` is reserved for examples in guidance documents and is never a real area
 
 IDs appear in test names, code comments, commit messages and issues. Reassigning a

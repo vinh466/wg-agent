@@ -7,7 +7,7 @@ created: 2026-09-05
 updated: 2026-09-05
 supersedes: []
 superseded_by: null
-affects: [SPEC-01, SPEC-03, SPEC-04, SPEC-07, SPEC-11, SPEC-12]
+affects: [SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-07, SPEC-11, SPEC-12]
 ---
 
 # ADR-0011: Operator-initiated adoption of a pre-existing interface

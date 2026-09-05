@@ -3,7 +3,7 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -45,24 +45,33 @@ production.
 Cryptokey routing would be ambiguous: the kernel applies longest-prefix matching, and for
 two identical prefixes the later-configured peer silently displaces the earlier one.
 
-> **REQ-VAL-013** — The agent MUST reject a `listen_port` already used by another WireGuard
-> interface on the host with `LISTEN_PORT_IN_USE`.
+> **REQ-VAL-013** — The agent MUST reject a `listen_port` already used by a WireGuard
+> interface on the host other than the one the spec names, with `LISTEN_PORT_IN_USE`.
 
-> **REQ-VAL-014** — The agent MUST reject `addresses` overlapping another WireGuard interface
-> on the host with `ADDRESS_CONFLICT`.
+> **REQ-VAL-014** — The agent MUST reject `addresses` overlapping a WireGuard interface on the
+> host other than the one the spec names, with `ADDRESS_CONFLICT`.
 
 > **REQ-VAL-015** — The agent MUST reject a create request naming a WireGuard link that
-> already exists with `INTERFACE_EXISTS`.
+> already exists, unless desired state describes that link or a deletion record names it, with
+> `INTERFACE_EXISTS`.
 
 `REQ-VAL-013` and `REQ-VAL-014` reach foreign interfaces as well as managed ones. A port or
 subnet held by a link the agent did not create collides just as firmly, and checking only
-managed interfaces would let the spec pass validation and fail when applied.
+managed interfaces would let the spec pass validation and fail when applied. Both exclude the
+interface the spec names, so validating an adopted spec does not match it against the very link
+it was read from.
 
 `REQ-VAL-015` is what keeps a name collision from becoming a silent takeover: step 1 of
 `REQ-RCN-022` skips creation when the link is present, and step 4 then removes every peer the
 store does not know. Adoption under
 [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) is the supported path, and
 it is explicit.
+
+The two exemptions keep the rule from blocking cases it is not aimed at. A link desired state
+already describes is a repeated create of a managed interface, which stays idempotent under
+`REQ-RES-003`. A link named by a deletion record is the agent's own orphan under
+`REQ-RCN-034`, and refusing to recreate it would leave a shell on the node as its only
+recovery.
 
 > **REQ-VAL-020** — The agent MUST reject any address or CIDR of the IPv6 family with
 > `IPV6_NOT_SUPPORTED`.
