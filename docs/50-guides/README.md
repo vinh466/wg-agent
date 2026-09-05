@@ -8,6 +8,7 @@ either — use [40-concepts](../40-concepts/).
 ## Available
 
 - [Choosing a topology](topology-patterns.md) — four common configurations and how to select one
+- [Running the tests](running-tests.md) — the three tiers, and what privilege each one needs
 
 ## Planned
 

@@ -111,7 +111,7 @@ docs/                      documentation — start at docs/README.md
 | Level | Approach |
 |---|---|
 | Unit | netlink and wgctrl adapters sit behind interfaces; service tests use fakes |
-| Integration | Real WireGuard inside a dedicated network namespace. No containers required |
+| Integration | Real WireGuard inside a dedicated network namespace. A container supplies one, along with a pinned `wg`, `ip` and `nft` and the Go toolchain — see [running the tests](../50-guides/running-tests.md) |
 | Reconcile | Inject drift manually — delete a link, add a foreign peer, change MTU — assert convergence |
 | Roaming | Change a peer endpoint externally and assert reconcile does not overwrite it (`REQ-RCN-013`) |
 | Concurrency | Concurrent writers on one interface; assert serialization and revision behavior |

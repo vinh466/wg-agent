@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Documentation integrity and REQ-ID traceability. No toolchain, so this gate
+  # is the one that holds while the spec is ahead of the code.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Documentation checks
+        run: docs/check-docs.sh
+      - name: REQ-ID traceability
+        run: docs/check-traceability.sh
+
+  # Verifies a container can drive real WireGuard: netlink creates the link,
+  # wgctrl configures it, and the interface key and peers read back. This is the
+  # premise the adoption requirements rest on, so it is checked on every change.
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load the WireGuard module on the host
+        run: sudo modprobe wireguard && lsmod | grep wireguard
+      - name: Probe the environment
+        run: make probe
+
+  # Activates with the first Go package. Until then there is nothing to compile,
+  # and `make check` above is the gate that matters.
+  test:
+    runs-on: ubuntu-latest
+    if: hashFiles('go.mod') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load the WireGuard module on the host
+        run: sudo modprobe wireguard
+      - name: Unit and integration tiers
+        run: make docker-test
+      - name: Privileged tier
+        run: make docker-test-privileged
