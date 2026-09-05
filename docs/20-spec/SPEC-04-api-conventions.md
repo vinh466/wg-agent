@@ -3,7 +3,7 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.13
+version: 1.14
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -89,6 +89,17 @@ cannot be changed at all under `REQ-API-061`. It returns with the watch work def
 | `GET` | `/v1/version` | GetVersion |
 | `GET` | `/v1/overview` | GetOverview |
 | `GET` | `/v1/health` | GetHealth |
+
+> **REQ-API-080** — A `public_key` request field MUST carry the encoding of `REQ-RES-027`.
+
+> **REQ-API-081** — The REST gateway MUST convert the path segment encoding of `REQ-RES-021`
+> into the field encoding of `REQ-API-080`.
+
+Four rows bind `{public_key}` into a request field. A gateway that passed the segment through
+unchanged would leave a REST caller sending unpadded base64url where a gRPC caller sends padded
+standard base64, so the same peer would be addressable by two different strings and an equality
+check against the stored value would fail for one of them. Converting at the edge keeps one
+encoding inside the service.
 
 `ListPeerStatus` uses the `:status` custom-method form rather than a `/status` path segment,
 which would otherwise match the `{public_key}` variable in the sibling route. `Reconcile`
@@ -295,6 +306,14 @@ and `ADOPTION_FIELD_REQUIRED` in `REQ-RCN-066`.
 
 > **REQ-API-067** — An `ADOPTION_BLOCKED` status MUST carry the findings of `REQ-DIA-040` for
 > the named interface.
+
+> **REQ-API-079** — A structured payload accompanying an error MUST travel in
+> `google.rpc.Status.details` rather than in `ErrorInfo`.
+
+`REQ-API-079` exists because `ErrorInfo` cannot hold one. Its only extensible member is a
+`map<string, string>`, and a finding under `REQ-DIA-041` carries six fields of which two are
+lists, so flattening one into string keys would invent an encoding no requirement defines.
+`details` takes a message, which is what a finding is.
 
 > **REQ-API-068** — `AdoptInterface` MUST accept a validate-only mode that returns the spec the
 > request would store without writing it.
