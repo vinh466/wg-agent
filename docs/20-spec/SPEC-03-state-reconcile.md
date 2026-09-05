@@ -3,7 +3,7 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.8
+version: 1.9
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -28,8 +28,14 @@ fields the agent enforces and which the kernel owns.
 
 > **REQ-RCN-001** — The agent MUST persist desired state to disk and restore it on startup.
 
-> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id`, `created_at`, the
-> deletion records defined in section 6 and the adoption records defined in section 6.3.
+> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id`, `created_at`,
+> `revision`, the deletion records defined in section 6 and the adoption records defined in
+> section 6.3.
+
+`revision` is stored rather than derived. Deriving it from the spec — a hash, say — would make a
+spec changed from A to B and back to A reproduce its earlier value, and `REQ-API-031` would then
+accept a write from a caller holding a stale read. A stored value that only ever moves forward
+has no such case.
 
 > **REQ-RCN-050** — The store MUST NOT hold `status` values or any traffic counter.
 

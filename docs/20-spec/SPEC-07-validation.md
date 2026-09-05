@@ -3,7 +3,7 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.8
+version: 1.10
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -56,8 +56,7 @@ two identical prefixes the later-configured peer silently displaces the earlier 
 > host other than the one the spec names, with `ADDRESS_CONFLICT`.
 
 > **REQ-VAL-015** — The agent MUST reject a create request naming a WireGuard link that
-> already exists, unless desired state describes that link or a deletion record names it, with
-> `INTERFACE_EXISTS`.
+> already exists, unless a deletion record names it, with `INTERFACE_EXISTS`.
 
 `REQ-VAL-013` and `REQ-VAL-014` reach foreign interfaces as well as managed ones. A port or
 subnet held by a link the agent did not create collides just as firmly, and checking only
@@ -76,11 +75,10 @@ store does not know. Adoption under
 [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) is the supported path, and
 it is explicit.
 
-The two exemptions keep the rule from blocking cases it is not aimed at. A link desired state
-already describes is a repeated create of a managed interface, which stays idempotent under
-`REQ-RES-003`. A link named by a deletion record is the agent's own orphan under
-`REQ-RCN-034`, and refusing to recreate it would leave a shell on the node as its only
-recovery.
+The one exemption covers the agent's own orphan under `REQ-RCN-034`: refusing to recreate a
+link it failed to delete would leave a shell on the node as the only recovery. A repeated create
+of a managed interface is refused like any other, which `REQ-RES-003` permits because the store
+is left unchanged — the same answer `REQ-API-071` gives for a repeated peer create.
 
 > **REQ-VAL-016** — The agent MUST reject an `InterfaceSpec` whose `addresses` list is empty
 > with `ADDRESSES_REQUIRED`.
@@ -127,25 +125,26 @@ Longest-prefix matching makes this valid, but it usually indicates a mistake.
 
 Valid for site-to-site, usually a mistake otherwise.
 
-> **REQ-VAL-032** — The agent MUST warn when `mtu` falls outside the range 1280 to 1500.
+> **REQ-VAL-032** — The agent MUST warn with `MTU_OUT_OF_RANGE` when `mtu` falls outside the
+> range 1280 to 1500.
 
-> **REQ-VAL-033** — The agent MUST warn when `endpoint` is a hostname rather than an IP
-> address.
+> **REQ-VAL-033** — The agent MUST warn with `ENDPOINT_NOT_IP` when `endpoint` is a hostname
+> rather than an IP address.
 
 The kernel stores only the resolved address, so a DNS change does not propagate.
 
-> **REQ-VAL-023** — The agent MUST warn when an `inter_interface = ALLOW_LIST` relationship
-> is declared in one direction only.
+> **REQ-VAL-023** — The agent MUST warn with `INTER_INTERFACE_ONE_SIDED` when an
+> `inter_interface = ALLOW_LIST` relationship is declared in one direction only.
 
 Valid and stateful per `REQ-FWD-017`, but usually a forgotten reciprocal declaration.
 
-> **REQ-VAL-034** — The agent MUST warn when `allowed_peer_interfaces` is non-empty while
-> `inter_interface != ALLOW_LIST`.
+> **REQ-VAL-034** — The agent MUST warn with `ALLOWED_PEER_INTERFACES_IGNORED` when
+> `allowed_peer_interfaces` is non-empty while `inter_interface != ALLOW_LIST`.
 
 The field is ignored in that combination, which usually reflects a misunderstanding.
 
-> **REQ-VAL-035** — The agent MUST warn when `external = ALLOW` is combined with
-> `nat.enabled = false`.
+> **REQ-VAL-035** — The agent MUST warn with `EXTERNAL_WITHOUT_NAT` when `external = ALLOW`
+> is combined with `nat.enabled = false`.
 
 Traffic leaves without source NAT, so return traffic almost certainly has no route back.
 Syntactically valid, practically broken.

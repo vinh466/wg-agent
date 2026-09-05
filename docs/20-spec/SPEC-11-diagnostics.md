@@ -3,7 +3,7 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.5
+version: 1.6
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -73,6 +73,15 @@ which is why it reports figures rather than prose.
 > **REQ-DIA-021** — Each component MUST carry a result of `PASS`, `WARN`, `FAIL` or
 > `UNKNOWN`, matching the vocabulary of `REQ-DIA-002`.
 
+> **REQ-DIA-052** — Each component MUST be reported as a `name`, a `result`, a `message` and a
+> list of name-value details.
+
+The `Reported` column above says what belongs in a component's details, not what its message
+shape is. `REQ-DIA-052` fixes one envelope for all nine rather than thirty typed fields across
+nine messages, which is what lets a component gain a detail without that being a change to the
+contract under `REQ-API-061`. Typed payloads are a candidate for a later version, not a thing
+this one has to guess at.
+
 > **REQ-DIA-022** — `GetOverview` MUST be read-only and accessible to the `reader` role.
 
 > **REQ-DIA-023** — `GetOverview` MUST NOT trigger reconciliation or alter state in any way.
@@ -96,7 +105,12 @@ those links for an operator to remove and this endpoint is where that backlog be
 > check results.
 
 > **REQ-DIA-002** — Each result MUST contain `name`, `result` — one of `PASS`, `WARN`, `FAIL`,
-> `UNKNOWN` — plus `observed`, `expected`, `hint_code` and `hint`.
+> `UNKNOWN` — plus `observed` and `expected` as lists of strings, and `hint_code` and `hint` as
+> strings.
+
+`observed` is a list because `REQ-DIA-031` requires a peer-scoped check to name every public key
+concerned, and a single string would need a separator no requirement defines. A check with one
+observation carries a list of one.
 
 > **REQ-DIA-003** — `hint` MUST describe a concrete corrective action rather than restating
 > the symptom.

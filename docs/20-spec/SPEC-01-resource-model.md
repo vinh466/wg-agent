@@ -3,7 +3,7 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.7
+version: 1.9
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -37,13 +37,27 @@ authorship, not origin: a caller writes `spec` and reads `status`. `instance_id`
 
 > **REQ-RES-002** — `Interface` and `Peer` MUST be separate collections.
 
+> **REQ-RES-034** — Every resource MUST carry its identity outside both `spec` and `status`.
+
+Identity is neither desired nor observed: it is the address of the thing. Keeping it outside
+both is what makes `REQ-RCN-031` satisfiable — a `FOREIGN` interface is returned with `status`
+populated and `spec` absent, so identity held in `spec` would leave a caller with a list of
+interfaces it cannot name, and nothing to pass to `AdoptInterface`.
+
 > **REQ-RES-030** — `InterfaceSpec` MUST NOT contain a peer list.
 
 Rationale: separate collections let Terraform or an operator manage individual peers
 without contesting ownership with the interface spec. Atomic replacement of a whole peer
 set uses `BatchUpdatePeers` (`REQ-API-034`).
 
-> **REQ-RES-003** — Every write operation MUST be idempotent.
+> **REQ-RES-003** — Repeating a write operation MUST leave the same state as performing it
+> once.
+
+Idempotence here is about state, not about the status code. A repeated create is refused under
+`REQ-VAL-015` and a delete of an absent peer under `REQ-API-070`, and both leave the store
+exactly as they found it, which is the property a caller retrying after a lost response needs.
+Reading the rule as "a repeat must succeed" would put `CreateInterface` and `CreatePeer` on
+opposite sides of the same question.
 
 > **REQ-RES-004** — Any IPv6 address or CIDR in a spec MUST be rejected explicitly, per
 > `REQ-VAL-020`.
@@ -61,9 +75,10 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 
 ### 3.2. InterfaceSpec
 
+`name` is not a member of the spec — it identifies the resource under `REQ-RES-034`.
+
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `name` | string | Yes | — | Immutable |
 | `private_key` | string (base64) | No | generated | Never readable afterwards |
 | `listen_port` | uint32 | No | `0` | `0` lets the kernel choose |
 | `addresses` | []string (CIDR) | Yes | — | IPv4 only |
@@ -135,6 +150,10 @@ of them.
 must not parse it. The agent is free to change how it derives one without that being a contract
 change.
 
+The `reason` of `REQ-RES-032` is drawn from the same closed set as a warning's, so a caller
+branches on one field the same way it branches on the other. `RECONCILE_FAILED` under
+`REQ-RCN-040` is the value a `DEGRADED` condition carries; a `READY` condition carries none.
+
 > **REQ-RES-017** — `status.ownership` MUST take one of the three values below.
 
 | Value | Meaning |
@@ -188,10 +207,11 @@ would not match anything an operator can copy.
 
 ### 4.2. PeerSpec
 
+`interface_name` and `public_key` are not members of the spec — together they identify the
+resource under `REQ-RES-020` and `REQ-RES-034`.
+
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `interface_name` | string | Yes | — | Immutable |
-| `public_key` | string (base64) | Yes | — | Immutable |
 | `preshared_key` | string (base64) | No | — | Write-only |
 | `allowed_ips` | []string (CIDR) | Yes | — | Cryptokey routing, IPv4 only |
 | `endpoint` | string | No | — | `host:port`. A **kernel-owned** field — see `REQ-RCN-013` |
@@ -221,8 +241,12 @@ nowhere to appear.
 > **REQ-RES-023** — When a peer has never completed a handshake, `last_handshake_at` and
 > `handshake_age_seconds` MUST be null rather than an epoch-zero value.
 
-> **REQ-RES-024** — The agent MUST read `status` directly from the kernel on every call
-> rather than accumulating or storing traffic figures.
+> **REQ-RES-024** — The agent MUST read the kernel-sourced fields of `status` directly from
+> the kernel on every call rather than accumulating or storing traffic figures.
+
+The qualifier matters for the same reason `REQ-RES-001` carries one: `revision`, `condition` and
+`warnings` are agent records, and reading them from the kernel is not possible. The rule exists
+for the traffic counters, which must never be accumulated in the agent.
 
 > **REQ-RES-025** — The agent MUST compute `online` as
 > `last_handshake_at != null AND (now - last_handshake_at) < peer_online_threshold`,

@@ -229,7 +229,7 @@ func writeAdoptText(w io.Writer, res *service.AdoptResult) {
 	if res.DryRun {
 		verb = "would adopt"
 	}
-	fmt.Fprintf(w, "%s %s\n", verb, res.Spec.Name)
+	fmt.Fprintf(w, "%s %s\n", verb, res.Name)
 	fmt.Fprintf(w, "  private key   %s (kept, not regenerated)\n", present(res.Spec.PrivateKey != ""))
 	fmt.Fprintf(w, "  listen port   %d\n", res.Spec.ListenPort)
 	fmt.Fprintf(w, "  addresses     %s\n", join(res.Spec.Addresses))
@@ -242,7 +242,7 @@ func writeAdoptText(w io.Writer, res *service.AdoptResult) {
 	fmt.Fprintf(w, "  peers         %d\n", len(res.Peers))
 	for _, p := range res.Peers {
 		fmt.Fprintf(w, "    %s  allowed-ips %s  psk %s\n",
-			p.PublicKey, join(p.AllowedIPs), present(p.PresharedKey != ""))
+			p.PublicKey, join(p.Spec.AllowedIPs), present(p.Spec.PresharedKey != ""))
 	}
 
 	var warnings []service.Finding

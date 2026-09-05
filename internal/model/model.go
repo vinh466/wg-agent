@@ -51,10 +51,13 @@ type NatSpec struct {
 
 // InterfaceSpec is SPEC-01 section 3.2.
 //
+// It carries no name: REQ-RES-034 keeps identity outside both spec and status,
+// so that an interface returned with its spec absent — a FOREIGN one under
+// REQ-RCN-031 — is still addressable.
+//
 // PrivateKey is write-only: REQ-RES-013 keeps it out of every response, and the
 // readiness report of REQ-DIA-047 reports only that it is present.
 type InterfaceSpec struct {
-	Name          string            `json:"name"`
 	PrivateKey    string            `json:"private_key,omitempty"`
 	ListenPort    int               `json:"listen_port"`
 	Addresses     []string          `json:"addresses"`
@@ -67,14 +70,21 @@ type InterfaceSpec struct {
 	Labels        map[string]string `json:"labels,omitempty"`
 }
 
+// Peer pairs a peer's identity with its spec. REQ-RES-020 makes the pair
+// (interface_name, public_key) the identity, and REQ-RES-034 keeps it out of
+// the spec.
+type Peer struct {
+	InterfaceName string   `json:"interface_name"`
+	PublicKey     string   `json:"public_key"`
+	Spec          PeerSpec `json:"spec"`
+}
+
 // PeerSpec is SPEC-01 section 4.2.
 //
 // Endpoint is kernel-owned under REQ-RCN-013 and REQ-RCN-051. Adoption never
 // stores one (REQ-RCN-063), so the field is present for a create or update that
 // sets it deliberately.
 type PeerSpec struct {
-	InterfaceName       string            `json:"interface_name"`
-	PublicKey           string            `json:"public_key"`
 	PresharedKey        string            `json:"preshared_key,omitempty"`
 	AllowedIPs          []string          `json:"allowed_ips"`
 	Endpoint            string            `json:"endpoint,omitempty"`

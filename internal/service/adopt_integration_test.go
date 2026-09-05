@@ -95,7 +95,7 @@ func TestAdopt_LeavesTheRunningTunnelIntact_REQ_RCN_061(t *testing.T) {
 	if len(res.Peers) != 1 || res.Peers[0].PublicKey != peerKey {
 		t.Errorf("the peer was not carried into desired state: %+v", res.Peers)
 	}
-	if res.Peers[0].PresharedKey == "" {
+	if res.Peers[0].Spec.PresharedKey == "" {
 		t.Error("the preshared key was not carried into desired state")
 	}
 	if !st.Snapshot().Describes("wgadopt0") || !st.Snapshot().AdoptionRecord("wgadopt0") {

@@ -20,9 +20,11 @@ func openAt(t *testing.T, path string) *store.Store {
 	return st
 }
 
-func spec(name string) model.InterfaceSpec {
+// spec builds an interface spec. It carries no name: REQ-RES-034 keeps
+// identity outside the spec, so the store takes it as a separate argument.
+func spec() model.InterfaceSpec {
 	return model.InterfaceSpec{
-		Name: name, ListenPort: 51820, Addresses: []string{"10.0.0.1/24"},
+		ListenPort: 51820, Addresses: []string{"10.0.0.1/24"},
 		MTU: 1420, ForwardPolicy: model.DefaultForwardPolicy(),
 	}
 }
@@ -53,7 +55,7 @@ func TestStore_WriteIsAtomicAndPrivate_REQ_RCN_004(t *testing.T) {
 	st := openAt(t, path)
 
 	if err := st.Update(func(tx *store.Txn) error {
-		return tx.PutInterface(spec("wg0"), "instance-1", "2026-09-06T00:00:00Z")
+		return tx.PutInterface("wg0", spec(), "instance-1", "2026-09-06T00:00:00Z")
 	}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -87,7 +89,7 @@ func TestStore_FailedTransactionWritesNothing_REQ_RCN_003(t *testing.T) {
 
 	sentinel := errors.New("no")
 	err := st.Update(func(tx *store.Txn) error {
-		if err := tx.PutInterface(spec("wg0"), "instance-1", "now"); err != nil {
+		if err := tx.PutInterface("wg0", spec(), "instance-1", "now"); err != nil {
 			return err
 		}
 		return sentinel
@@ -109,11 +111,12 @@ func TestStore_RemoveInterfaceClearsPeersAndAdoption_REQ_RCN_071(t *testing.T) {
 	st := openAt(t, path)
 
 	if err := st.Update(func(tx *store.Txn) error {
-		if err := tx.PutInterface(spec("wg0"), "instance-1", "now"); err != nil {
+		if err := tx.PutInterface("wg0", spec(), "instance-1", "now"); err != nil {
 			return err
 		}
-		if err := tx.PutPeers("wg0", []model.PeerSpec{{
-			InterfaceName: "wg0", PublicKey: "peer-a", AllowedIPs: []string{"10.0.0.2/32"},
+		if err := tx.PutPeers("wg0", []model.Peer{{
+			InterfaceName: "wg0", PublicKey: "peer-a",
+			Spec: model.PeerSpec{AllowedIPs: []string{"10.0.0.2/32"}},
 		}}); err != nil {
 			return err
 		}
@@ -148,16 +151,17 @@ func TestStore_PeersRoundTrip_REQ_RCN_002(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.db")
 	st := openAt(t, path)
 
-	want := []model.PeerSpec{
-		{InterfaceName: "wg0", PublicKey: "peer-a", AllowedIPs: []string{"10.0.0.2/32"},
-			PresharedKey: "psk", PersistentKeepalive: 25},
-		{InterfaceName: "wg0", PublicKey: "peer-b", AllowedIPs: []string{"10.0.0.3/32"}},
+	want := []model.Peer{
+		{InterfaceName: "wg0", PublicKey: "peer-a", Spec: model.PeerSpec{
+			AllowedIPs: []string{"10.0.0.2/32"}, PresharedKey: "psk", PersistentKeepalive: 25}},
+		{InterfaceName: "wg0", PublicKey: "peer-b", Spec: model.PeerSpec{
+			AllowedIPs: []string{"10.0.0.3/32"}}},
 	}
 	if err := st.Update(func(tx *store.Txn) error { return tx.PutPeers("wg0", want) }); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
-	var got []model.PeerSpec
+	var got []model.Peer
 	if err := st.Update(func(tx *store.Txn) error {
 		var err error
 		got, err = tx.Peers("wg0")
@@ -165,10 +169,10 @@ func TestStore_PeersRoundTrip_REQ_RCN_002(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if len(got) != 2 || got[0].PublicKey != "peer-a" || got[0].PresharedKey != "psk" {
+	if len(got) != 2 || got[0].PublicKey != "peer-a" || got[0].Spec.PresharedKey != "psk" {
 		t.Errorf("peers did not round-trip: %+v", got)
 	}
-	if got[1].PersistentKeepalive != 0 {
-		t.Errorf("keepalive default: want 0, got %d", got[1].PersistentKeepalive)
+	if got[1].Spec.PersistentKeepalive != 0 {
+		t.Errorf("keepalive default: want 0, got %d", got[1].Spec.PersistentKeepalive)
 	}
 }

@@ -185,7 +185,7 @@ func (t *Txn) ForwardingBaseline(name string) (string, bool) {
 
 // PutInterface writes an interface spec together with the identity fields
 // REQ-RCN-002 permits the store to hold.
-func (t *Txn) PutInterface(spec model.InterfaceSpec, instanceID, createdAt string) error {
+func (t *Txn) PutInterface(name string, spec model.InterfaceSpec, instanceID, createdAt string) error {
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return fmt.Errorf("encode interface spec: %w", err)
@@ -193,7 +193,7 @@ func (t *Txn) PutInterface(spec model.InterfaceSpec, instanceID, createdAt strin
 	if t.f.Interfaces == nil {
 		t.f.Interfaces = map[string]iface{}
 	}
-	t.f.Interfaces[spec.Name] = iface{
+	t.f.Interfaces[name] = iface{
 		InstanceID: instanceID,
 		CreatedAt:  createdAt,
 		Spec:       b,
@@ -202,7 +202,7 @@ func (t *Txn) PutInterface(spec model.InterfaceSpec, instanceID, createdAt strin
 }
 
 // PutPeers replaces the peer set of one interface.
-func (t *Txn) PutPeers(name string, peers []model.PeerSpec) error {
+func (t *Txn) PutPeers(name string, peers []model.Peer) error {
 	if t.f.Peers == nil {
 		t.f.Peers = map[string]json.RawMessage{}
 	}
@@ -218,13 +218,13 @@ func (t *Txn) PutPeers(name string, peers []model.PeerSpec) error {
 	return nil
 }
 
-// Peers returns the stored peer specs of one interface.
-func (t *Txn) Peers(name string) ([]model.PeerSpec, error) {
+// Peers returns the stored peers of one interface.
+func (t *Txn) Peers(name string) ([]model.Peer, error) {
 	raw, ok := t.f.Peers[name]
 	if !ok {
 		return nil, nil
 	}
-	var out []model.PeerSpec
+	var out []model.Peer
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("decode peer specs: %w", err)
 	}

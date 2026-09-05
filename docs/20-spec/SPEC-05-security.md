@@ -3,7 +3,7 @@ id: SPEC-05
 title: Security, authentication and authorization
 prefix: SEC
 status: Accepted
-version: 1.5
+version: 1.7
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -49,9 +49,10 @@ records the reasoning and the conditions for widening the boundary.
 > its bind address is a loopback address.
 
 `REQ-SEC-083` exists because the metrics endpoint is not the harmless surface it looks like.
-`REQ-OBS-003` exposes a series per peer, so the endpoint names every public key, address and
-handshake time on the node — the same disclosure `REQ-DIA-024` keeps out of the overview, on a
-listener that carries no token under `REQ-SEC-071`.
+`REQ-OBS-002` exposes a series per peer, so the endpoint names every public key and handshake
+time on the node — the same disclosure `REQ-DIA-024` keeps out of the overview, on a listener
+that carries no token under `REQ-SEC-071`. `REQ-OBS-003` is the operator's opt-out, not the
+reason the exposure exists.
 
 `REQ-SEC-070` is a startup check rather than a runtime one, so a configuration error surfaces
 at deployment instead of on first request.
@@ -114,7 +115,7 @@ file followed by a reload, which is proportionate while the trust boundary is th
 
 | Role | Permitted |
 |---|---|
-| `reader` | Read-only RPCs: Get, List, Status, Watch, Diagnose, Overview, Health |
+| `reader` | Read-only RPCs: Get, List, Status, Diagnose, Overview, Health |
 | `admin` | All operations |
 
 > **REQ-SEC-077** — A caller connected over the unix socket MUST be granted the `admin` role.

@@ -3,7 +3,7 @@ id: SPEC-06
 title: Key management
 prefix: KEY
 status: Accepted
-version: 1.4
+version: 1.6
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -35,8 +35,12 @@ generation.
 > **REQ-KEY-003** — `RotateInterfaceKey` MUST generate a new key, apply it atomically, and
 > return the new public key.
 
-> **REQ-KEY-004** — The `RotateInterfaceKey` response MUST carry an explicit warning that
-> the operation disconnects every peer until each is updated with the new public key.
+> **REQ-KEY-004** — The `RotateInterfaceKey` response MUST carry a `warning` field stating
+> that the operation disconnects every peer until each is updated with the new public key.
+
+The warning is a field on the response rather than an entry in `status.warnings`, because
+`REQ-VAL-002` scopes that list to validation findings and nothing here failed validation. The
+operation succeeded, and its consequence is what the caller has to be told.
 
 Coordinating peer updates belongs to the platform layer. Rotation without disconnecting peers
 requires a second interface running in parallel; that work is deferred, and `REQ-KEY-004`
@@ -63,6 +67,17 @@ makes the disruption explicit. See the scope table in
 
 > **REQ-KEY-015** — The agent MUST support a configuration flag that disables this mode
 > entirely.
+
+> **REQ-KEY-040** — `GenerateKeyPair` MUST return one private key and its public key in that
+> single response.
+
+> **REQ-KEY-041** — `REQ-KEY-012`, `REQ-KEY-013` and `REQ-KEY-015` MUST govern
+> `GenerateKeyPair` as they govern `generate_keypair`.
+
+`GenerateKeyPair` and the `generate_keypair` flag of `REQ-KEY-011` are the same capability
+reached two ways: the flag creates a peer at the same time, the RPC does not. Nothing about the
+key changes, so nothing about how it is protected changes either — a caller that has disabled
+the mode under `REQ-KEY-015` has disabled both.
 
 Both listeners are local under
 [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md), so a generated private key

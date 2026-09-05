@@ -47,8 +47,9 @@ type AdoptRequest struct {
 
 // AdoptResult is what was written, or what would be written in a preview.
 type AdoptResult struct {
+	Name     string
 	Spec     model.InterfaceSpec
-	Peers    []model.PeerSpec
+	Peers    []model.Peer
 	Findings []Finding
 	// DryRun is true when nothing was written — REQ-CLI-006 and REQ-API-068.
 	DryRun bool
@@ -120,7 +121,10 @@ func (a Adopt) Do(st *store.Store, req AdoptRequest, dryRun bool) (*AdoptResult,
 		return nil, err
 	}
 
-	result := &AdoptResult{Spec: spec, Peers: peers, Findings: entry.Findings, DryRun: dryRun}
+	result := &AdoptResult{
+		Name: req.Name, Spec: spec, Peers: peers,
+		Findings: entry.Findings, DryRun: dryRun,
+	}
 	if dryRun {
 		return result, nil
 	}
@@ -132,13 +136,13 @@ func (a Adopt) Do(st *store.Store, req AdoptRequest, dryRun bool) (*AdoptResult,
 	// transaction, so a crash cannot leave a managed interface without the
 	// record REQ-RCN-072 needs to release it.
 	if err := st.Update(func(t *store.Txn) error {
-		if err := t.PutInterface(spec, instanceID, now); err != nil {
+		if err := t.PutInterface(req.Name, spec, instanceID, now); err != nil {
 			return err
 		}
-		if err := t.PutPeers(spec.Name, peers); err != nil {
+		if err := t.PutPeers(req.Name, peers); err != nil {
 			return err
 		}
-		t.PutAdoption(spec.Name, baseline, now)
+		t.PutAdoption(req.Name, baseline, now)
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("write desired state: %w", err)
@@ -185,7 +189,7 @@ func validateRequest(req AdoptRequest) error {
 //
 // REQ-RCN-061 takes the interface fields and the existing private key from the
 // kernel, REQ-RCN-062 takes every peer, and REQ-RCN-063 stores no endpoint.
-func (a Adopt) read(req AdoptRequest) (model.InterfaceSpec, []model.PeerSpec, error) {
+func (a Adopt) read(req AdoptRequest) (model.InterfaceSpec, []model.Peer, error) {
 	ls, err := a.Link.State(req.Name)
 	if err != nil {
 		return model.InterfaceSpec{}, nil, err
@@ -196,7 +200,6 @@ func (a Adopt) read(req AdoptRequest) (model.InterfaceSpec, []model.PeerSpec, er
 	}
 
 	spec := model.InterfaceSpec{
-		Name:       req.Name,
 		PrivateKey: ds.PrivateKey.Base64(),
 		ListenPort: ds.ListenPort,
 		MTU:        ls.MTU,
@@ -212,17 +215,19 @@ func (a Adopt) read(req AdoptRequest) (model.InterfaceSpec, []model.PeerSpec, er
 		spec.Addresses = append(spec.Addresses, p.String())
 	}
 
-	peers := make([]model.PeerSpec, 0, len(ds.Peers))
+	peers := make([]model.Peer, 0, len(ds.Peers))
 	for _, p := range ds.Peers {
-		peer := model.PeerSpec{
-			InterfaceName:       req.Name,
-			PublicKey:           p.PublicKey,
-			PresharedKey:        p.PresharedKey.Base64(),
-			PersistentKeepalive: int(p.PersistentKeepalive.Seconds()),
-			// Endpoint is deliberately absent — REQ-RCN-063.
+		peer := model.Peer{
+			InterfaceName: req.Name,
+			PublicKey:     p.PublicKey,
+			Spec: model.PeerSpec{
+				PresharedKey:        p.PresharedKey.Base64(),
+				PersistentKeepalive: int(p.PersistentKeepalive.Seconds()),
+				// Endpoint is deliberately absent — REQ-RCN-063.
+			},
 		}
 		for _, n := range p.AllowedIPs {
-			peer.AllowedIPs = append(peer.AllowedIPs, n.String())
+			peer.Spec.AllowedIPs = append(peer.Spec.AllowedIPs, n.String())
 		}
 		peers = append(peers, peer)
 	}

@@ -3,7 +3,7 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.10
+version: 1.13
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -45,20 +45,24 @@ Service surface, REST mapping, write semantics, concurrency control, error model
 |---|---|
 | `InterfaceService` | Create, Get, List, Update, Delete, RotateKey, Adopt, Release |
 | `PeerService` | Create, Get, List, Update, Delete, BatchUpdate |
-| `RuntimeService` | GetInterfaceStatus, ListPeerStatus, WatchPeerStatus |
+| `RuntimeService` | GetInterfaceStatus, ListPeerStatus |
 | `ConfigService` | GenerateClientConfig, GenerateKeyPair |
 | `DiagnosticsService` | DiagnoseInterface, GetOverview — see [SPEC-11](SPEC-11-diagnostics.md) |
 | `SystemService` | GetHealth, GetVersion, Reconcile |
 
-> **REQ-API-010** — REST MUST provide a polling endpoint equivalent to `WatchPeerStatus`.
+> **REQ-API-010** — `ListPeerStatus` MUST report the status of every peer on an interface in
+> one call.
 
-`ListPeerStatus` is that endpoint. `WatchPeerStatus` exists only on gRPC, because a streaming
-RPC has no faithful REST equivalent and a polling caller is served by the list form.
+A streaming `WatchPeerStatus` was on this surface and is not specified: nothing said what its
+request scoped to, what the stream element carried, or what emitted an event. An RPC absent from
+v1 can be added later without breaking a generated client, while one frozen in the wrong shape
+cannot be changed at all under `REQ-API-061`. It returns with the watch work deferred under
+`B-05` in the [backlog](../60-planning/backlog.md).
 
 ## 4. REST mapping
 
-> **REQ-API-063** — Every RPC in section 3 apart from `WatchPeerStatus` MUST carry the REST
-> mapping given in the table below.
+> **REQ-API-063** — Every RPC in section 3 MUST carry the REST mapping given in the table
+> below.
 
 | Method | Path | RPC |
 |---|---|---|
@@ -116,6 +120,23 @@ four cases without a field mask, so the verb is absent instead.
 > **REQ-API-064** — `UpdateInterface` and `UpdatePeer` MUST replace the whole spec of the
 > target resource with the supplied one.
 
+> **REQ-API-075** — A spec field a request omits MUST take the default given in
+> [SPEC-01](SPEC-01-resource-model.md) section 3.2 or section 4.2.
+
+> **REQ-API-076** — A field whose default differs from its zero value MUST be encoded so that
+> an absent value is distinguishable from that zero value.
+
+`REQ-API-076` is the one that cannot be deferred. `enabled` and `manage_routes` default to
+`true`, and `mtu` to 1420, so a wire format without explicit presence reads an omitted field as
+`false` or `0`: with `REQ-API-064` replacing the whole spec, a caller that omits `enabled` would
+take the link down and one that omits `manage_routes` would drop its routes. The three fields
+`REQ-API-076` reaches are `mtu`, `manage_routes` and `enabled`, plus the `manage_routes` of the
+adoption request that `REQ-RCN-066` requires a caller to state.
+
+Section 5.1 above names the fields whose zero value carries meaning. Those are a different set:
+their default already is the zero value, so they need no presence marker. The two lists are easy
+to confuse and the distinction is what makes both correct.
+
 > **REQ-API-065** — A write-only field omitted from an update MUST retain its stored value.
 
 > **REQ-API-066** — An update supplying an immutable field whose value differs from the stored
@@ -167,6 +188,15 @@ Resource identity is `name` for interfaces and `public_key` for peers, per `REQ-
 
 > **REQ-API-030** — Every resource MUST carry an opaque `revision` that changes whenever its
 > spec changes.
+
+> **REQ-API-077** — An interface's `revision` MUST also change when the set of peers on that
+> interface changes.
+
+`REQ-API-077` is what makes `REQ-API-072` work. Peers are a separate collection under
+`REQ-RES-002`, so an interface revision bound to its own spec alone would not move when a peer
+was added, and the batch write it guards would not detect the change it exists to detect. The
+cost is that an interface revision turns over more often, which is correct: a peer set is part
+of what that interface does.
 
 > **REQ-API-031** — On a mismatched `revision`, the agent MUST return `FAILED_PRECONDITION`
 > with reason `REVISION_MISMATCH`, mapped to HTTP `412`.
@@ -230,15 +260,18 @@ IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
 ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED     INTERFACE_NOT_FOREIGN
 ADOPTION_FIELD_REQUIRED     ADDRESSES_REQUIRED        ALLOWED_IPS_REQUIRED
-ENDPOINT_REQUIRED
+ENDPOINT_REQUIRED           MTU_OUT_OF_RANGE          ENDPOINT_NOT_IP
+INTER_INTERFACE_ONE_SIDED   EXTERNAL_WITHOUT_NAT
+ALLOWED_PEER_INTERFACES_IGNORED
 ```
 
 `TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
 alike, so a second code described a distinction the agent deliberately does not make.
 
-Every remaining value has a producing requirement. The startup table of `REQ-API-050` names the
-codes for the checks it performs, `REQ-VAL-010` to `REQ-VAL-035` name the validation codes, and
-the rest are named where the behaviour is defined:
+Every value has a producing requirement, in both directions: no code is unreachable, and no rule
+that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-035` each name their own code, error
+and warning alike, and the startup table of `REQ-API-050` names the codes for the checks it
+performs. The rest are named where the behaviour is defined:
 
 | Code | Produced by |
 |---|---|
@@ -285,18 +318,33 @@ each one a stable `hint_code`.
 | 2 | `CAP_NET_ADMIN` is held | `MISSING_CAP_NET_ADMIN` |
 | 3 | The store opens and is writable | `STORE_CORRUPT` |
 | 4 | The store schema is one this build understands (`REQ-RCN-005`) | `STORE_SCHEMA_TOO_NEW` |
-| 5 | Forwarding sysctl is writable (`REQ-FWD-025`) | `SYSCTL_WRITE_DENIED` |
-| 6 | When NAT is enabled, `nf_tables` is available | `NFTABLES_UNAVAILABLE` |
+| 5 | Forwarding sysctl is writable | per `REQ-FWD-025` |
+| 6 | When NAT is enabled, or any axis of an interface in desired state is `DENY`, `nf_tables` is available | `NFTABLES_UNAVAILABLE` |
 | 7 | When the HTTP listener is enabled, its bind address is loopback (`REQ-SEC-070`) | `NON_LOOPBACK_BIND` |
 | 8 | When the HTTP listener is enabled, at least one token is configured (`REQ-SEC-072`) | `TOKEN_INVALID` |
+| 9 | When the metrics listener is enabled, its bind address is loopback (`REQ-SEC-083`) | `NON_LOOPBACK_BIND` |
 
 A startup failure carries a reason code for the same purpose a request failure does: an
 installer or a unit log should be able to branch on the cause without matching message text.
 Checks 3 and 4 were one line before, and they are separated here because a corrupt store and a
-store from a newer build call for opposite actions — restore one, downgrade nothing.
+store from a newer build call for opposite actions — restore one, downgrade nothing. Row 5
+points at `REQ-FWD-025` rather than repeating the code it already names, since sysctl belongs to
+[SPEC-02](SPEC-02-forward-policy.md).
+
+Check 6 reads desired state, so it runs after checks 3 and 4. It covers a `DENY` axis as well as
+NAT because `REQ-FWD-001` makes two axes `DENY` by default and `REQ-FWD-003` turns each into a
+drop rule: gating the check on NAT alone would let a stock agent start cleanly on a host where
+its own defaults cannot be enforced, which is the failure the system requirements of
+[SPEC-09](SPEC-09-config-deployment.md) section 3 already rule out.
 
 > **REQ-API-051** — `/v1/health` MUST report success only after every startup check passes and
 > the first reconcile pass completes.
+
+> **REQ-API-078** — `GetVersion` MUST report the agent version, the commit it was built from,
+> the Go version, the process start time and its uptime.
+
+Those are the five values `REQ-DIA-020` already reports in its `agent` row, so the two surfaces
+agree by construction rather than by coincidence.
 
 A single endpoint covers both liveness and readiness because the agent runs under systemd
 rather than an orchestrator that distinguishes them. Splitting it later adds a path without

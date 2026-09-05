@@ -75,6 +75,9 @@ func TestAdopt_StoresKernelStateAndKeepsTheKey_REQ_RCN_061(t *testing.T) {
 	// The interface key survives adoption, which is what leaves every existing
 	// client configuration valid.
 	want := n.Devices["wg0"].PrivateKey.Base64()
+	if res.Name != "wg0" {
+		t.Errorf("the result must name the interface it adopted, got %q", res.Name)
+	}
 	if res.Spec.PrivateKey != want || want == "" {
 		t.Errorf("private key: want the kernel's, got %q", res.Spec.PrivateKey)
 	}
@@ -105,14 +108,14 @@ func TestAdopt_StoresEveryPeerWithoutEndpoint_REQ_RCN_062(t *testing.T) {
 	for _, p := range res.Peers {
 		// REQ-RCN-063 — the kernel does not distinguish a learned endpoint from
 		// a configured one, so adoption stores neither.
-		if p.Endpoint != "" {
-			t.Errorf("%s: endpoint must not be stored, got %q", p.PublicKey, p.Endpoint)
+		if p.Spec.Endpoint != "" {
+			t.Errorf("%s: endpoint must not be stored, got %q", p.PublicKey, p.Spec.Endpoint)
 		}
 		if p.InterfaceName != "wg0" {
 			t.Errorf("%s: interface_name not set", p.PublicKey)
 		}
 	}
-	if res.Peers[0].PresharedKey == "" {
+	if res.Peers[0].Spec.PresharedKey == "" {
 		t.Error("the preshared key must be carried into desired state")
 	}
 }
@@ -198,7 +201,7 @@ func TestAdopt_DryRunWritesNothing_REQ_CLI_006(t *testing.T) {
 	if !res.DryRun {
 		t.Error("the result must report that nothing was written")
 	}
-	if res.Spec.Name != "wg0" {
+	if res.Name != "wg0" || res.Spec.ListenPort != 51820 {
 		t.Error("a preview must still return the spec that would be stored")
 	}
 	if st.Snapshot().Describes("wg0") {
