@@ -130,6 +130,37 @@ and conflating them costs an operator real time: a `FOREIGN` link belongs to som
 must never be touched, while an `ORPHANED` link is the agent's own leftover and wants cleaning
 up.
 
+Every transition below is a store write. `REQ-RES-017` decides the state from two facts the
+store holds — whether desired state describes the link, and whether a deletion record names it —
+so no transition depends on remembering which party created the link.
+
+```mermaid
+stateDiagram-v2
+  [*] --> FOREIGN: a link appears that<br/>desired state does not describe
+  [*] --> MANAGED: CreateInterface
+
+  FOREIGN --> MANAGED: AdoptInterface<br/>REQ-RCN-060, REQ-RCN-074
+  MANAGED --> FOREIGN: ReleaseInterface<br/>REQ-RCN-069, adoption record required
+
+  MANAGED --> [*]: DeleteInterface, link removed<br/>REQ-RCN-032
+  MANAGED --> ORPHANED: DeleteInterface, link survived<br/>REQ-RCN-033, REQ-RCN-034
+  ORPHANED --> [*]: operator removes the link,<br/>record clears — REQ-RCN-037
+
+  note right of FOREIGN
+    Never deleted or modified
+    REQ-RCN-030
+  end note
+  note right of ORPHANED
+    Never deleted or modified either
+    REQ-RCN-035
+  end note
+```
+
+Two properties are worth reading off the diagram. Release returns an interface to `FOREIGN`
+rather than to `ORPHANED`, because it writes no deletion record. And `MANAGED` is the only state
+with more than one exit, which is why `REQ-RCN-071` clears the adoption record on the transaction
+that removes the spec rather than on one named exit.
+
 ### 6.1. Foreign interfaces
 
 > **REQ-RCN-030** — A WireGuard interface that desired state does not describe and that no

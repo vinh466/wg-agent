@@ -63,6 +63,10 @@ links, assigning addresses, setting MTU and adding routes all belong to netlink.
 
 ## Repository layout
 
+The Go module path is `wg-agent`. A bare path suits a module with no external consumers; the
+Go client SDK of M5 is what makes a resolvable path necessary, and changing it then is one
+`go mod edit -module` and a rewrite of the import prefix.
+
 ```
 cmd/wg-agent/              entrypoint and subcommands per SPEC-12
 api/proto/wgagent/v1/      .proto — source of truth for the API
@@ -110,7 +114,7 @@ docs/                      documentation — start at docs/README.md
 
 | Level | Approach |
 |---|---|
-| Unit | netlink and wgctrl adapters sit behind interfaces; service tests use fakes |
+| Unit | The ports in `internal/platform` are the seam: adapters implement them against the kernel, `internal/platform/fake` implements them in memory, and nothing above that layer needs privilege |
 | Integration | Real WireGuard inside a dedicated network namespace. A container supplies one, along with a pinned `wg`, `ip` and `nft` and the Go toolchain — see [running the tests](../50-guides/running-tests.md) |
 | Reconcile | Inject drift manually — delete a link, add a foreign peer, change MTU — assert convergence |
 | Roaming | Change a peer endpoint externally and assert reconcile does not overwrite it (`REQ-RCN-013`) |

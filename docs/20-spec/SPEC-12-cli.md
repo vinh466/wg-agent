@@ -3,7 +3,7 @@ id: SPEC-12
 title: Command line surface
 prefix: CLI
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-05
 updated: 2026-09-05
@@ -90,6 +90,36 @@ subcommands.
 The migration this supports costs no downtime. Disabling a `wg-quick` unit does not stop it, so
 the interface keeps running while the unit stops competing for the next boot; adoption then
 takes over the live link with its key intact.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Op as Operator
+  participant CLI as wg-agent
+  participant K as Kernel
+  participant FS as Filesystem
+  participant S as Store
+
+  Op->>CLI: doctor
+  CLI->>K: enumerate links, read each device
+  CLI->>FS: wg-quick unit symlink, config directives
+  CLI->>S: desired state, deletion records
+  CLI-->>Op: FAIL wg-quick@wg0 enabled<br/>WARN PostUp, DNS, discarded endpoint
+
+  Note over Op: systemctl disable wg-quick@wg0<br/>does not stop it, so wg0 keeps running
+
+  Op->>CLI: adopt wg0 --dry-run
+  CLI-->>Op: the spec that would be stored,<br/>write-only fields excluded
+
+  Op->>CLI: adopt wg0 --forward-policy ...
+  CLI->>K: read device and link
+  CLI->>S: interface, peers and adoption record<br/>in one transaction
+  CLI-->>Op: adopted, ownership now MANAGED
+```
+
+Step 5 is the one that earns the command. Every finding it reports is a thing an operator would
+otherwise discover after adoption: a competing unit at the next reboot, a `PostUp` rule that
+disappears with it, an endpoint no longer in desired state.
 
 ## 4. Token issuance
 

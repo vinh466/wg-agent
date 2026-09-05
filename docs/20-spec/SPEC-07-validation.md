@@ -3,7 +3,7 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -60,6 +60,11 @@ subnet held by a link the agent did not create collides just as firmly, and chec
 managed interfaces would let the spec pass validation and fail when applied. Both exclude the
 interface the spec names, so validating an adopted spec does not match it against the very link
 it was read from.
+
+`REQ-VAL-013` is not made redundant by the kernel. Two WireGuard devices may both hold one
+listen port while at most one of them is up; the second bind is refused on the transition to up,
+with `Address in use`. A port collision between two existing links is therefore reachable
+exactly when one is down, which is the state adoption would take over and then bring up.
 
 `REQ-VAL-015` is what keeps a name collision from becoming a silent takeover: step 1 of
 `REQ-RCN-022` skips creation when the link is present, and step 4 then removes every peer the

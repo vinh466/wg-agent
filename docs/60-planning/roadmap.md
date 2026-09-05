@@ -88,18 +88,32 @@ releases is what makes that look like a dependency inversion.
 
 ## State as of the front-matter date
 
-Implementation has not started. The project is in its specification phase.
+The first vertical slice is built. Everything else is specified and unbuilt.
 
 | Item | State |
 |---|---|
 | Documentation architecture | Done |
 | Contributor and agent rules | Done |
 | Automated documentation checks | Done |
+| REQ-ID traceability check | Done — `docs/check-traceability.sh` |
+| Container test harness | Done — see [running the tests](../50-guides/running-tests.md) |
 | ADR-0001 through ADR-0011 | Accepted |
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
-| Code | Not started |
+| `doctor` and the adoption readiness report | Built and covered by tests |
+| Everything else | Specified, not built |
+
+The slice covers the report of section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md), the
+`doctor` and `version` subcommands of [SPEC-12](../20-spec/SPEC-12-cli.md), the read side of the
+store, and the netlink, wgctrl and filesystem adapters those need. It was chosen first because
+it touches a real node without needing the store's write side, the API or the `.proto`, and
+because it is the command an operator runs before anything else on a node that already runs
+WireGuard.
+
+Module statuses stay `Accepted` rather than moving to `Implemented`. That status is
+module-granular, and no module is wholly built — SPEC-11's interface diagnostics are deferred
+under `B-06` while its section 5 is done.
 
 Every module the MVP depends on is `Accepted`. The specification phase is complete for
 M0 through M2.

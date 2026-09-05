@@ -11,6 +11,26 @@ for root, a seam has leaked.
 | Integration | `make docker-test` | Docker | real WireGuard through netlink and wgctrl |
 | Privileged | `make docker-test-privileged` | Docker | the forwarding sysctl and nftables tiers |
 
+```mermaid
+graph TD
+  C["make check<br/>docs + traceability"] --> U["make test<br/>unit, fake adapters"]
+  U --> I["make docker-test<br/>real WireGuard, CAP_NET_ADMIN"]
+  I --> P["make docker-test-privileged<br/>sysctl + nftables"]
+  P --> M["distribution matrix<br/>needs systemd, deferred B-03"]
+
+  classDef none fill:#f8f8f8,stroke:#999
+  classDef host fill:#eef6ff,stroke:#4a7ebb
+  classDef ctr fill:#eefaf0,stroke:#4aa86b
+  classDef off fill:#f8f8f8,stroke:#999,stroke-dasharray: 5 5
+  class C none
+  class U host
+  class I,P ctr
+  class M off
+```
+
+Each tier assumes the one above it passes: a failing unit tier makes an integration failure
+uninformative, because the cause could be either layer.
+
 You do not need a Go toolchain on the host. The container image in `test/docker/Dockerfile`
 carries one, so `make docker-test` is enough on a machine with only Docker installed.
 

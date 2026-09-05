@@ -67,6 +67,57 @@ import and downward migration — and all three sit at M3, outside the MVP. Appr
 whose own text says *Undecided* would drain the status vocabulary of meaning, so it waits for
 those answers. Every module the MVP depends on is `Accepted`.
 
+## Dependency graph
+
+Derived from the `depends_on` front-matter of each module. An arrow points from a module to the
+one it depends on, so anything with no outgoing arrow can be read first.
+
+```mermaid
+graph RL
+  SPEC01["SPEC-01<br/>Resource model<br/>(M0)"]
+  SPEC04["SPEC-04<br/>API conventions<br/>(M0)"]
+  SPEC02["SPEC-02<br/>Forward policy<br/>(M2)"]
+  SPEC03["SPEC-03<br/>State and reconcile<br/>(M1)"]
+  SPEC05["SPEC-05<br/>Security<br/>(M2)"]
+  SPEC06["SPEC-06<br/>Key management<br/>(M1)"]
+  SPEC07["SPEC-07<br/>Validation<br/>(M1)"]
+  SPEC08["SPEC-08<br/>Observability<br/>(M3)"]
+  SPEC09["SPEC-09<br/>Config and deployment<br/>(M2)"]
+  SPEC10["SPEC-10<br/>Lifecycle<br/>(M3 · Draft)"]
+  SPEC11["SPEC-11<br/>Diagnostics<br/>(M1)"]
+  SPEC12["SPEC-12<br/>CLI<br/>(M2)"]
+
+  SPEC02 --> SPEC01
+  SPEC03 --> SPEC01
+  SPEC03 --> SPEC02
+  SPEC04 --> SPEC01
+  SPEC05 --> SPEC04
+  SPEC06 --> SPEC01
+  SPEC06 --> SPEC05
+  SPEC07 --> SPEC01
+  SPEC07 --> SPEC02
+  SPEC08 --> SPEC01
+  SPEC08 --> SPEC03
+  SPEC09 --> SPEC05
+  SPEC10 --> SPEC03
+  SPEC10 --> SPEC06
+  SPEC10 --> SPEC09
+  SPEC11 --> SPEC02
+  SPEC11 --> SPEC03
+  SPEC12 --> SPEC05
+  SPEC12 --> SPEC09
+  SPEC12 --> SPEC10
+
+  classDef draft stroke-dasharray: 5 5
+  class SPEC10 draft
+```
+
+SPEC-01 and SPEC-04 carry no dependency, which is why both sit at M0. The one dashed edge is
+worth noticing: SPEC-12 is `Accepted` and depends on SPEC-10, which is `Draft`. Section 2 of
+[SPEC-12](SPEC-12-cli.md) scopes the two subcommands that reach into SPEC-10 out of the MVP, so
+the dependency does not block the milestone — but it is the one place the module graph crosses a
+status boundary.
+
 ## Module boundaries
 
 To prevent duplication, each topic has exactly one home:
