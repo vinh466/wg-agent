@@ -3,7 +3,7 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.9
+version: 1.10
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -230,6 +230,7 @@ IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
 ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED     INTERFACE_NOT_FOREIGN
 ADOPTION_FIELD_REQUIRED     ADDRESSES_REQUIRED        ALLOWED_IPS_REQUIRED
+ENDPOINT_REQUIRED
 ```
 
 `TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
@@ -251,6 +252,7 @@ the rest are named where the behaviour is defined:
 | `TOKEN_INVALID` | `REQ-SEC-078`, and check 8 of `REQ-API-050` |
 | `ALLOWED_IPS_OVERLAP` | `REQ-VAL-030` |
 | `ALLOWED_IPS_OUT_OF_SUBNET` | `REQ-VAL-031` |
+| `ENDPOINT_REQUIRED` | `REQ-KEY-038` |
 
 The adoption codes have their producing requirements in
 [SPEC-03](SPEC-03-state-reconcile.md) section 6.3: `ADOPTION_BLOCKED` in `REQ-RCN-064`,

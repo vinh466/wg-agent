@@ -3,7 +3,7 @@ id: SPEC-05
 title: Security, authentication and authorization
 prefix: SEC
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -44,6 +44,14 @@ records the reasoning and the conditions for widening the boundary.
 
 > **REQ-SEC-070** — When the HTTP listener is enabled, the agent MUST refuse to start unless
 > its bind address is a loopback address.
+
+> **REQ-SEC-083** — When the metrics listener is enabled, the agent MUST refuse to start unless
+> its bind address is a loopback address.
+
+`REQ-SEC-083` exists because the metrics endpoint is not the harmless surface it looks like.
+`REQ-OBS-003` exposes a series per peer, so the endpoint names every public key, address and
+handshake time on the node — the same disclosure `REQ-DIA-024` keeps out of the overview, on a
+listener that carries no token under `REQ-SEC-071`.
 
 `REQ-SEC-070` is a startup check rather than a runtime one, so a configuration error surfaces
 at deployment instead of on first request.

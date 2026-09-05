@@ -3,10 +3,10 @@ id: SPEC-08
 title: Metrics, logs and audit
 prefix: OBS
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-06
 depends_on: [SPEC-01, SPEC-03]
 adrs: []
 milestone: M3
@@ -76,6 +76,13 @@ dedicated metric. Since `REQ-RCN-035` leaves orphan cleanup to an operator, a no
 
 > **REQ-OBS-022** — Each audit record MUST contain `ts`, `request_id`, `principal`, `action`,
 > `resource`, `result`, `revision_before`, `revision_after` and `changed_fields`.
+
+> **REQ-OBS-012** — The agent MUST assign a `request_id` to every request it accepts and use
+> that same value in each log and audit record the request produces.
+
+`request_id` is what joins the two records. `REQ-OBS-011` and `REQ-OBS-022` both name it, and
+without a rule fixing where it comes from, a log line and the audit entry for the same call
+could carry different values, which is the one thing the field exists to prevent.
 
 > **REQ-OBS-023** — The audit log MUST record changed field **names** without the values of
 > any private or preshared key.

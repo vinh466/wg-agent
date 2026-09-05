@@ -3,10 +3,10 @@ id: SPEC-06
 title: Key management
 prefix: KEY
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-06
 depends_on: [SPEC-01, SPEC-05]
 adrs: [ADR-0004, ADR-0009]
 milestone: M1
@@ -116,8 +116,26 @@ The agent never alters host DNS configuration.
 > **REQ-KEY-035** — The generated config file MUST follow the wg-quick `.conf` format so any
 > WireGuard client can read it.
 
+> **REQ-KEY-036** — The generated config file MUST carry an `Endpoint` naming the address and
+> port a client reaches this node at.
+
+> **REQ-KEY-037** — The endpoint MUST be taken from the request, or from the configured node
+> endpoint when the request omits it.
+
+> **REQ-KEY-038** — The agent MUST reject a generate request with `ENDPOINT_REQUIRED` when
+> neither the request nor the configuration supplies an endpoint.
+
+> **REQ-KEY-039** — The response MUST include a QR encoding of the generated file when the
+> request asks for one.
+
 Generated `AllowedIPs` is configuration advice, not enforcement — a client can widen it
 freely. The only security boundary is server-side `forward_policy`.
+
+The node's reachable address is the one value in a client configuration the agent cannot read
+from anywhere. A node behind NAT, or holding several addresses, has no address the kernel can
+name as the right one, so the caller supplies it and `REQ-KEY-038` refuses to emit a file that
+would not connect. `REQ-KEY-036` is what makes `REQ-KEY-035` true rather than nearly true: a
+`.conf` without an `Endpoint` follows the format and reaches nothing.
 
 ## 5. Removed requirements
 

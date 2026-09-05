@@ -3,10 +3,10 @@ id: SPEC-09
 title: Configuration, packaging and deployment
 prefix: CFG
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-06
 depends_on: [SPEC-05]
 adrs: [ADR-0002, ADR-0009]
 milestone: M2
@@ -25,8 +25,28 @@ Configuration keys, system requirements, the systemd unit, packaging.
 
 ## 2. Configuration file
 
+> **REQ-CFG-037** — The agent MUST read its configuration from a YAML file whose path
+> defaults to `/etc/wg-agent/config.yaml`.
+
+> **REQ-CFG-039** — A `--config` argument MUST override that path.
+
+> **REQ-CFG-040** — An absent configuration file MUST leave every key at its default rather
+> than failing to start.
+
 > **REQ-CFG-001** — Every configuration key MUST be overridable by an environment variable
 > following the pattern `WG_AGENT_<PATH>`.
+
+> **REQ-CFG-041** — `<PATH>` MUST be the dotted key path uppercased, with every character
+> outside `A-Z` and `0-9` replaced by an underscore.
+
+`REQ-CFG-041` makes the pattern of `REQ-CFG-001` decidable: `server.http.address` becomes
+`WG_AGENT_SERVER_HTTP_ADDRESS`. Without the transformation two implementations could disagree
+about a variable an operator has already set, which is the kind of difference that surfaces only
+in production.
+
+`REQ-CFG-040` matters because of `REQ-CFG-037`: a node reaching the store through the CLI has
+no configuration file yet, and refusing to start without one would make the first token
+impossible to issue.
 
 > **REQ-CFG-002** — The agent MUST refuse to start on encountering an unrecognized
 > configuration key rather than ignoring it silently.
