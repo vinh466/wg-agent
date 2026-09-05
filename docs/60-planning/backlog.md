@@ -210,6 +210,12 @@ to a temporary path and renamed atomically at mode `0600`.
 
 ## What is not in this file
 
-Interface adoption is **missing work, not deferred work**. No requirement covers taking over an
-interface the agent did not create, and `REQ-RCN-030` forbids it as currently worded. That
-belongs in [open questions](open-questions.md) and the [roadmap](roadmap.md), not here.
+Interface adoption is **near-term work, not deferred work**. It is specified in
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md), `REQ-RCN-060` to
+`REQ-RCN-065`, `REQ-DIA-040` to `REQ-DIA-044` and `REQ-CLI-004` to `REQ-CLI-007`, and it is the
+reason the near-term target is worth building at all: it is what lets the agent take over a node
+that already runs WireGuard instead of demanding one that does not.
+
+Two entries above are load-bearing for it. B-06 keeps `REQ-DIA-020` and `REQ-DIA-021`, which the
+readiness report shares a module with, and B-04 keeps `REQ-FWD-022`, which governs the sysctl of
+an interface the agent did not create.

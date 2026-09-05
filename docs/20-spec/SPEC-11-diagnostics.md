@@ -3,12 +3,12 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.0
+version: 1.1
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-05
 depends_on: [SPEC-02, SPEC-03]
-adrs: [ADR-0008]
+adrs: [ADR-0008, ADR-0011]
 milestone: M1
 ---
 
@@ -149,7 +149,52 @@ guarantee traffic passes. Without the check that price becomes undiagnosable.
 > the agent MUST return `WARN` with a `hint` stating that agent policy permits the traffic
 > while another host firewall may be blocking it.
 
-## 5. Implementation cost
+## 5. Adoption readiness
+
+A report describing what would happen if a `FOREIGN` interface were adopted under
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md), and what stands in the
+way. It runs before anything is written, which makes it the preview that the reconcile path
+does not otherwise offer.
+
+> **REQ-DIA-040** — The agent MUST provide an adoption readiness report naming every
+> `FOREIGN` interface, the spec that adopting it would produce, and its findings.
+
+> **REQ-DIA-041** — Each finding MUST carry a severity of `BLOCKER` or `WARNING`.
+
+> **REQ-DIA-042** — The report MUST classify a finding as `BLOCKER` when adopting would
+> produce an interface the agent cannot correctly manage.
+
+> **REQ-DIA-043** — The report MUST classify a contending manager as a `BLOCKER`, identifying
+> it by an enabled `wg-quick` unit or a configuration file matching the interface name.
+
+> **REQ-DIA-044** — The report MUST classify a `wg-quick` directive with no equivalent in the
+> resource model as a `WARNING`, naming the directive.
+
+`REQ-DIA-005` already forbids diagnostics from altering state, and this report is diagnostics,
+so it inherits that guarantee rather than restating it.
+
+### 5.1. Findings
+
+| Finding | Severity | Reason |
+|---|---|---|
+| An enabled `wg-quick` unit for this interface | `BLOCKER` | Both would manage the link, and the winner after a reboot is a race |
+| An address of the IPv6 family | `BLOCKER` | `REQ-VAL-020` rejects the family, so the adopted spec would be invalid |
+| `listen_port` or an address colliding with a managed interface | `BLOCKER` | `REQ-VAL-013` and `REQ-VAL-014` would reject the resulting spec |
+| The link is not of type WireGuard | `BLOCKER` | Nothing in the resource model describes it |
+| `PostUp` or `PostDown` present | `WARNING` | [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) forbids reproducing them, so disabling `wg-quick` loses their effect at the next boot |
+| `SaveConfig` enabled | `WARNING` | The file stops being updated once the agent manages the interface |
+| `DNS` or `Table` present | `WARNING` | Client-side and routing concerns the agent does not own |
+| A peer endpoint given as a hostname | `WARNING` | `REQ-VAL-033` already warns; the kernel stores only the resolved address |
+
+The `PostUp` warning is the one that costs an operator a working node. Rules installed by a
+hook survive adoption because nothing removes them, and disappear at the next boot because
+nothing recreates them. The gap between those two moments is where the report earns its place.
+
+A configuration file that cannot be parsed is itself a `WARNING`. Field values come from the
+kernel under `REQ-RCN-061`, so a malformed file costs the operator the directive warnings and
+nothing else.
+
+## 6. Implementation cost
 
 The agent already reads every input these checks need in order to reconcile. This module
 mainly re-presents that data in a form useful to a human, making the cost low relative to the
@@ -158,6 +203,6 @@ operational value.
 That is the basis for scheduling it in M1 rather than M4: it is needed once the topology
 patterns in [SPEC-02](SPEC-02-forward-policy.md) are first tested.
 
-## 6. Open questions
+## 7. Open questions
 
 None.

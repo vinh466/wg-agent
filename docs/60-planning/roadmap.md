@@ -1,5 +1,5 @@
 ---
-updated: 2026-08-05
+updated: 2026-09-05
 ---
 
 # Roadmap
@@ -95,7 +95,7 @@ Implementation has not started. The project is in its specification phase.
 | Documentation architecture | Done |
 | Contributor and agent rules | Done |
 | Automated documentation checks | Done |
-| ADR-0001 through ADR-0010 | Accepted |
+| ADR-0001 through ADR-0011 | Accepted |
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
@@ -103,6 +103,20 @@ Implementation has not started. The project is in its specification phase.
 
 Every module the MVP depends on is `Accepted`. The specification phase is complete for
 M0 through M2.
+
+## Interface adoption
+
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) added adoption of an
+interface the agent did not create. It splits across the existing milestones rather than forming
+one of its own: `REQ-RCN-060` to `REQ-RCN-065` need the store and reconcile engine, so they land
+with M1, while `doctor` and `adopt` are a command surface and land with M2 alongside the rest of
+SPEC-12.
+
+`REQ-DIA-040` to `REQ-DIA-044` sit with M1, matching the milestone SPEC-11 already carries.
+
+Adoption is the capability that makes the agent usable on a node where WireGuard already runs,
+which is the ordinary case rather than the exception. The MVP bar in the first section predates
+it and does not name it.
 
 ## Next actions
 

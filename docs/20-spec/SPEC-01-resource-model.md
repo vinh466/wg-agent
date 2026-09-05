@@ -3,12 +3,12 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-05
 depends_on: []
-adrs: [ADR-0001, ADR-0005]
+adrs: [ADR-0001, ADR-0005, ADR-0011]
 milestone: M0
 ---
 
@@ -95,6 +95,11 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 
 > **REQ-RES-015** — The agent MUST generate a fresh `instance_id` on every successful link
 > creation.
+
+> **REQ-RES-018** — The agent MUST assign an `instance_id` to an interface it adopts.
+
+Adoption is not creation, so `REQ-RES-015` does not reach it. An adopted interface still needs
+the identifier, because `REQ-RES-026` reads it to tell a counter reset from a running total.
 
 > **REQ-RES-017** — `status.ownership` MUST take one of the three values below.
 

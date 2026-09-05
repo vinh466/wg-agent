@@ -3,12 +3,12 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-05
 depends_on: [SPEC-01]
-adrs: [ADR-0003, ADR-0009]
+adrs: [ADR-0003, ADR-0009, ADR-0011]
 milestone: M0
 ---
 
@@ -43,7 +43,7 @@ Service surface, REST mapping, write semantics, concurrency control, error model
 
 | Service | RPCs |
 |---|---|
-| `InterfaceService` | Create, Get, List, Update, Delete, RotateKey |
+| `InterfaceService` | Create, Get, List, Update, Delete, RotateKey, Adopt |
 | `PeerService` | Create, Get, List, Update, Delete, BatchUpdate |
 | `RuntimeService` | GetInterfaceStatus, ListPeerStatus, WatchPeerStatus |
 | `ConfigService` | GenerateClientConfig, GenerateKeyPair |
@@ -68,6 +68,7 @@ RPC has no faithful REST equivalent and a polling caller is served by the list f
 | `PUT` | `/v1/interfaces/{name}` | UpdateInterface |
 | `DELETE` | `/v1/interfaces/{name}` | DeleteInterface |
 | `POST` | `/v1/interfaces/{name}:rotateKey` | RotateInterfaceKey |
+| `POST` | `/v1/interfaces/{name}:adopt` | AdoptInterface |
 | `GET` | `/v1/interfaces/{name}/status` | GetInterfaceStatus |
 | `GET` | `/v1/interfaces/{name}:diagnose` | DiagnoseInterface |
 | `POST` | `/v1/interfaces/{name}/peers` | CreatePeer |
@@ -201,7 +202,12 @@ TOKEN_INVALID               NON_LOOPBACK_BIND         STORE_SCHEMA_TOO_NEW
 NFTABLES_UNAVAILABLE        STORE_CORRUPT
 IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
+ADOPTION_BLOCKED
 ```
+
+`ADOPTION_BLOCKED` is returned when the readiness report of `REQ-DIA-040` contains a blocking
+finding. The findings themselves travel in the response rather than in the reason code, since
+`REQ-DIA-041` classifies more of them than a closed code set should carry.
 
 ## 8. Startup checks
 

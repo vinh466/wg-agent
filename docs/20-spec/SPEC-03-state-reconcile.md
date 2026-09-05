@@ -3,12 +3,12 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-05
 depends_on: [SPEC-01, SPEC-02]
-adrs: [ADR-0001]
+adrs: [ADR-0001, ADR-0011]
 milestone: M1
 ---
 
@@ -133,12 +133,15 @@ up.
 ### 6.1. Foreign interfaces
 
 > **REQ-RCN-030** — A WireGuard interface present on the host that the agent never created
-> MUST NOT be deleted or modified by the agent.
+> and that desired state does not describe MUST NOT be deleted or modified by the agent.
 
 > **REQ-RCN-031** — The agent MUST report such an interface in `ListInterfaces` with
 > `status.ownership = FOREIGN`.
 
-Deleting resources created by another party is unacceptable behavior for an agent.
+Deleting resources created by another party is unacceptable behavior for an agent. The
+qualifier matches the title of this section: an interface enters desired state only through
+adoption under section 6.3, which is an explicit operator action. A link nobody has asked for
+stays untouchable.
 
 ### 6.2. Deletion and orphans
 
@@ -163,6 +166,48 @@ without it the agent has no memory that the link was ever its own. Automatic cle
 orphans is deliberately absent — an operator removes the link, and the record clears itself on
 the next pass under `REQ-RCN-037`. Reclaiming orphans automatically is a candidate
 enhancement, not v1 behavior.
+
+### 6.3. Adoption
+
+Adoption is the only path from `FOREIGN` to `MANAGED`. It reads an existing link and its peers
+into desired state without disturbing the traffic already flowing through it, per
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md).
+
+> **REQ-RCN-060** — The agent MUST bring an existing link under management only in response to
+> an explicit adoption request naming that interface.
+
+> **REQ-RCN-061** — Adoption MUST populate the interface spec from kernel state, storing the
+> existing private key rather than generating one.
+
+> **REQ-RCN-062** — Adoption MUST store every peer present in the kernel as part of the
+> adopted interface's desired state.
+
+> **REQ-RCN-063** — Adoption MUST NOT store a peer endpoint, which stays kernel-owned under
+> `REQ-RCN-051`.
+
+> **REQ-RCN-064** — Adoption MUST leave the store unchanged when the readiness report of
+> `REQ-DIA-040` reports a blocking finding.
+
+> **REQ-RCN-065** — Adoption MUST write the interface and its peers in a single transaction.
+
+Every field originates in the kernel, so nothing is reconstructed:
+
+| Spec field | Source |
+|---|---|
+| `private_key`, `listen_port`, `fwmark` | WireGuard device dump |
+| `addresses`, `mtu`, `enabled` | netlink link and address attributes |
+| Peer `public_key`, `preshared_key`, `allowed_ips`, `persistent_keepalive` | The same device dump |
+
+`REQ-RCN-061` is what keeps established clients connected: an interface key that survives
+adoption leaves every client configuration valid. Generating one instead would disconnect every
+peer as onboarding completes, which is the outcome `REQ-KEY-004` warns about for rotation.
+
+No separate ownership transition is needed. `REQ-RES-017` defines `MANAGED` as presence in
+desired state, so writing the spec is what changes `status.ownership`.
+
+A correctly adopted interface makes the next reconcile pass a no-op: steps 3 through 8 of
+`REQ-RCN-022` compare desired state against the kernel state it was just read from. An adoption
+that would not converge silently is therefore an adoption that was incomplete.
 
 ## 7. Error handling
 

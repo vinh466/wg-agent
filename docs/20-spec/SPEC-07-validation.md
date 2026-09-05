@@ -3,12 +3,12 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.1
+version: 1.2
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-09-05
 depends_on: [SPEC-01, SPEC-02]
-adrs: [ADR-0005, ADR-0006]
+adrs: [ADR-0005, ADR-0006, ADR-0011]
 milestone: M1
 ---
 
@@ -45,11 +45,24 @@ production.
 Cryptokey routing would be ambiguous: the kernel applies longest-prefix matching, and for
 two identical prefixes the later-configured peer silently displaces the earlier one.
 
-> **REQ-VAL-013** — The agent MUST reject a `listen_port` already used by another managed
-> interface with `LISTEN_PORT_IN_USE`.
+> **REQ-VAL-013** — The agent MUST reject a `listen_port` already used by another WireGuard
+> interface on the host with `LISTEN_PORT_IN_USE`.
 
-> **REQ-VAL-014** — The agent MUST reject `addresses` overlapping another managed interface
-> with `ADDRESS_CONFLICT`.
+> **REQ-VAL-014** — The agent MUST reject `addresses` overlapping another WireGuard interface
+> on the host with `ADDRESS_CONFLICT`.
+
+> **REQ-VAL-015** — The agent MUST reject a create request naming a WireGuard link that
+> already exists with `INTERFACE_EXISTS`.
+
+`REQ-VAL-013` and `REQ-VAL-014` reach foreign interfaces as well as managed ones. A port or
+subnet held by a link the agent did not create collides just as firmly, and checking only
+managed interfaces would let the spec pass validation and fail when applied.
+
+`REQ-VAL-015` is what keeps a name collision from becoming a silent takeover: step 1 of
+`REQ-RCN-022` skips creation when the link is present, and step 4 then removes every peer the
+store does not know. Adoption under
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) is the supported path, and
+it is explicit.
 
 > **REQ-VAL-020** — The agent MUST reject any address or CIDR of the IPv6 family with
 > `IPV6_NOT_SUPPORTED`.
@@ -112,6 +125,7 @@ Syntactically valid, practically broken.
 | Duplicate `allowed_ips` | REQ-VAL-012 | Error |
 | Duplicate `listen_port` | REQ-VAL-013 | Error |
 | Overlapping `addresses` | REQ-VAL-014 | Error |
+| Create naming an existing link | REQ-VAL-015 | Error |
 | IPv6 address | REQ-VAL-020 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |
