@@ -3,10 +3,10 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.6
+version: 1.7
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-05
+updated: 2026-09-06
 depends_on: []
 adrs: [ADR-0001, ADR-0005, ADR-0011]
 milestone: M0
@@ -28,7 +28,12 @@ boundary between `spec` and `status`.
 ## 2. General principles
 
 > **REQ-RES-001** — Every resource MUST separate `spec`, the desired state written by
-> callers, from `status`, the read-only observed state sourced from the kernel.
+> callers, from `status`, which callers never write.
+
+`status` draws on the kernel and on the agent's own records. The distinction that matters is
+authorship, not origin: a caller writes `spec` and reads `status`. `instance_id`, `created_at`,
+`ownership` and `revision` are all agent records rather than kernel readings, and they belong to
+`status` for that reason.
 
 > **REQ-RES-002** — `Interface` and `Peer` MUST be separate collections.
 
@@ -87,10 +92,13 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 | `listen_port` | The port the kernel has bound |
 | `instance_id` | UUID assigned when the agent begins managing the link |
 | `created_at` | When the agent began managing the link |
+| `revision` | Opaque, changes when the spec changes — see `REQ-RES-031` |
 | `oper_state` | `UP` \| `DOWN` \| `ABSENT` |
 | `ownership` | `MANAGED` \| `FOREIGN` \| `ORPHANED` — see `REQ-RES-017` |
 | `peer_count` | Peer count in the kernel |
-| `conditions` | `READY` / `PROGRESSING` / `DEGRADED` with `reason` and `message` |
+| `condition` | `READY` \| `PROGRESSING` \| `DEGRADED`, with `reason` and `message` |
+| `warnings` | Validation findings, per `REQ-VAL-002` |
+| `masquerade_out_interface` | The uplink derived under `REQ-FWD-031`, empty when NAT is off |
 | `last_reconcile_at` | Timestamp |
 
 > **REQ-RES-015** — The agent MUST generate a fresh `instance_id` on every successful link
@@ -107,6 +115,25 @@ caller holds an earlier sample, so nothing is misread. On a re-adoption after `R
 caller holding an earlier sample sees a changed identifier and infers a reset that did not
 happen, overstating the delta once. Retaining the previous identifier is not available: release
 removes the interface from the store under `REQ-RCN-071`, so the agent has nothing to retain.
+
+> **REQ-RES-031** — `revision` MUST be an opaque string that a caller compares and returns
+> without interpreting.
+
+> **REQ-RES-032** — `status.condition` MUST carry exactly one of `READY`, `PROGRESSING` or
+> `DEGRADED`, with a `reason` and a `message`.
+
+> **REQ-RES-033** — `status.warnings` MUST be a list, each entry carrying the reason code and
+> message of one validation finding.
+
+`condition` and `warnings` answer different questions, which is why they are two fields rather
+than one list. `condition` is the lifecycle state, and the three values are mutually exclusive —
+`REQ-API-021` and `REQ-RCN-040` both name `DEGRADED` as one value, not one entry among several.
+`warnings` is the output of `REQ-VAL-002`, and a resource can be `READY` while carrying several
+of them.
+
+`REQ-RES-031` says opaque because `REQ-API-033` carries the value in an `ETag`, where a client
+must not parse it. The agent is free to change how it derives one without that being a contract
+change.
 
 > **REQ-RES-017** — `status.ownership` MUST take one of the three values below.
 
@@ -125,7 +152,7 @@ holds. Creation history is not among them, because the agent has no durable memo
 point `REQ-RCN-033` and `REQ-RCN-037` already turn on — and because reconcile step 1 recreates
 a link the agent did not originally create.
 
-`conditions` and `revision` together already answer whether a caller's write reached the
+`condition` and `revision` together already answer whether a caller's write reached the
 kernel, because `REQ-API-020` applies a write before responding and `REQ-API-030` changes
 `revision` only when the spec changes. A separate `observed_generation` would restate that
 with a second identifier and no additional information.
@@ -152,6 +179,13 @@ is the natural key because the kernel itself uses it as the identifier.
 
 > **REQ-RES-021** — In REST paths, `public_key` MUST be encoded as unpadded base64url.
 
+> **REQ-RES-027** — Everywhere other than a REST path, a key field MUST be encoded as standard
+> base64 with padding.
+
+The two encodings differ because a path segment cannot carry `/` or `+`. Standard base64 is what
+`wg` prints and what a client configuration file contains, so a body that used the path encoding
+would not match anything an operator can copy.
+
 ### 4.2. PeerSpec
 
 | Field | Type | Required | Default | Notes |
@@ -176,6 +210,13 @@ is the natural key because the kernel itself uses it as the identifier.
 | `rx_bytes` / `tx_bytes` | Cumulative counters, reset when the link is recreated |
 | `resolved_endpoint` | The endpoint held by the kernel |
 | `protocol_version` | From the kernel |
+| `revision` | Opaque, changes when the spec changes — see `REQ-RES-031` |
+| `condition` | `READY` \| `PROGRESSING` \| `DEGRADED`, with `reason` and `message` |
+| `warnings` | Validation findings, per `REQ-VAL-002` |
+
+A peer carries the same three fields as an interface. `REQ-VAL-030`, `REQ-VAL-031` and
+`REQ-VAL-033` are peer-scoped warning rules, so without `warnings` here their output would have
+nowhere to appear.
 
 > **REQ-RES-023** — When a peer has never completed a handshake, `last_handshake_at` and
 > `handshake_age_seconds` MUST be null rather than an epoch-zero value.

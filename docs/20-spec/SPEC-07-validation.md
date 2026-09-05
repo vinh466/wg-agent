@@ -3,7 +3,7 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.6
+version: 1.8
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -28,8 +28,12 @@ production.
 > **REQ-VAL-001** — An error-severity finding MUST block the write and return the
 > corresponding reason code.
 
-> **REQ-VAL-002** — A warning-severity finding MUST appear in `status.conditions` without
+> **REQ-VAL-002** — A warning-severity finding MUST appear in `status.warnings` without
 > blocking the write.
+
+A warning carries a reason code from the set of `REQ-API-041` just as an error does, which is
+what `REQ-RES-033` stores. A caller branching on a warning should no more parse its message than
+one branching on a failure.
 
 ## 3. Error severity
 
@@ -113,13 +117,13 @@ A typo here causes silent loss of connectivity, so it is caught at write time.
 
 ## 4. Warning severity
 
-> **REQ-VAL-030** — The agent MUST warn when `allowed_ips` entries overlap at differing
-> prefix lengths.
+> **REQ-VAL-030** — The agent MUST warn with `ALLOWED_IPS_OVERLAP` when `allowed_ips` entries
+> overlap at differing prefix lengths.
 
 Longest-prefix matching makes this valid, but it usually indicates a mistake.
 
-> **REQ-VAL-031** — The agent MUST warn when a peer's `allowed_ips` falls outside the
-> interface subnet.
+> **REQ-VAL-031** — The agent MUST warn with `ALLOWED_IPS_OUT_OF_SUBNET` when a peer's
+> `allowed_ips` falls outside the interface subnet.
 
 Valid for site-to-site, usually a mistake otherwise.
 

@@ -3,10 +3,10 @@ id: SPEC-05
 title: Security, authentication and authorization
 prefix: SEC
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-09-06
 depends_on: [SPEC-04]
 adrs: [ADR-0007, ADR-0009]
 milestone: M2
@@ -67,7 +67,11 @@ token, because it names interfaces, addresses and peer counts.
 > token is configured.
 
 > **REQ-SEC-078** — A request whose token is missing or unrecognized MUST be rejected with
-> `UNAUTHENTICATED`.
+> `UNAUTHENTICATED` and reason `TOKEN_INVALID`.
+
+One reason covers both cases deliberately. Distinguishing a missing token from a wrong one tells
+a caller that the header form was right, which is information an attacker gains and a legitimate
+caller does not need.
 
 > **REQ-SEC-073** — Token comparison MUST be constant-time.
 

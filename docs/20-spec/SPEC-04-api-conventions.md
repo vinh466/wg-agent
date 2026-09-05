@@ -3,7 +3,7 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.8
+version: 1.9
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -127,6 +127,23 @@ regenerate a key the caller never had the chance to send back. `REQ-API-066` cov
 `interface_name` and `public_key`, rejecting a mismatch rather than silently creating a second
 resource.
 
+> **REQ-API-069** — `UpdateInterface` MUST reject an interface that desired state does not
+> describe with `INTERFACE_NOT_MANAGED`.
+
+> **REQ-API-070** — `UpdatePeer` and `DeletePeer` MUST reject a peer that desired state does
+> not describe with `PEER_NOT_FOUND`.
+
+> **REQ-API-071** — `CreatePeer` MUST reject a public key already described on that interface
+> with `PEER_EXISTS`.
+
+Update is not an upsert. A `PUT` to a name desired state does not describe is far more often a
+typo than an intent to create, and `REQ-VAL-015` already refuses the mirror case on create, so
+accepting one here would leave the two verbs disagreeing.
+
+`INTERFACE_NOT_MANAGED` is distinct from `INTERFACE_NOT_FOUND`: the link exists on the host but
+nobody has asked the agent to manage it. That is a `FOREIGN` interface under `REQ-RES-017`, and
+the answer is to adopt it under `REQ-RCN-060` rather than to update it.
+
 ### 5.2. Pagination
 
 > **REQ-API-011** — `ListInterfaces`, `ListPeers` and `ListPeerStatus` MUST accept `page_size`
@@ -151,8 +168,8 @@ Resource identity is `name` for interfaces and `public_key` for peers, per `REQ-
 > **REQ-API-030** — Every resource MUST carry an opaque `revision` that changes whenever its
 > spec changes.
 
-> **REQ-API-031** — On a mismatched `revision`, the agent MUST return `FAILED_PRECONDITION`,
-> mapped to HTTP `412`.
+> **REQ-API-031** — On a mismatched `revision`, the agent MUST return `FAILED_PRECONDITION`
+> with reason `REVISION_MISMATCH`, mapped to HTTP `412`.
 
 > **REQ-API-032** — When `revision` is omitted, the agent MUST overwrite unconditionally.
 
@@ -167,6 +184,14 @@ Resource identity is `name` for interfaces and `public_key` for peers, per `REQ-
 > the supplied list.
 
 > **REQ-API-062** — With `replace_all = false`, the agent MUST only upsert.
+
+> **REQ-API-072** — `BatchUpdatePeers` MUST accept the interface `revision` and reject a
+> mismatch under `REQ-API-031`.
+
+Without it the one operation that can replace an entire peer set is also the one with no way to
+detect that the set changed underneath the caller. `replace_all = true` deletes every peer the
+request omits, so a stale read followed by a batch write is how a caller silently removes a peer
+somebody else added.
 
 ## 7. Error model
 
@@ -198,14 +223,34 @@ INTERFACE_NAME_INVALID      INTERFACE_NOT_FOUND       INTERFACE_EXISTS
 INTERFACE_NOT_MANAGED       LISTEN_PORT_IN_USE        ADDRESS_CONFLICT
 PEER_NOT_FOUND              PEER_EXISTS               PUBLIC_KEY_INVALID
 ALLOWED_IPS_DUPLICATE       ALLOWED_IPS_OVERLAP       ALLOWED_IPS_OUT_OF_SUBNET
-REVISION_MISMATCH           RECONCILE_FAILED          TOKEN_MISSING
-TOKEN_INVALID               NON_LOOPBACK_BIND         STORE_SCHEMA_TOO_NEW
+REVISION_MISMATCH           RECONCILE_FAILED          TOKEN_INVALID
+NON_LOOPBACK_BIND           STORE_SCHEMA_TOO_NEW
 NFTABLES_UNAVAILABLE        STORE_CORRUPT
 IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
 ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED     INTERFACE_NOT_FOREIGN
 ADOPTION_FIELD_REQUIRED     ADDRESSES_REQUIRED        ALLOWED_IPS_REQUIRED
 ```
+
+`TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
+alike, so a second code described a distinction the agent deliberately does not make.
+
+Every remaining value has a producing requirement. The startup table of `REQ-API-050` names the
+codes for the checks it performs, `REQ-VAL-010` to `REQ-VAL-035` name the validation codes, and
+the rest are named where the behaviour is defined:
+
+| Code | Produced by |
+|---|---|
+| `INTERFACE_NOT_FOUND` | `REQ-RCN-067` |
+| `INTERFACE_EXISTS` | `REQ-VAL-015` |
+| `INTERFACE_NOT_MANAGED` | `REQ-API-069` |
+| `PEER_NOT_FOUND` | `REQ-API-070` |
+| `PEER_EXISTS` | `REQ-API-071` |
+| `REVISION_MISMATCH` | `REQ-API-031` |
+| `RECONCILE_FAILED` | `REQ-RCN-040` |
+| `TOKEN_INVALID` | `REQ-SEC-078`, and check 8 of `REQ-API-050` |
+| `ALLOWED_IPS_OVERLAP` | `REQ-VAL-030` |
+| `ALLOWED_IPS_OUT_OF_SUBNET` | `REQ-VAL-031` |
 
 The adoption codes have their producing requirements in
 [SPEC-03](SPEC-03-state-reconcile.md) section 6.3: `ADOPTION_BLOCKED` in `REQ-RCN-064`,
@@ -230,15 +275,23 @@ each one a stable `hint_code`.
 ## 8. Startup checks
 
 > **REQ-API-050** — The agent MUST complete the checks below before serving requests, failing
-> early with a clear message otherwise.
+> early with the reason code given for the check that failed.
 
-1. The kernel supports WireGuard, or the module can be loaded
-2. `CAP_NET_ADMIN` is held
-3. The store opens, is writable, and its schema is compatible
-4. Forwarding sysctl is writable (`REQ-FWD-025`)
-5. When NAT is enabled, `nf_tables` is available
-6. When the HTTP listener is enabled, its bind address is loopback and at least one token is
-   configured (`REQ-SEC-070`, `REQ-SEC-072`)
+| # | Check | Reason on failure |
+|---|---|---|
+| 1 | The kernel supports WireGuard, or the module can be loaded | `WG_MODULE_NOT_LOADED`, or `KERNEL_TOO_OLD` when the kernel cannot carry it |
+| 2 | `CAP_NET_ADMIN` is held | `MISSING_CAP_NET_ADMIN` |
+| 3 | The store opens and is writable | `STORE_CORRUPT` |
+| 4 | The store schema is one this build understands (`REQ-RCN-005`) | `STORE_SCHEMA_TOO_NEW` |
+| 5 | Forwarding sysctl is writable (`REQ-FWD-025`) | `SYSCTL_WRITE_DENIED` |
+| 6 | When NAT is enabled, `nf_tables` is available | `NFTABLES_UNAVAILABLE` |
+| 7 | When the HTTP listener is enabled, its bind address is loopback (`REQ-SEC-070`) | `NON_LOOPBACK_BIND` |
+| 8 | When the HTTP listener is enabled, at least one token is configured (`REQ-SEC-072`) | `TOKEN_INVALID` |
+
+A startup failure carries a reason code for the same purpose a request failure does: an
+installer or a unit log should be able to branch on the cause without matching message text.
+Checks 3 and 4 were one line before, and they are separated here because a corrupt store and a
+store from a newer build call for opposite actions — restore one, downgrade nothing.
 
 > **REQ-API-051** — `/v1/health` MUST report success only after every startup check passes and
 > the first reconcile pass completes.
@@ -248,6 +301,22 @@ rather than an orchestrator that distinguishes them. Splitting it later adds a p
 changing this one, so the simpler form carries no cost to reverse. `/v1/health` answers yes or
 no; `GET /v1/overview` under `REQ-DIA-020` is what names the component that failed.
 
-## 9. Open questions
+## 9. Shutdown
+
+> **REQ-API-073** — On `SIGTERM` the agent MUST stop accepting new requests, complete the
+> requests in flight, and release the store lock of `REQ-RCN-006` before exiting.
+
+> **REQ-API-074** — Shutdown MUST NOT alter the kernel state of any interface it manages.
+
+`REQ-API-074` is the property that makes an upgrade safe, and it is the same one the whole
+design rests on: the data plane runs independently of the agent, so stopping the agent is not
+stopping the tunnel. A shutdown that tore interfaces down would turn every package upgrade into
+an outage.
+
+Releasing the lock matters because `REQ-CLI-002` lets several subcommands write the store
+directly. An agent that exited without releasing it would leave the operator unable to adopt or
+issue a token until the lock aged out, which for an advisory lock means never.
+
+## 10. Open questions
 
 None.

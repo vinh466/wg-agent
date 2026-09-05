@@ -3,7 +3,7 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.7
+version: 1.8
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -322,7 +322,7 @@ peer is already impossible under the single transaction of `REQ-RCN-065`.
 ## 8. Error handling
 
 > **REQ-RCN-040** — When application fails, the agent MUST retain the stored desired state
-> and mark the resource `DEGRADED` with a `reason`.
+> and mark the resource `DEGRADED` with reason `RECONCILE_FAILED`.
 
 > **REQ-RCN-041** — The agent MUST retry using exponential backoff with jitter between
 > `backoff_min` and `backoff_max`.
