@@ -86,7 +86,7 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 | `public_key` | Derived from the private key |
 | `listen_port` | The port the kernel has bound |
 | `instance_id` | UUID assigned when the agent begins managing the link |
-| `created_at` | When the link was created |
+| `created_at` | When the agent began managing the link |
 | `oper_state` | `UP` \| `DOWN` \| `ABSENT` |
 | `ownership` | `MANAGED` \| `FOREIGN` \| `ORPHANED` — see `REQ-RES-017` |
 | `peer_count` | Peer count in the kernel |
@@ -110,7 +110,7 @@ identifier is `REQ-RCN-061`.
 |---|---|
 | `MANAGED` | Present in desired state; the agent enforces the spec |
 | `FOREIGN` | A WireGuard link absent from desired state that the agent never created; left untouched under `REQ-RCN-030` |
-| `ORPHANED` | Removed from desired state while its link survived; awaiting manual cleanup |
+| `ORPHANED` | Named by a deletion record whose link survived; awaiting manual cleanup — see `REQ-RCN-034` |
 
 A `FOREIGN` or `ORPHANED` interface has no entry in desired state, so `ListInterfaces` returns
 it with `status` populated and `spec` absent. `REQ-RES-001` separates the two precisely so

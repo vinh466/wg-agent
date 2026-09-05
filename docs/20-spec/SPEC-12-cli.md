@@ -17,7 +17,7 @@ milestone: M2
 ## 1. Scope
 
 The subcommands of the `wg-agent` binary: what each one does, which of them need a running
-agent, how an existing interface is adopted, and how tokens are issued.
+agent, how an existing interface is adopted and released, and how tokens are issued.
 
 **Not in this module:**
 - Configuration keys and the install script → [SPEC-09](SPEC-09-config-deployment.md)

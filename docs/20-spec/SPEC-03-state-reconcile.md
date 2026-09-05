@@ -28,8 +28,8 @@ fields the agent enforces and which the kernel owns.
 
 > **REQ-RCN-001** — The agent MUST persist desired state to disk and restore it on startup.
 
-> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id` and the deletion
-> records defined in section 6.
+> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id`, the deletion
+> records defined in section 6 and the adoption records defined in section 6.3.
 
 > **REQ-RCN-050** — The store MUST NOT hold `status` values or any traffic counter.
 
@@ -139,9 +139,9 @@ up.
 > `status.ownership = FOREIGN`.
 
 Deleting resources created by another party is unacceptable behavior for an agent. The
-qualifier matches the title of this section: an interface enters desired state only through
-adoption under section 6.3, which is an explicit operator action. A link nobody has asked for
-stays untouchable.
+qualifier matches the title of this section: a link the agent did not create enters desired
+state only through adoption under section 6.3, which is an explicit operator action. A link
+nobody has asked for stays untouchable.
 
 ### 6.2. Deletion and orphans
 
@@ -200,8 +200,16 @@ into desired state without disturbing the traffic already flowing through it, pe
 
 > **REQ-RCN-065** — Adoption MUST write the interface and its peers in a single transaction.
 
-> **REQ-RCN-069** — The agent MUST support removing an interface from desired state while
-> leaving its link in the kernel, returning it to `FOREIGN`.
+> **REQ-RCN-069** — The agent MUST support removing an adopted interface from desired state
+> while leaving its link in the kernel.
+
+> **REQ-RCN-070** — Adoption MUST retain an adoption record naming the interface.
+
+> **REQ-RCN-071** — Releasing an interface MUST delete its peers from the store and clear its
+> adoption record in the same transaction.
+
+> **REQ-RCN-072** — The agent MUST reject a release request naming an interface that holds no
+> adoption record with `INTERFACE_NOT_ADOPTED`.
 
 The kernel supplies the fields it holds; the request supplies the ones it does not:
 
@@ -234,7 +242,17 @@ needs a static endpoint restates it after adoption, where the intent is unambigu
 
 `REQ-RCN-069` is the inverse transition. Without it the only exit from `MANAGED` is
 `REQ-RCN-032`, which removes the link from the kernel — an outage on the interface adoption
-exists to preserve.
+exists to preserve. A released interface needs no ownership rule of its own: it was never
+created by the agent and holds no deletion record, so `REQ-RCN-030` and `REQ-RCN-031` already
+report it as `FOREIGN`. Confining release to an adopted interface is what keeps the three
+values of `REQ-RES-017` exhaustive — an interface the agent created leaves desired state
+through `REQ-RCN-032` alone, so no link is ever absent from desired state without matching one
+of the three.
+
+The adoption record of `REQ-RCN-070` is what makes both directions survive a restart. It tells
+`REQ-RCN-069` and `REQ-RCN-072` which interfaces may be released, and it is where the sysctl
+baseline that `REQ-FWD-024` records and restores is held. `REQ-RCN-071` mirrors `REQ-RCN-038`:
+peer specs belong to a managed interface and outlive it in neither direction.
 
 No separate ownership transition is needed. `REQ-RES-017` defines `MANAGED` as presence in
 desired state, so writing the spec is what changes `status.ownership`, and `REQ-RCN-069`

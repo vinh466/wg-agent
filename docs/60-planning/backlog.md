@@ -16,12 +16,12 @@ providers and Kubernetes operators. The near-term target is narrower: a single o
 managing their own node, adopting an interface that already exists, reaching the API locally
 behind one token.
 
-Against that narrower target, this file defers **98 of the 264 live requirements**, leaving
-166 in the near-term build. Deferring them explicitly is what keeps the count honest — the
+Against that narrower target, this file defers **97 of the 267 live requirements**, leaving
+170 in the near-term build. Deferring them explicitly is what keeps the count honest — the
 alternative is a milestone plan that looks achievable only because nobody counted.
 
 Reading the milestone numbers as the smaller slice does not work: M0 through M2 still carry
-234 of 264 requirements, because the machine-facing scaffolding is spread across the MVP
+237 of 267 requirements, because the machine-facing scaffolding is spread across the MVP
 modules rather than concentrated after them. Counts are as of the front-matter date.
 
 ## How to read an entry
@@ -39,12 +39,12 @@ modules rather than concentrated after them. Counts are as of the front-matter d
 | B-01 | Metrics, logs and audit | 10 |
 | B-02 | Backup, restore, upgrade and migration | 15 |
 | B-03 | Packaging, install script and release pipeline | 20 |
-| B-04 | Forward policy and NAT | 23 |
+| B-04 | Forward policy and NAT | 22 |
 | B-05 | API scaffolding for machine consumers | 14 |
 | B-06 | Interface diagnostics | 9 |
 | B-07 | Orphan bookkeeping | 4 |
 | B-08 | Multi-principal machinery | 3 |
-| | **Total** | **98** |
+| | **Total** | **97** |
 
 ---
 
@@ -104,8 +104,8 @@ the install script solve distribution to strangers.
 ## B-04 — Forward policy and NAT
 
 **Defers:** `REQ-FWD-001` to `REQ-FWD-005`, `REQ-FWD-010` to `REQ-FWD-017`, `REQ-FWD-021`,
-`REQ-FWD-023` to `REQ-FWD-025`, `REQ-FWD-030` to `REQ-FWD-032`, `REQ-FWD-040` to
-`REQ-FWD-042`. Twenty-three requirements.
+`REQ-FWD-023`, `REQ-FWD-025`, `REQ-FWD-030` to `REQ-FWD-032`, `REQ-FWD-040` to
+`REQ-FWD-042`. Twenty-two requirements.
 
 **Keeps:** `REQ-FWD-020` (set `forwarding = 1` on the agent's own WireGuard interfaces) and
 `REQ-FWD-022` (never touch the sysctl of an interface desired state does not describe, amended

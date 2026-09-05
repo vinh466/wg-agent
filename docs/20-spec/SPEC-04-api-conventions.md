@@ -203,10 +203,12 @@ TOKEN_INVALID               NON_LOOPBACK_BIND         STORE_SCHEMA_TOO_NEW
 NFTABLES_UNAVAILABLE        STORE_CORRUPT
 IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
-ADOPTION_BLOCKED
+ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED
 ```
 
-`REQ-RCN-064` is the requirement that returns `ADOPTION_BLOCKED`. The findings behind it travel
+`REQ-RCN-064` returns `ADOPTION_BLOCKED` and `REQ-RCN-072` returns `INTERFACE_NOT_ADOPTED`,
+the latter because an interface the agent created leaves desired state through
+`DeleteInterface` rather than through release. The findings behind it travel
 in the response rather than in the reason code, because `REQ-DIA-042` through `REQ-DIA-046`
 classify more conditions than a closed code set should carry, and `REQ-DIA-030` already gives
 each one a stable `hint_code`.
