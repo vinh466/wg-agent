@@ -3,7 +3,7 @@ id: SPEC-09
 title: Configuration, packaging and deployment
 prefix: CFG
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -57,11 +57,19 @@ impossible to issue.
 > **REQ-CFG-005** — Loading `/etc/default/wg-agent` MUST tolerate the file being absent.
 
 `REQ-CFG-004` gives the deployment the shape an operator expects from a Debian service: the
+`node.endpoint` is empty by default because no value the agent could choose would be right.
+The address a client reaches a node at depends on NAT and on which of several addresses is
+routable from where the client sits, so `REQ-KEY-038` refuses to guess and asks the caller
+instead.
+
 YAML file holds structure, and `/etc/default/wg-agent` holds the per-host overrides that
 `REQ-CFG-001` already exposes as `WG_AGENT_<PATH>` variables. The port below picks 9585 to sit
 beside the metrics listener on 9586 rather than contend for 8080.
 
 ```yaml
+node:
+  endpoint: ""                       # host:port clients reach this node at — REQ-KEY-037
+
 server:
   unix_socket: /run/wg-agent/wg-agent.sock
   socket_mode: "0660"

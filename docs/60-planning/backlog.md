@@ -16,12 +16,12 @@ providers and Kubernetes operators. The near-term target is narrower: a single o
 managing their own node, adopting an interface that already exists, reaching the API locally
 behind one token.
 
-Against that narrower target, this file defers **97 of the 278 live requirements**, leaving
-181 in the near-term build. Deferring them explicitly is what keeps the count honest — the
+Against that narrower target, this file defers **97 of the 299 live requirements**, leaving
+202 in the near-term build. Deferring them explicitly is what keeps the count honest — the
 alternative is a milestone plan that looks achievable only because nobody counted.
 
 Reading the milestone numbers as the smaller slice does not work: M0 through M2 still carry
-248 of 278 requirements, because the machine-facing scaffolding is spread across the MVP
+269 of 299 requirements, because the machine-facing scaffolding is spread across the MVP
 modules rather than concentrated after them. Counts are as of the front-matter date.
 
 ## How to read an entry

@@ -3,7 +3,7 @@ id: SPEC-06
 title: Key management
 prefix: KEY
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -119,8 +119,8 @@ The agent never alters host DNS configuration.
 > **REQ-KEY-036** — The generated config file MUST carry an `Endpoint` naming the address and
 > port a client reaches this node at.
 
-> **REQ-KEY-037** — The endpoint MUST be taken from the request, or from the configured node
-> endpoint when the request omits it.
+> **REQ-KEY-037** — The endpoint MUST be taken from the request, or from the `node.endpoint`
+> configuration key of [SPEC-09](SPEC-09-config-deployment.md) when the request omits it.
 
 > **REQ-KEY-038** — The agent MUST reject a generate request with `ENDPOINT_REQUIRED` when
 > neither the request nor the configuration supplies an endpoint.

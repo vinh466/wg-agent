@@ -3,7 +3,7 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -186,6 +186,31 @@ anything is written, which makes it the preview the reconcile path does not othe
 
 > **REQ-DIA-050** — The report MUST record an `UNKNOWN` result when it cannot determine unit
 > enablement.
+
+> **REQ-DIA-051** — The `hint_code` of a readiness finding MUST be one of the values below.
+
+| `hint_code` | Raised for |
+|---|---|
+| `WG_QUICK_UNIT_ENABLED` | An enabled `wg-quick` unit — `REQ-DIA-043` |
+| `WG_QUICK_UNIT_UNDETERMINED` | Enablement could not be determined — `REQ-DIA-050` |
+| `WG_QUICK_HOOK_DIRECTIVE` | `PreUp`, `PostUp`, `PreDown` or `PostDown` — `REQ-DIA-044` |
+| `WG_QUICK_UNOWNED_DIRECTIVE` | Another directive outside the resource model — `REQ-DIA-044` |
+| `WG_QUICK_CONFIG_UNPARSEABLE` | The configuration file could not be read — `REQ-DIA-046` |
+| `PEER_ENDPOINT_DISCARDED` | A peer endpoint `REQ-RCN-063` does not store — `REQ-DIA-048` |
+| `INTERFACE_NO_ADDRESS` | A link with no address — `REQ-VAL-016` |
+| `INTERFACE_IPV6_ADDRESS` | An address of the IPv6 family — `REQ-VAL-020` |
+| `PEER_IPV6_ALLOWED_IPS` | An IPv6 entry in a peer's allowed IPs — `REQ-VAL-020` |
+| `PEER_NO_ALLOWED_IPS` | A peer with no allowed IPs — `REQ-VAL-017` |
+| `LISTEN_PORT_COLLISION` | A port another host interface holds — `REQ-VAL-013` |
+| `ADDRESS_COLLISION` | A subnet another host interface carries — `REQ-VAL-014` |
+| `LINK_NOT_WIREGUARD` | A link the resource model does not describe — `REQ-DIA-042` |
+| `ADOPTION_READY` | Nothing blocks or warns |
+
+`REQ-DIA-030` calls the set closed so that `hint` can be reworded without that being a contract
+change. The set above covers section 5; the codes for the checks of section 4.1 arrive with
+those checks, which are deferred under `B-06` in the [backlog](../60-planning/backlog.md).
+Adding a value to the enum later is additive and does not break a generated client, so the set
+grows without a package version bump.
 
 `REQ-DIA-049` fixes a filesystem predicate because `REQ-SEC-041` forbids the agent from
 executing a child process, which rules out asking `systemctl`. Enablement is a symlink, so the
