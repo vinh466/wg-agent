@@ -3,10 +3,10 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.7
+version: 1.8
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-05
+updated: 2026-09-06
 depends_on: [SPEC-01]
 adrs: [ADR-0003, ADR-0009, ADR-0011]
 milestone: M0
@@ -204,14 +204,14 @@ NFTABLES_UNAVAILABLE        STORE_CORRUPT
 IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
 ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED     INTERFACE_NOT_FOREIGN
-ADOPTION_FIELD_REQUIRED     PEER_NOT_REPRESENTABLE    ADDRESSES_REQUIRED
+ADOPTION_FIELD_REQUIRED     ADDRESSES_REQUIRED        ALLOWED_IPS_REQUIRED
 ```
 
 The adoption codes have their producing requirements in
 [SPEC-03](SPEC-03-state-reconcile.md) section 6.3: `ADOPTION_BLOCKED` in `REQ-RCN-064`,
 `INTERFACE_NOT_ADOPTED` in `REQ-RCN-072`, `INTERFACE_NOT_FOREIGN` in `REQ-RCN-074`,
-`ADOPTION_FIELD_REQUIRED` in `REQ-RCN-066` and `PEER_NOT_REPRESENTABLE` in `REQ-RCN-068`.
-`ADDRESSES_REQUIRED` is produced by `REQ-VAL-016`.
+and `ADOPTION_FIELD_REQUIRED` in `REQ-RCN-066`.
+`ADDRESSES_REQUIRED` is produced by `REQ-VAL-016` and `ALLOWED_IPS_REQUIRED` by `REQ-VAL-017`.
 
 > **REQ-API-067** — An `ADOPTION_BLOCKED` status MUST carry the findings of `REQ-DIA-040` for
 > the named interface.

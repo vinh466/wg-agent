@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Roadmap
@@ -101,15 +101,21 @@ The first vertical slice is built. Everything else is specified and unbuilt.
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
-| `doctor` and the adoption readiness report | Built and covered by tests |
+| `doctor`, `adopt` and `release` | Built and covered by tests |
+| Store, both directions, with the lock of `REQ-RCN-006` | Built |
 | Everything else | Specified, not built |
 
-The slice covers the report of section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md), the
-`doctor` and `version` subcommands of [SPEC-12](../20-spec/SPEC-12-cli.md), the read side of the
-store, and the netlink, wgctrl and filesystem adapters those need. It was chosen first because
-it touches a real node without needing the store's write side, the API or the `.proto`, and
-because it is the command an operator runs before anything else on a node that already runs
-WireGuard.
+The slice covers section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md), section 6.3 of
+[SPEC-03](../20-spec/SPEC-03-state-reconcile.md), the `doctor`, `adopt`, `release` and `version`
+subcommands of [SPEC-12](../20-spec/SPEC-12-cli.md), the store, and the netlink, wgctrl and
+filesystem adapters those need. It was chosen first because it reaches a real node without the
+API or the `.proto`, and because adopting an interface that already exists is the first thing an
+operator does on a node that already runs WireGuard.
+
+An operator can therefore take a `wg-quick` node over today: `doctor` names what blocks it,
+`adopt --dry-run` shows what would be stored, and `adopt` stores it while the tunnel keeps
+running. What is not built is the part that acts on that desired state — the reconcile engine —
+so nothing yet enforces the spec the store now holds.
 
 Module statuses stay `Accepted` rather than moving to `Implemented`. That status is
 module-granular, and no module is wholly built — SPEC-11's interface diagnostics are deferred

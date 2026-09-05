@@ -112,6 +112,24 @@ Unit tests above the platform layer use a fake adapter rather than the kernel. T
 lets the whole reconcile algorithm of `REQ-RCN-022` — drift, adoption, orphan handling — run in
 milliseconds without privilege.
 
+## Taking over a node by hand
+
+The integration tier does this in a container, and the same sequence works on a real node:
+
+```bash
+sudo wg-agent doctor                       # what blocks adoption, and how to clear it
+sudo systemctl disable wg-quick@wg0        # disable does not stop: wg0 keeps running
+sudo wg-agent adopt wg0 --dry-run \
+     --intra=allow --inter=deny --external=deny --manage-routes=false
+sudo wg-agent adopt wg0 \
+     --intra=allow --inter=deny --external=deny --manage-routes=false
+sudo wg-agent doctor                       # wg0 now reports MANAGED
+sudo wg-agent release wg0                  # and back to FOREIGN, link untouched
+```
+
+The policy flags are required rather than defaulted. The kernel holds no forward policy, so a
+default would be a guess applied to traffic that is already flowing — see `REQ-RCN-066`.
+
 ## The distribution matrix
 
 `REQ-CFG-013` requires the systemd hardening combination to be verified on every tested

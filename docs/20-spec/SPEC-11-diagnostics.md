@@ -3,10 +3,10 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-05
+updated: 2026-09-06
 depends_on: [SPEC-02, SPEC-03]
 adrs: [ADR-0008, ADR-0011]
 milestone: M1
@@ -216,7 +216,7 @@ presence as contention would refuse adoption on precisely the nodes it exists to
 |---|---|---|
 | An enabled `wg-quick` unit for this interface | `FAIL` | Both would manage the link, and the winner after a reboot is a race |
 | The spec adoption would produce fails validation | `FAIL` | `REQ-VAL-001` rejects it with its own reason code, so `REQ-RCN-064` defers to it |
-| A peer the kernel holds cannot be represented in `PeerSpec` | `FAIL` | `REQ-RCN-068` rejects the request |
+| A peer carries no `allowed_ips` | `FAIL` | `REQ-VAL-017` rejects the resulting spec |
 | The link carries no address | `FAIL` | `REQ-VAL-016` rejects the resulting spec |
 | `PostUp` or `PostDown` present | `WARN` | [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) forbids reproducing them, so disabling `wg-quick` loses their effect at the next boot |
 | `SaveConfig` enabled | `WARN` | The file stops being updated once the agent manages the interface |

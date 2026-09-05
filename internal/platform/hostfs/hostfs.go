@@ -42,15 +42,19 @@ var unsupported = []string{
 	"DNS", "SaveConfig", "Table",
 }
 
+// sysctlDir holds the per-interface IPv4 tunables.
+const sysctlDir = "/proc/sys/net/ipv4/conf"
+
 // Host implements platform.HostFS against the real filesystem.
 type Host struct {
 	unitRoots  []string
 	wgQuickDir string
+	sysctlDir  string
 }
 
 // New returns an adapter over the host's filesystem.
 func New() *Host {
-	return &Host{unitRoots: unitRoots, wgQuickDir: wgQuickDir}
+	return &Host{unitRoots: unitRoots, wgQuickDir: wgQuickDir, sysctlDir: sysctlDir}
 }
 
 // NewAt returns an adapter rooted at prefix, for tests that lay out a tree.
@@ -59,7 +63,11 @@ func NewAt(prefix string) *Host {
 	for _, r := range unitRoots {
 		roots = append(roots, filepath.Join(prefix, r))
 	}
-	return &Host{unitRoots: roots, wgQuickDir: filepath.Join(prefix, wgQuickDir)}
+	return &Host{
+		unitRoots:  roots,
+		wgQuickDir: filepath.Join(prefix, wgQuickDir),
+		sysctlDir:  filepath.Join(prefix, sysctlDir),
+	}
 }
 
 // WgQuickUnit reports whether wg-quick@<iface>.service is enabled, determined
@@ -151,4 +159,18 @@ func (h *Host) WgQuickConfig(iface string) (platform.WgQuickConfig, error) {
 		out.Unparseable = true
 	}
 	return out, nil
+}
+
+// ForwardingSysctl reads the interface's forwarding value. The node exists only
+// while the link does, so an absent file is reported as an empty baseline
+// rather than an error: there is then nothing for REQ-FWD-024 to restore.
+func (h *Host) ForwardingSysctl(iface string) (string, error) {
+	b, err := os.ReadFile(filepath.Join(h.sysctlDir, iface, "forwarding"))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", nil
+		}
+		return "", nil
+	}
+	return strings.TrimSpace(string(b)), nil
 }

@@ -3,7 +3,7 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.6
+version: 1.7
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-06
@@ -242,9 +242,6 @@ into desired state without disturbing the traffic already flowing through it, pe
 > **REQ-RCN-067** — Adoption MUST reject a request naming a link absent from the host with
 > `INTERFACE_NOT_FOUND`.
 
-> **REQ-RCN-068** — Adoption MUST reject a request with `PEER_NOT_REPRESENTABLE` when a peer
-> held by the kernel cannot be represented in `PeerSpec`.
-
 > **REQ-RCN-064** — When the report of `REQ-DIA-040` carries a `FAIL` finding for the named
 > interface that `REQ-VAL-001` does not itself reject, adoption MUST fail with
 > `ADOPTION_BLOCKED` and leave the store unchanged.
@@ -313,7 +310,16 @@ No separate ownership transition is needed. `REQ-RES-017` defines `MANAGED` as p
 desired state, so writing the spec is what changes `status.ownership`, and `REQ-RCN-069`
 reverses it by the same mechanism.
 
-## 7. Error handling
+## 7. Removed requirements
+
+~~**REQ-RCN-068**~~ — Rejection of a peer the kernel holds that `PeerSpec` cannot represent.
+Removed in v1.7: no such peer exists. Every field a kernel peer carries — public key, preshared
+key, allowed IPs and keepalive — has a place in `PeerSpec`, so the requirement had no reachable
+case. The conditions it was reaching for belong elsewhere and are covered: an IPv6 entry is
+rejected by `REQ-VAL-020`, an empty `allowed_ips` list by `REQ-VAL-017`, and storing part of a
+peer is already impossible under the single transaction of `REQ-RCN-065`.
+
+## 8. Error handling
 
 > **REQ-RCN-040** — When application fails, the agent MUST retain the stored desired state
 > and mark the resource `DEGRADED` with a `reason`.
@@ -324,7 +330,7 @@ reverses it by the same mechanism.
 > **REQ-RCN-042** — The agent MUST serialize all operations on a single interface behind a
 > per-interface lock.
 
-## 8. Open questions
+## 9. Open questions
 
 None. The scale targets that set the default `reconcile.interval` are fixed by `REQ-LIF-040`
 in [SPEC-10](SPEC-10-lifecycle.md).

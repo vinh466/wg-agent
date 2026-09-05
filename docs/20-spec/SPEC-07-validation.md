@@ -3,10 +3,10 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.5
+version: 1.6
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-05
+updated: 2026-09-06
 depends_on: [SPEC-01, SPEC-02]
 adrs: [ADR-0005, ADR-0006, ADR-0011]
 milestone: M1
@@ -86,6 +86,14 @@ WireGuard link with no address is a valid routed configuration on the host, so a
 can reach validation carrying one, and `REQ-KEY-031` would have no interface address to
 substitute when generating a client configuration.
 
+> **REQ-VAL-017** — The agent MUST reject a `PeerSpec` whose `allowed_ips` list is empty with
+> `ALLOWED_IPS_REQUIRED`.
+
+`allowed_ips` is a required field of `PeerSpec`, and the kernel permits a peer to carry none.
+Such a peer receives no traffic, so storing it would describe an interface the operator did not
+mean to have. Adoption is where this arrives, since a peer added by hand may have been left
+half-configured.
+
 > **REQ-VAL-020** — The agent MUST reject any address or CIDR of the IPv6 family with
 > `IPV6_NOT_SUPPORTED`.
 
@@ -149,6 +157,7 @@ Syntactically valid, practically broken.
 | Overlapping `addresses` | REQ-VAL-014 | Error |
 | Create naming an existing link | REQ-VAL-015 | Error |
 | Empty `addresses` | REQ-VAL-016 | Error |
+| Empty `allowed_ips` | REQ-VAL-017 | Error |
 | IPv6 address | REQ-VAL-020 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |

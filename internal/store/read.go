@@ -29,11 +29,11 @@ const DefaultPath = "/var/lib/wg-agent/state.db"
 // values, instance_id, created_at, deletion records and adoption records.
 // REQ-RCN-050 keeps status and traffic counters out.
 type file struct {
-	Schema     int                    `json:"schema"`
-	Interfaces map[string]iface       `json:"interfaces,omitempty"`
-	Deletions  map[string]deletion    `json:"deletions,omitempty"`
-	Adoptions  map[string]adoption    `json:"adoptions,omitempty"`
-	Peers      map[string]interface{} `json:"peers,omitempty"`
+	Schema     int                        `json:"schema"`
+	Interfaces map[string]iface           `json:"interfaces,omitempty"`
+	Deletions  map[string]deletion        `json:"deletions,omitempty"`
+	Adoptions  map[string]adoption        `json:"adoptions,omitempty"`
+	Peers      map[string]json.RawMessage `json:"peers,omitempty"`
 }
 
 type iface struct {

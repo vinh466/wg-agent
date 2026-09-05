@@ -17,23 +17,25 @@ import (
 
 // Node is an in-memory model of one host's WireGuard state.
 type Node struct {
-	Links   map[string]platform.LinkState
-	Devices map[string]platform.DeviceState
-	Units   map[string]platform.UnitState
-	Configs map[string]platform.WgQuickConfig
-	Managed map[string]bool
-	Deleted map[string]bool
+	Links      map[string]platform.LinkState
+	Devices    map[string]platform.DeviceState
+	Units      map[string]platform.UnitState
+	Configs    map[string]platform.WgQuickConfig
+	Managed    map[string]bool
+	Deleted    map[string]bool
+	Forwarding map[string]string
 }
 
 // NewNode returns an empty node.
 func NewNode() *Node {
 	return &Node{
-		Links:   map[string]platform.LinkState{},
-		Devices: map[string]platform.DeviceState{},
-		Units:   map[string]platform.UnitState{},
-		Configs: map[string]platform.WgQuickConfig{},
-		Managed: map[string]bool{},
-		Deleted: map[string]bool{},
+		Links:      map[string]platform.LinkState{},
+		Devices:    map[string]platform.DeviceState{},
+		Units:      map[string]platform.UnitState{},
+		Configs:    map[string]platform.WgQuickConfig{},
+		Managed:    map[string]bool{},
+		Deleted:    map[string]bool{},
+		Forwarding: map[string]string{},
 	}
 }
 
@@ -171,6 +173,20 @@ func (n *Node) WgQuickUnit(iface string) (platform.UnitState, error) {
 
 func (n *Node) WgQuickConfig(iface string) (platform.WgQuickConfig, error) {
 	return n.Configs[iface], nil
+}
+
+func (n *Node) ForwardingSysctl(iface string) (string, error) {
+	v, ok := n.Forwarding[iface]
+	if !ok {
+		return "", nil
+	}
+	return v, nil
+}
+
+// WithForwarding sets the interface's forwarding baseline.
+func (n *Node) WithForwarding(iface, v string) *Node {
+	n.Forwarding[iface] = v
+	return n
 }
 
 // ── platform.DesiredState ───────────────────────────────────────────────────

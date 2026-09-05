@@ -32,6 +32,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "doctor":
 		return doctorCmd(args[1:], stdout, stderr)
+	case "adopt":
+		return adoptCmd(args[1:], stdout, stderr)
+	case "release":
+		return releaseCmd(args[1:], stdout, stderr)
 	case "version":
 		fmt.Fprintf(stdout, "wg-agent %s (%s, %s)\n", version, commit, runtime.Version())
 		return 0
@@ -50,8 +54,10 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Implemented:")
 	fmt.Fprintln(w, "  doctor    report what adopting each existing interface would produce")
+	fmt.Fprintln(w, "  adopt     bring an existing interface under management, keeping its key")
+	fmt.Fprintln(w, "  release   stop managing an interface, leaving its link running")
 	fmt.Fprintln(w, "  version   print version, commit and Go version")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Specified, not yet built — see docs/20-spec/SPEC-12-cli.md:")
-	fmt.Fprintln(w, "  serve, token, adopt, release, export, import, overview")
+	fmt.Fprintln(w, "  serve, token, export, import, overview")
 }

@@ -174,5 +174,5 @@ var (
 	_ platform.Link         = (*link.Netlink)(nil)
 	_ platform.HostFS       = (*hostfs.Host)(nil)
 	_ platform.DesiredState = (*store.Snapshot)(nil)
-	_ = os.Stdout
+	_                       = os.Stdout
 )

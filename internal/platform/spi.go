@@ -147,6 +147,10 @@ type HostFS interface {
 	// WgQuickConfig reports the unsupported directives of the interface's
 	// configuration file.
 	WgQuickConfig(iface string) (WgQuickConfig, error)
+	// ForwardingSysctl returns the interface's current forwarding value, which
+	// REQ-FWD-024 records at adoption and restores on release. An empty string
+	// means the value could not be read.
+	ForwardingSysctl(iface string) (string, error)
 }
 
 // DesiredState is the part of the store the readiness report needs. doctor

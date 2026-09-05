@@ -60,6 +60,7 @@ const (
 	HintNoAddress         = "INTERFACE_NO_ADDRESS"
 	HintIPv6Address       = "INTERFACE_IPV6_ADDRESS"
 	HintPeerIPv6          = "PEER_IPV6_ALLOWED_IPS"
+	HintPeerNoAllowedIPs  = "PEER_NO_ALLOWED_IPS"
 	HintPortCollision     = "LISTEN_PORT_COLLISION"
 	HintAddressCollision  = "ADDRESS_COLLISION"
 	HintNotWireguard      = "LINK_NOT_WIREGUARD"
@@ -422,7 +423,7 @@ func overlaps(a, b netip.Prefix) bool {
 	return a.Overlaps(b)
 }
 
-// peerFindings implements REQ-DIA-048 and the REQ-RCN-068 row.
+// peerFindings implements REQ-DIA-048 and the peer rows of the findings table.
 func peerFindings(ds platform.DeviceState) []Finding {
 	var out []Finding
 	var withEndpoint []string
@@ -431,6 +432,17 @@ func peerFindings(ds platform.DeviceState) []Finding {
 		if p.Endpoint != "" {
 			withEndpoint = append(withEndpoint, short(p.PublicKey))
 		}
+		if len(p.AllowedIPs) == 0 {
+			out = append(out, Finding{
+				Name: "peer_allowed_ips", Result: Fail,
+				Observed: short(p.PublicKey) + " carries no allowed-ips",
+				Expected: "at least one IPv4 CIDR",
+				HintCode: HintPeerNoAllowedIPs,
+				Hint: "Give this peer an allowed-ips entry, or remove it with `wg set " + ds.Name +
+					" peer <key> remove`. A peer with none receives no traffic, and REQ-VAL-017 " +
+					"rejects the resulting spec.",
+			})
+		}
 		for _, a := range p.AllowedIPs {
 			if a.Addr().Is6() {
 				out = append(out, Finding{
@@ -438,8 +450,8 @@ func peerFindings(ds platform.DeviceState) []Finding {
 					Observed: short(p.PublicKey) + " allows " + a.String(),
 					Expected: "IPv4 only",
 					HintCode: HintPeerIPv6,
-					Hint: "Remove the IPv6 entry from this peer's AllowedIPs. REQ-RCN-068 refuses an adoption " +
-						"that cannot represent a peer, rather than storing part of one.",
+					Hint: "Remove the IPv6 entry from this peer's AllowedIPs. REQ-VAL-020 rejects any " +
+						"address of the IPv6 family, so the adopted spec would not validate.",
 				})
 			}
 		}

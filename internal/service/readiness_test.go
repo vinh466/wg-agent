@@ -298,17 +298,34 @@ func TestReadiness_IPv6AddressFails_REQ_VAL_020(t *testing.T) {
 	}
 }
 
-func TestReadiness_UnrepresentablePeerFails_REQ_RCN_068(t *testing.T) {
+func TestReadiness_PeerIPv6AllowedIPsFails_REQ_VAL_020(t *testing.T) {
 	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820)
 	n.AddPeer("wg0", "peer-public-key-aaaa", "fd00::/8", "", false)
 
 	i := only(t, build(t, n), "wg0")
 	f := findingByCode(i, service.HintPeerIPv6)
 	if f == nil || f.Result != service.Fail {
-		t.Fatalf("want a FAIL for a peer the resource model cannot represent, got %+v", f)
+		t.Fatalf("want a FAIL for an IPv6 entry in a peer's allowed-ips, got %+v", f)
 	}
 	if !i.Blocking() {
-		t.Error("REQ-RCN-068 refuses the adoption rather than storing part of a peer")
+		t.Error("the adopted spec would not validate, so the report must block")
+	}
+}
+
+func TestReadiness_PeerWithoutAllowedIPsFails_REQ_VAL_017(t *testing.T) {
+	// The kernel permits a peer with no allowed-ips. It receives no traffic, and
+	// allowed_ips is a required field of PeerSpec, so the adopted spec would be
+	// invalid. Nothing rejected an empty list before REQ-VAL-017.
+	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820)
+	n.AddPeer("wg0", "peer-public-key-aaaa", "", "", false)
+
+	i := only(t, build(t, n), "wg0")
+	f := findingByCode(i, service.HintPeerNoAllowedIPs)
+	if f == nil || f.Result != service.Fail {
+		t.Fatalf("want a FAIL for a peer with no allowed-ips, got %+v", f)
+	}
+	if !i.Blocking() {
+		t.Error("an unusable peer must block adoption")
 	}
 }
 
