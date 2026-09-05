@@ -3,7 +3,7 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.6
+version: 1.7
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -203,12 +203,26 @@ TOKEN_INVALID               NON_LOOPBACK_BIND         STORE_SCHEMA_TOO_NEW
 NFTABLES_UNAVAILABLE        STORE_CORRUPT
 IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
 PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
-ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED
+ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED     INTERFACE_NOT_FOREIGN
+ADOPTION_FIELD_REQUIRED     PEER_NOT_REPRESENTABLE    ADDRESSES_REQUIRED
 ```
 
-`REQ-RCN-064` returns `ADOPTION_BLOCKED` and `REQ-RCN-072` returns `INTERFACE_NOT_ADOPTED`,
-the latter because an interface the agent created leaves desired state through
-`DeleteInterface` rather than through release. The findings behind it travel
+The adoption codes have their producing requirements in
+[SPEC-03](SPEC-03-state-reconcile.md) section 6.3: `ADOPTION_BLOCKED` in `REQ-RCN-064`,
+`INTERFACE_NOT_ADOPTED` in `REQ-RCN-072`, `INTERFACE_NOT_FOREIGN` in `REQ-RCN-074`,
+`ADOPTION_FIELD_REQUIRED` in `REQ-RCN-066` and `PEER_NOT_REPRESENTABLE` in `REQ-RCN-068`.
+`ADDRESSES_REQUIRED` is produced by `REQ-VAL-016`.
+
+> **REQ-API-067** — An `ADOPTION_BLOCKED` status MUST carry the findings of `REQ-DIA-040` for
+> the named interface.
+
+> **REQ-API-068** — `AdoptInterface` MUST accept a validate-only mode that returns the spec the
+> request would store without writing it.
+
+`REQ-API-067` is what lets a caller act on a refusal: the reason code says the adoption was
+blocked, and the findings say by what. `REQ-API-068` gives an API caller the preview that
+`REQ-CLI-006` gives an operator, so discovering a blocking finding does not require attempting
+the write. Both carry write-only fields redacted under `REQ-RES-013` and `REQ-RES-022`. The findings behind it travel
 in the response rather than in the reason code, because `REQ-DIA-042` through `REQ-DIA-046`
 classify more conditions than a closed code set should carry, and `REQ-DIA-030` already gives
 each one a stable `hint_code`.

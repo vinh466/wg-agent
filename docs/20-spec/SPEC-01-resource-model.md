@@ -3,7 +3,7 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.4
+version: 1.6
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -96,25 +96,34 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 > **REQ-RES-015** — The agent MUST generate a fresh `instance_id` on every successful link
 > creation.
 
-> **REQ-RES-018** — The agent MUST assign an `instance_id` to an interface it adopts.
+> **REQ-RES-018** — The agent MUST assign a fresh `instance_id` to an interface it adopts.
 
 Adoption is not creation, so `REQ-RES-015` does not reach it. An adopted interface still needs
 the identifier, because `REQ-RES-026` reads it to tell a counter reset from a running total.
-Adoption leaves the link running, so the kernel counters do not reset and the first sample a
-caller takes has no earlier value to be compared against. The adoption path that assigns the
-identifier is `REQ-RCN-061`.
+
+A known imprecision follows, and is accepted rather than solved. Adoption leaves the link
+running, so its counters do not reset, while the identifier changes. On a first adoption no
+caller holds an earlier sample, so nothing is misread. On a re-adoption after `REQ-RCN-069` a
+caller holding an earlier sample sees a changed identifier and infers a reset that did not
+happen, overstating the delta once. Retaining the previous identifier is not available: release
+removes the interface from the store under `REQ-RCN-071`, so the agent has nothing to retain.
 
 > **REQ-RES-017** — `status.ownership` MUST take one of the three values below.
 
 | Value | Meaning |
 |---|---|
 | `MANAGED` | Present in desired state; the agent enforces the spec |
-| `FOREIGN` | A WireGuard link absent from desired state that the agent never created; left untouched under `REQ-RCN-030` |
+| `FOREIGN` | A WireGuard link absent from desired state that no deletion record names; left untouched under `REQ-RCN-030` |
 | `ORPHANED` | Named by a deletion record whose link survived; awaiting manual cleanup — see `REQ-RCN-034` |
 
 A `FOREIGN` or `ORPHANED` interface has no entry in desired state, so `ListInterfaces` returns
 it with `status` populated and `spec` absent. `REQ-RES-001` separates the two precisely so
 that this case has a representation.
+
+The three values are decided by desired state and the deletion record, both of which the store
+holds. Creation history is not among them, because the agent has no durable memory of it — the
+point `REQ-RCN-033` and `REQ-RCN-037` already turn on — and because reconcile step 1 recreates
+a link the agent did not originally create.
 
 `conditions` and `revision` together already answer whether a caller's write reached the
 kernel, because `REQ-API-020` applies a write before responding and `REQ-API-030` changes
@@ -123,6 +132,13 @@ with a second identifier and no additional information.
 
 > **REQ-RES-016** — `status.listen_port` MUST report the port the kernel has bound,
 > including when `spec.listen_port` is `0`.
+
+> **REQ-RES-019** — The agent MUST derive `oper_state` from the link's administrative flag
+> rather than from the operational state the kernel reports.
+
+A WireGuard link reports its operational state as unknown even while it is administratively up,
+because it has no carrier to report on. Reading that value would never yield `UP`, so the
+administrative flag is the only source that answers the question `oper_state` asks.
 
 ## 4. Peer
 

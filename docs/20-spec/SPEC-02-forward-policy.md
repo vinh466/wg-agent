@@ -3,7 +3,7 @@ id: SPEC-02
 title: Forward policy and NAT
 prefix: FWD
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -123,18 +123,25 @@ than from a global variable.
 > **REQ-FWD-021** — The agent MUST NOT write the global `net.ipv4.ip_forward`.
 
 > **REQ-FWD-022** — The agent MUST NOT change the forwarding sysctl of an interface that
-> desired state does not describe, except as required by `REQ-FWD-023`.
+> desired state does not describe, except as required by `REQ-FWD-023` or `REQ-FWD-024`.
 
 > **REQ-FWD-023** — When `external = ALLOW`, the agent MUST reject the spec with
 > `FORWARD_POLICY_NEEDS_UPLINK` unless `nat.enable_uplink_forwarding` is true.
 
-> **REQ-FWD-024** — The agent MUST record the original forwarding sysctl of each WireGuard
-> interface it creates or adopts and restore it on removal.
+> **REQ-FWD-024** — The agent MUST record the forwarding sysctl of each WireGuard interface it
+> adopts and restore that value when the interface is released.
 
-Both requirements test desired-state membership rather than creation, because an interface
-adopted under `REQ-RCN-060` is managed without having been created by the agent. `REQ-RCN-030`
-is the single definition of that boundary; restating the creation test here would leave two
-answers to one question. The uplink is never in desired state, so it stays outside both.
+`REQ-FWD-022` tests desired-state membership rather than creation, because an interface adopted
+under `REQ-RCN-060` is managed without having been created by the agent. `REQ-RCN-030` is the
+single definition of that boundary; restating the creation test here would leave two answers to
+one question. The uplink is never in desired state, so it stays outside.
+
+`REQ-FWD-024` covers adoption alone, and release alone, because those are the only cases where
+a restore can be performed or observed. The per-interface sysctl node exists only while the
+link does, so for an interface the agent created and then deleted there is nothing left to
+restore. Release is the one exit that leaves the link running, and it is also a moment at which
+`REQ-FWD-022` would otherwise forbid the write — hence the exception it now carries. The value
+is held in the adoption record of `REQ-RCN-070`.
 
 > **REQ-FWD-042** — The agent MUST NOT restore the forwarding sysctl on the uplink.
 

@@ -3,7 +3,7 @@ id: SPEC-12
 title: Command line surface
 prefix: CLI
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-05
 updated: 2026-09-05
@@ -60,8 +60,8 @@ the agent's own state.
 
 ## 3. Adoption
 
-> **REQ-CLI-004** — `doctor` MUST compute the report of `REQ-DIA-040` from the kernel and the
-> filesystem directly rather than through the API.
+> **REQ-CLI-004** — `doctor` MUST compute the report of `REQ-DIA-040` from the kernel, the
+> store and the filesystem directly rather than through the API.
 
 > **REQ-CLI-005** — `doctor` MUST render the `hint` of every finding it prints.
 
@@ -78,7 +78,14 @@ one home — `REQ-DIA-003` already requires `hint` to name a concrete corrective
 CLI renders it rather than authoring its own wording.
 
 `REQ-CLI-006` excludes write-only fields because the spec adoption stores holds the interface
-private key and every preshared key, which `REQ-CLI-022` and `REQ-SEC-050` forbid in output.
+private key and every preshared key, which `REQ-CLI-022` and `REQ-SEC-050` forbid in output. It
+renders the validate-only response of `REQ-API-068` rather than computing the spec a second
+time.
+
+The store is named in `REQ-CLI-004` because `REQ-DIA-040` scopes the report to `FOREIGN`
+interfaces, and `REQ-RES-017` decides that from desired state — a fact the store holds and the
+kernel does not. Reading it directly is the same latitude `REQ-CLI-002` gives the token
+subcommands.
 
 The migration this supports costs no downtime. Disabling a `wg-quick` unit does not stop it, so
 the interface keeps running while the unit stops competing for the next boot; adoption then

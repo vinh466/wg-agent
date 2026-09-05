@@ -3,7 +3,7 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.2
+version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -178,6 +178,24 @@ anything is written, which makes it the preview the reconcile path does not othe
 
 > **REQ-DIA-047** — The report MUST NOT include a private key or a preshared key.
 
+> **REQ-DIA-048** — The report MUST record a `WARN` result for a peer whose endpoint the kernel
+> holds, naming the peer.
+
+> **REQ-DIA-049** — The report MUST determine `wg-quick` unit enablement from the presence of a
+> symlink to `wg-quick@<interface>.service` under a systemd target's `.wants` directory.
+
+> **REQ-DIA-050** — The report MUST record an `UNKNOWN` result when it cannot determine unit
+> enablement.
+
+`REQ-DIA-049` fixes a filesystem predicate because `REQ-SEC-041` forbids the agent from
+executing a child process, which rules out asking `systemctl`. Enablement is a symlink, so the
+question is answerable by reading directories. `REQ-DIA-050` keeps an unreadable directory from
+presenting as a pass: an undetermined answer is reported as undetermined, and `REQ-RCN-064`
+blocks only on `FAIL`, so adoption is not refused for a question the report could not ask.
+
+`REQ-DIA-048` is what gives an operator the one notice that `REQ-RCN-063` discards a peer
+endpoint. Without it an implementation that stays silent would be conformant.
+
 Reusing `REQ-DIA-002` gives every finding the same shape as a diagnostic check result,
 including the `hint_code` and `hint` that `REQ-DIA-003` and `REQ-DIA-030` already govern, so
 remediation text has one home and one closed identifier set. `REQ-DIA-005` forbids diagnostics
@@ -197,14 +215,16 @@ presence as contention would refuse adoption on precisely the nodes it exists to
 | Finding | Result | Reason |
 |---|---|---|
 | An enabled `wg-quick` unit for this interface | `FAIL` | Both would manage the link, and the winner after a reboot is a race |
-| The spec adoption would produce fails validation | `FAIL` | `REQ-VAL-001` would block the write, so the adoption cannot complete |
+| The spec adoption would produce fails validation | `FAIL` | `REQ-VAL-001` rejects it with its own reason code, so `REQ-RCN-064` defers to it |
 | A peer the kernel holds cannot be represented in `PeerSpec` | `FAIL` | `REQ-RCN-068` rejects the request |
-| The link carries no address | `FAIL` | `addresses` is a required field of `InterfaceSpec` |
+| The link carries no address | `FAIL` | `REQ-VAL-016` rejects the resulting spec |
 | `PostUp` or `PostDown` present | `WARN` | [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) forbids reproducing them, so disabling `wg-quick` loses their effect at the next boot |
 | `SaveConfig` enabled | `WARN` | The file stops being updated once the agent manages the interface |
 | `DNS` present | `WARN` | A client-side concern the agent does not own |
-| A peer holds an endpoint | `WARN` | `REQ-RCN-063` discards it, naming the peer |
+| `Table` present | `WARN` | It maps to `manage_routes`, which `REQ-RCN-066` takes from the request rather than from the file |
+| A peer holds an endpoint | `WARN` | `REQ-DIA-048` — `REQ-RCN-063` discards it |
 | The configuration file cannot be parsed | `WARN` | `REQ-DIA-046` — field values come from the kernel regardless |
+| Unit enablement could not be determined | `UNKNOWN` | `REQ-DIA-050` |
 
 The validation row references [SPEC-07](SPEC-07-validation.md) rather than restating its rules,
 which is what keeps the port, address and IPv6 predicates in the one module that owns them.
@@ -216,10 +236,10 @@ recreates them. The gap between those two moments is where the report earns its 
 ### 5.2. Surface
 
 The report has no RPC of its own. `REQ-CLI-004` requires `doctor` to run on a node where the
-agent has never started, so the command computes the report locally, and the `Adopt` RPC carries
-it inside the `ADOPTION_BLOCKED` failure of `REQ-RCN-064`. An API caller therefore learns of a
-`FAIL` finding by attempting the adoption rather than by asking in advance, which is a
-limitation of this version and not a property worth preserving.
+agent has never started, so the command computes the report locally. An API caller reaches the
+same findings two ways: `REQ-API-068` returns the spec an adoption would store without writing
+it, and `REQ-API-067` carries the findings inside the `ADOPTION_BLOCKED` failure of
+`REQ-RCN-064`.
 
 ## 6. Implementation cost
 

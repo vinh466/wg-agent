@@ -3,7 +3,7 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.3
+version: 1.4
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -73,6 +73,14 @@ already describes is a repeated create of a managed interface, which stays idemp
 `REQ-RCN-034`, and refusing to recreate it would leave a shell on the node as its only
 recovery.
 
+> **REQ-VAL-016** — The agent MUST reject an `InterfaceSpec` whose `addresses` list is empty
+> with `ADDRESSES_REQUIRED`.
+
+`addresses` is a required field of `InterfaceSpec`, and nothing else rejected an empty list. A
+WireGuard link with no address is a valid routed configuration on the host, so an adopted spec
+can reach validation carrying one, and `REQ-KEY-031` would have no interface address to
+substitute when generating a client configuration.
+
 > **REQ-VAL-020** — The agent MUST reject any address or CIDR of the IPv6 family with
 > `IPV6_NOT_SUPPORTED`.
 
@@ -135,6 +143,7 @@ Syntactically valid, practically broken.
 | Duplicate `listen_port` | REQ-VAL-013 | Error |
 | Overlapping `addresses` | REQ-VAL-014 | Error |
 | Create naming an existing link | REQ-VAL-015 | Error |
+| Empty `addresses` | REQ-VAL-016 | Error |
 | IPv6 address | REQ-VAL-020 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |

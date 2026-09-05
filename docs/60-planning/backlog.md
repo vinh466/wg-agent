@@ -16,12 +16,12 @@ providers and Kubernetes operators. The near-term target is narrower: a single o
 managing their own node, adopting an interface that already exists, reaching the API locally
 behind one token.
 
-Against that narrower target, this file defers **97 of the 267 live requirements**, leaving
-170 in the near-term build. Deferring them explicitly is what keeps the count honest — the
+Against that narrower target, this file defers **97 of the 276 live requirements**, leaving
+179 in the near-term build. Deferring them explicitly is what keeps the count honest — the
 alternative is a milestone plan that looks achievable only because nobody counted.
 
 Reading the milestone numbers as the smaller slice does not work: M0 through M2 still carry
-237 of 267 requirements, because the machine-facing scaffolding is spread across the MVP
+246 of 276 requirements, because the machine-facing scaffolding is spread across the MVP
 modules rather than concentrated after them. Counts are as of the front-matter date.
 
 ## How to read an entry
@@ -154,7 +154,8 @@ reduced from nine components to the four that exist in the near-term build. Also
 `REQ-DIA-002`, `REQ-DIA-003`, `REQ-DIA-005` and `REQ-DIA-030`, which the adoption readiness
 report of `REQ-DIA-040` builds on: `REQ-DIA-041` adopts the finding shape of `REQ-DIA-002`,
 `REQ-CLI-005` renders the `hint` of `REQ-DIA-003`, and `REQ-DIA-030` supplies its closed
-`hint_code` set. The whole `REQ-DIA-040` to `REQ-DIA-047` group is near-term work.
+`hint_code` set. All of section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md) is
+near-term work.
 
 **Returns when:** B-04 returns. The fourteen-check `DiagnoseInterface` exists to debug the
 seven conditions that must hold for two peers to communicate, and those conditions are the
@@ -215,8 +216,11 @@ to a temporary path and renamed atomically at mode `0600`.
 ## What is not in this file
 
 Interface adoption is **near-term work, not deferred work**. It is specified in
-[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md), `REQ-RCN-060` to
-`REQ-RCN-065`, `REQ-DIA-040` to `REQ-DIA-044` and `REQ-CLI-004` to `REQ-CLI-007`, and it is the
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) and in section 6.3 of
+[SPEC-03](../20-spec/SPEC-03-state-reconcile.md), section 5 of
+[SPEC-11](../20-spec/SPEC-11-diagnostics.md) and section 3 of
+[SPEC-12](../20-spec/SPEC-12-cli.md). Naming the sections rather than requirement ranges is
+deliberate: three earlier enumerations of those ranges went stale within a day. It is the
 reason the near-term target is worth building at all: it is what lets the agent take over a node
 that already runs WireGuard instead of demanding one that does not.
 

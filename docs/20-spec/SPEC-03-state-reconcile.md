@@ -3,7 +3,7 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.4
+version: 1.5
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-05
@@ -28,8 +28,8 @@ fields the agent enforces and which the kernel owns.
 
 > **REQ-RCN-001** — The agent MUST persist desired state to disk and restore it on startup.
 
-> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id`, the deletion
-> records defined in section 6 and the adoption records defined in section 6.3.
+> **REQ-RCN-002** — The store MUST hold only `spec` values, `instance_id`, `created_at`, the
+> deletion records defined in section 6 and the adoption records defined in section 6.3.
 
 > **REQ-RCN-050** — The store MUST NOT hold `status` values or any traffic counter.
 
@@ -132,16 +132,17 @@ up.
 
 ### 6.1. Foreign interfaces
 
-> **REQ-RCN-030** — A WireGuard interface present on the host that the agent never created
-> and that desired state does not describe MUST NOT be deleted or modified by the agent.
+> **REQ-RCN-030** — A WireGuard interface that desired state does not describe and that no
+> deletion record names MUST NOT be deleted or modified by the agent.
 
 > **REQ-RCN-031** — The agent MUST report such an interface in `ListInterfaces` with
 > `status.ownership = FOREIGN`.
 
-Deleting resources created by another party is unacceptable behavior for an agent. The
-qualifier matches the title of this section: a link the agent did not create enters desired
-state only through adoption under section 6.3, which is an explicit operator action. A link
-nobody has asked for stays untouchable.
+Deleting resources created by another party is unacceptable behavior for an agent. Both
+qualifiers are facts the store holds, which is what makes the rule decidable after a restart:
+the agent cannot know whether it created a link, only whether desired state describes it and
+whether a deletion record names it. `REQ-RCN-035` protects an orphan under its own rule, so the
+two cases stay distinct. A link nobody has asked for stays untouchable.
 
 ### 6.2. Deletion and orphans
 
@@ -174,10 +175,13 @@ into desired state without disturbing the traffic already flowing through it, pe
 [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md).
 
 > **REQ-RCN-060** — The agent MUST bring an existing link under management only in response to
-> an explicit adoption request naming an interface whose `status.ownership` is `FOREIGN`.
+> an explicit adoption request naming that interface.
+
+> **REQ-RCN-074** — Adoption MUST reject a request naming an interface whose `status.ownership`
+> is not `FOREIGN` with `INTERFACE_NOT_FOREIGN`.
 
 > **REQ-RCN-061** — Adoption MUST populate the interface spec from kernel state, storing the
-> existing private key rather than generating one.
+> existing private key and every address the link carries rather than a subset.
 
 > **REQ-RCN-062** — Adoption MUST store every peer present in the kernel as part of the
 > adopted interface's desired state.
@@ -186,27 +190,32 @@ into desired state without disturbing the traffic already flowing through it, pe
 > `REQ-RCN-051`.
 
 > **REQ-RCN-066** — Adoption MUST source `forward_policy`, `nat` and `manage_routes` from the
-> adoption request, rejecting a request that omits any of them.
+> adoption request, rejecting a request that omits any of them with `ADOPTION_FIELD_REQUIRED`.
 
 > **REQ-RCN-067** — Adoption MUST reject a request naming a link absent from the host with
 > `INTERFACE_NOT_FOUND`.
 
-> **REQ-RCN-068** — Adoption MUST reject a request when a peer held by the kernel cannot be
-> represented in `PeerSpec`.
+> **REQ-RCN-068** — Adoption MUST reject a request with `PEER_NOT_REPRESENTABLE` when a peer
+> held by the kernel cannot be represented in `PeerSpec`.
 
-> **REQ-RCN-064** — Adoption MUST fail with `ADOPTION_BLOCKED`, leaving the store unchanged,
-> when the report of `REQ-DIA-040` carries a `FAIL` finding for the interface named in the
-> request.
+> **REQ-RCN-064** — When the report of `REQ-DIA-040` carries a `FAIL` finding for the named
+> interface that `REQ-VAL-001` does not itself reject, adoption MUST fail with
+> `ADOPTION_BLOCKED` and leave the store unchanged.
 
-> **REQ-RCN-065** — Adoption MUST write the interface and its peers in a single transaction.
+> **REQ-RCN-065** — Adoption MUST write the interface, its peers and its adoption record in a
+> single transaction.
 
 > **REQ-RCN-069** — The agent MUST support removing an adopted interface from desired state
 > while leaving its link in the kernel.
 
-> **REQ-RCN-070** — Adoption MUST retain an adoption record naming the interface.
+> **REQ-RCN-070** — Adoption MUST retain an adoption record naming the interface and holding
+> the forwarding sysctl value that `REQ-FWD-024` records.
 
-> **REQ-RCN-071** — Releasing an interface MUST delete its peers from the store and clear its
-> adoption record in the same transaction.
+> **REQ-RCN-071** — The agent MUST clear an interface's adoption record in the same
+> transaction that removes its spec from the store.
+
+> **REQ-RCN-073** — Releasing an interface MUST restore the forwarding sysctl of `REQ-FWD-024`
+> and delete its peers from the store before that transaction commits.
 
 > **REQ-RCN-072** — The agent MUST reject a release request naming an interface that holds no
 > adoption record with `INTERFACE_NOT_ADOPTED`.
@@ -222,10 +231,10 @@ The kernel supplies the fields it holds; the request supplies the ones it does n
 | `instance_id` | Assigned under `REQ-RES-018` |
 
 `REQ-RCN-066` exists because the kernel holds no forward policy and no routing intent, so a
-default would be a guess applied to a live node. `intra_interface` defaults to `ALLOW` and the
-other two axes to `DENY` under `REQ-FWD-001`, `REQ-FWD-003` turns a `DENY` axis into a drop rule
-that step 10 of `REQ-RCN-022` would then install on traffic that was passing, and
-`manage_routes` defaults to `true`, which step 7 would act on. Naming both in the request keeps
+default would be a guess applied to a live node. Taking the defaults of `REQ-FWD-001` and of
+`manage_routes` in [SPEC-01](SPEC-01-resource-model.md) would let `REQ-FWD-003` turn an axis
+into a drop rule that step 10 of `REQ-RCN-022` installs on traffic that was passing, and would
+let step 7 act on routes the previous manager never asked for. Naming them in the request keeps
 adoption a decision rather than a side effect, for the same reason `REQ-VAL-015` refuses an
 implicit takeover.
 
@@ -242,17 +251,16 @@ needs a static endpoint restates it after adoption, where the intent is unambigu
 
 `REQ-RCN-069` is the inverse transition. Without it the only exit from `MANAGED` is
 `REQ-RCN-032`, which removes the link from the kernel — an outage on the interface adoption
-exists to preserve. A released interface needs no ownership rule of its own: it was never
-created by the agent and holds no deletion record, so `REQ-RCN-030` and `REQ-RCN-031` already
-report it as `FOREIGN`. Confining release to an adopted interface is what keeps the three
-values of `REQ-RES-017` exhaustive — an interface the agent created leaves desired state
-through `REQ-RCN-032` alone, so no link is ever absent from desired state without matching one
-of the three.
+exists to preserve. A released interface needs no ownership rule of its own: it is absent from
+desired state and no deletion record names it, so `REQ-RCN-030` and `REQ-RCN-031` report it as
+`FOREIGN` without reference to which party created the link.
 
-The adoption record of `REQ-RCN-070` is what makes both directions survive a restart. It tells
-`REQ-RCN-069` and `REQ-RCN-072` which interfaces may be released, and it is where the sysctl
-baseline that `REQ-FWD-024` records and restores is held. `REQ-RCN-071` mirrors `REQ-RCN-038`:
-peer specs belong to a managed interface and outlive it in neither direction.
+The adoption record of `REQ-RCN-070` is what makes both directions survive a restart, and it is
+what `REQ-RCN-072` tests, so "adopted" is a fact the store holds rather than a history the agent
+would have to remember. `REQ-RCN-065` and `REQ-RCN-071` bind the record to the same transactions
+as the spec it accompanies, which is what stops a crash between the two writes from leaving a
+managed interface no operator can release. `REQ-RCN-071` reaches `REQ-RCN-032` as well as
+release, so no exit leaves the record behind.
 
 No separate ownership transition is needed. `REQ-RES-017` defines `MANAGED` as presence in
 desired state, so writing the spec is what changes `status.ownership`, and `REQ-RCN-069`
