@@ -130,6 +130,26 @@ sudo wg-agent release wg0                  # and back to FOREIGN, link untouched
 The policy flags are required rather than defaulted. The kernel holds no forward policy, so a
 default would be a guess applied to traffic that is already flowing — see `REQ-RCN-066`.
 
+### The interface does not survive a reboot yet
+
+Do not run this sequence on a node you care about. Disabling the `wg-quick` unit removes the one
+thing that recreated the interface at boot, and nothing replaces it: `serve` is specified and
+unbuilt, so no process applies desired state, and the reconcile engine that would recreate the
+link does not exist. Adoption writes the store correctly and the store is read by nothing.
+
+Until `serve` lands, either leave the unit enabled and accept that adoption is a rehearsal, or
+be ready to bring the link up by hand after a reboot:
+
+```bash
+sudo ip link add wg0 type wireguard
+sudo wg setconf wg0 /etc/wireguard/wg0.conf
+sudo ip addr add <cidr> dev wg0 && sudo ip link set wg0 up
+```
+
+The guide keeps the sequence because the container tier runs it end to end on every change, and
+because the migration itself is what the requirements describe. What is missing is the process
+that acts on the result.
+
 ## The distribution matrix
 
 `REQ-CFG-013` requires the systemd hardening combination to be verified on every tested
