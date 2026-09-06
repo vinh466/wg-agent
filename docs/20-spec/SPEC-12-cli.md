@@ -65,6 +65,22 @@ the MVP depend on are `serve`, `token`, `overview` and `version`.
 
 > **REQ-CLI-003** — A subcommand needing a running agent MUST connect over the unix socket.
 
+> **REQ-CLI-008** — `serve` MUST accept a flag that runs one reconcile pass and exits.
+
+> **REQ-CLI-009** — A single pass MUST print the ownership, operational state, peer count and
+> condition of every interface it saw.
+
+`REQ-CLI-008` is the step between adoption and a supervised agent. Adoption writes desired state
+and stops there, so an operator who has just disabled a `wg-quick` unit needs one command that
+applies the result and reports what happened, without leaving a process behind. It is the same
+pass `REQ-RCN-020` runs at startup, which is what makes the output a rehearsal of what the
+running agent will do rather than a separate code path.
+
+`REQ-CLI-009` exists because a pass that printed nothing would leave the operator guessing. The
+four fields are the ones that answer whether the migration worked: `REQ-RES-017` ownership says
+the interface is managed, `REQ-RES-019` operational state says it is up, and `REQ-RES-032`
+condition says whether reconciliation succeeded.
+
 The unix socket grants `admin` under `REQ-SEC-077`, so the CLI never handles a token to read
 the agent's own state.
 

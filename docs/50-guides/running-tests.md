@@ -140,6 +140,7 @@ sudo wg-agent adopt wg0 --dry-run \
      --intra=allow --inter=deny --external=deny --manage-routes=false
 sudo wg-agent adopt wg0 \
      --intra=allow --inter=deny --external=deny --manage-routes=false
+sudo wg-agent serve --once                 # apply desired state, print what each interface is
 sudo wg-agent doctor                       # wg0 now reports MANAGED
 sudo wg-agent release wg0                  # and back to FOREIGN, link untouched
 ```
@@ -147,25 +148,30 @@ sudo wg-agent release wg0                  # and back to FOREIGN, link untouched
 The policy flags are required rather than defaulted. The kernel holds no forward policy, so a
 default would be a guess applied to traffic that is already flowing — see `REQ-RCN-066`.
 
-### The interface does not survive a reboot yet
+### Something has to run after a reboot
 
-Do not run this sequence on a node you care about. Disabling the `wg-quick` unit removes the one
-thing that recreated the interface at boot, and nothing replaces it: `serve` is specified and
-unbuilt, so no process applies desired state, and the reconcile engine that would recreate the
-link does not exist. Adoption writes the store correctly and the store is read by nothing.
+Disabling the `wg-quick` unit removes the one thing that recreated the interface at boot.
+`wg-agent serve` is what replaces it: the startup pass of `REQ-RCN-020` recreates the link,
+restores the key, the peers, the addresses and the MTU, and brings it up. The integration tier
+runs exactly that — adopt, delete the link, one pass, assert the interface is back with the same
+public key — so the claim is checked on every change.
 
-Until `serve` lands, either leave the unit enabled and accept that adoption is a rehearsal, or
-be ready to bring the link up by hand after a reboot:
+Nothing starts `serve` for you yet. The systemd unit is packaging work, deferred under `B-03`,
+so until it ships either start it under a supervisor of your own or run it in a terminal:
 
 ```bash
-sudo ip link add wg0 type wireguard
-sudo wg setconf wg0 /etc/wireguard/wg0.conf
-sudo ip addr add <cidr> dev wg0 && sudo ip link set wg0 up
+sudo wg-agent serve --log-level=debug
 ```
 
-The guide keeps the sequence because the container tier runs it end to end on every change, and
-because the migration itself is what the requirements describe. What is missing is the process
-that acts on the result.
+Two things it will not do yet. It serves no API, so the interface can only be changed by
+`adopt`, `release` and the store; and it writes no forwarding sysctl and installs no nftables
+rules, because steps 9 and 10 of `REQ-RCN-022` are deferred under `B-04`. A single-interface
+node does not need them. A node routing between two does.
+
+`serve` holds an exclusive lock on the store while it runs — `REQ-RCN-006` — so `adopt` and
+`release` refuse to write until it stops. Stop it with `SIGTERM`; `REQ-API-074` requires
+shutdown to leave every managed interface exactly as it is, so stopping the agent is not
+stopping the tunnel.
 
 ## The distribution matrix
 

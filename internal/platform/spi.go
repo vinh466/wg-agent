@@ -188,6 +188,26 @@ type Link interface {
 	RouteDel(name string, p netip.Prefix) error
 }
 
+// LinkEvent reports one interface the kernel changed.
+type LinkEvent struct {
+	Name string
+	// Deleted distinguishes a link that is gone from one brought down. Both
+	// are reconcile triggers under REQ-RCN-020; only the first ends a link.
+	Deleted bool
+}
+
+// LinkEvents is the netlink subscription REQ-RCN-021 requires, so an externally
+// deleted link is noticed rather than waited for.
+//
+// It is a port of its own rather than a method on Link: an agent that only
+// reconciles on the timer still works, and keeping the subscription separate
+// lets a caller that has no use for it leave the field nil.
+type LinkEvents interface {
+	// Subscribe delivers events until the channel it returns is closed, which
+	// happens when done is closed or the subscription fails.
+	Subscribe(done <-chan struct{}) (<-chan LinkEvent, error)
+}
+
 // UnitState is what can be learned about a systemd unit without executing
 // anything. REQ-SEC-041 forbids a child process in a production path, so
 // enablement is read as a symlink under a target's wants directory —

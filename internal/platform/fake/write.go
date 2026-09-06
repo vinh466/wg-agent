@@ -223,3 +223,32 @@ func short(k string) string {
 	}
 	return k[:8]
 }
+
+// ── platform.LinkEvents ─────────────────────────────────────────────────────
+
+// Events is an in-memory subscription. A test pushes an event and asserts that
+// the runner reconciled, without a netlink socket.
+type Events struct {
+	Ch chan platform.LinkEvent
+	// Err, when set, is what Subscribe returns. It covers the case a runner has
+	// to survive: a subscription that cannot be established leaves the periodic
+	// timer as the only trigger rather than stopping the agent.
+	Err error
+}
+
+// NewEvents returns a subscription with a buffered channel.
+func NewEvents() *Events {
+	return &Events{Ch: make(chan platform.LinkEvent, 8)}
+}
+
+func (e *Events) Subscribe(done <-chan struct{}) (<-chan platform.LinkEvent, error) {
+	if e.Err != nil {
+		return nil, e.Err
+	}
+	return e.Ch, nil
+}
+
+// Send delivers one event.
+func (e *Events) Send(name string, deleted bool) {
+	e.Ch <- platform.LinkEvent{Name: name, Deleted: deleted}
+}

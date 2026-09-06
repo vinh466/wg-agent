@@ -30,6 +30,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	switch args[0] {
+	case "serve":
+		return serveCmd(args[1:], stdout, stderr)
 	case "doctor":
 		return doctorCmd(args[1:], stdout, stderr)
 	case "adopt":
@@ -53,11 +55,12 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "usage: wg-agent <command> [flags]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Implemented:")
+	fmt.Fprintln(w, "  serve     run the reconcile loop, holding the store lock")
 	fmt.Fprintln(w, "  doctor    report what adopting each existing interface would produce")
 	fmt.Fprintln(w, "  adopt     bring an existing interface under management, keeping its key")
 	fmt.Fprintln(w, "  release   stop managing an interface, leaving its link running")
 	fmt.Fprintln(w, "  version   print version, commit and Go version")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Specified, not yet built — see docs/20-spec/SPEC-12-cli.md:")
-	fmt.Fprintln(w, "  serve, token, export, import, overview")
+	fmt.Fprintln(w, "  token, export, import, overview")
 }
