@@ -29,6 +29,10 @@ type Engine struct {
 	Store  Store
 	Link   platform.Link
 	Device platform.Device
+	// HostFS carries the forwarding sysctl of step 9. A nil value skips that
+	// step, which is what lets a test drive the rest of the algorithm on a host
+	// whose /proc/sys is read-only.
+	HostFS platform.HostFS
 
 	// Now is injectable so a test can assert a timestamp. A nil value means
 	// time.Now.
@@ -129,8 +133,8 @@ func (e *Engine) Interface(name string) Status {
 	return st
 }
 
-// apply is the algorithm of REQ-RCN-022. Steps 9 and 10 are deferred under
-// B-04; every other step is here in the order the requirement fixes.
+// apply is the algorithm of REQ-RCN-022, in the order the requirement fixes.
+// Step 10 alone is deferred, under B-04.
 func (e *Engine) apply(name string) Status {
 	st := Status{
 		Name:      name,
@@ -282,12 +286,40 @@ func (e *Engine) apply(name string) Status {
 		}
 	}
 
-	// Steps 9 and 10 — the forwarding sysctl and nftables — are deferred under
-	// B-04 in docs/60-planning/backlog.md.
+	// Step 9 — the forwarding sysctl. REQ-FWD-020 is one of the three SPEC-02
+	// requirements B-04 keeps, because without it traffic between two peers of
+	// one interface is not forwarded at all.
+	//
+	// REQ-FWD-022 is satisfied structurally: this runs for an interface desired
+	// state describes, which is the membership test the requirement names.
+	if e.HostFS != nil && needsForwarding(spec.ForwardPolicy) {
+		if err := e.HostFS.SetForwardingSysctl(name, "1"); err != nil {
+			st.degraded(ReasonSysctlWriteDenied, err.Error())
+			return st
+		}
+	}
+
+	// Step 10 — nftables — is deferred under B-04 in
+	// docs/60-planning/backlog.md, so a DENY axis is stored and not enforced.
 
 	// Step 11 — status.
 	st.ready()
 	return st
+}
+
+// needsForwarding is the condition of REQ-FWD-020.
+//
+// The requirement reads `inter_interface != DENY`, which an unset axis would
+// satisfy. An unset axis is an invalid spec rather than a permissive one —
+// REQ-RCN-066 makes adoption supply all three and SPEC-07 rejects a create that
+// does not — so the test is for a value that explicitly permits forwarding. For
+// a valid spec the two readings agree; for an invalid one this is the direction
+// that does not open forwarding by accident.
+func needsForwarding(fp model.ForwardPolicySpec) bool {
+	if fp.IntraInterface == model.Allow {
+		return true
+	}
+	return fp.InterInterface == model.Allow || fp.InterInterface == model.AllowList
 }
 
 func (e *Engine) syncRoutes(name string, peers []model.Peer) error {

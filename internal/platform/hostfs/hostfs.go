@@ -10,6 +10,7 @@ package hostfs
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -173,4 +174,31 @@ func (h *Host) ForwardingSysctl(iface string) (string, error) {
 		return "", nil
 	}
 	return strings.TrimSpace(string(b)), nil
+}
+
+// SetForwardingSysctl writes the interface's forwarding value.
+//
+// The current value is read first and a matching write skipped, which is what
+// keeps a reconcile pass over an interface already in the right state from
+// touching `/proc/sys` at all. That matters on a host that mounts it read-only:
+// an unnecessary write would turn a no-op into the one step that fails.
+//
+// An absent node is not an error. It goes with the link, so an interface
+// without one has nothing to configure.
+func (h *Host) SetForwardingSysctl(iface, value string) error {
+	path := filepath.Join(h.sysctlDir, iface, "forwarding")
+	current, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("read forwarding sysctl of %q: %w", iface, err)
+	}
+	if strings.TrimSpace(string(current)) == strings.TrimSpace(value) {
+		return nil
+	}
+	if err := os.WriteFile(path, []byte(strings.TrimSpace(value)+"\n"), 0o644); err != nil {
+		return fmt.Errorf("write forwarding sysctl of %q: %w", iface, err)
+	}
+	return nil
 }

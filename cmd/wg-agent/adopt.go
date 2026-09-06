@@ -7,8 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -134,7 +132,9 @@ func releaseCmd(args []string, stdout, stderr io.Writer) int {
 	}
 	defer st.Close()
 
-	res, err := service.Release{RestoreForwarding: restoreForwarding}.Do(st, name)
+	res, err := service.Release{
+		RestoreForwarding: hostfs.New().SetForwardingSysctl,
+	}.Do(st, name)
 	if err != nil {
 		return reportServiceError(err, stderr)
 	}
@@ -151,28 +151,6 @@ func releaseCmd(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  forwarding sysctl restored to %s\n", res.ForwardingRestored)
 	}
 	return 0
-}
-
-// restoreForwarding writes the recorded baseline back — REQ-FWD-024, excepted
-// from REQ-FWD-022 for exactly this case.
-//
-// The current value is compared first, and an equal one is left alone. That is
-// not an optimisation: REQ-FWD-020, which is what would have changed the value,
-// is deferred under B-04, so the agent has not written this sysctl at all yet.
-// Writing regardless would turn a no-op into the one step that can fail — and
-// on a node where /proc/sys is read-only, such as an ordinary container, it
-// would make every release fail for nothing.
-func restoreForwarding(iface, value string) error {
-	path := filepath.Join("/proc/sys/net/ipv4/conf", iface, "forwarding")
-	current, err := os.ReadFile(path)
-	if err != nil {
-		// The node goes with the link. There is nothing to restore.
-		return nil
-	}
-	if strings.TrimSpace(string(current)) == value {
-		return nil
-	}
-	return os.WriteFile(path, []byte(value+"\n"), 0o644)
 }
 
 // openStoreForWrite acquires the exclusive lock of REQ-RCN-006. A held lock

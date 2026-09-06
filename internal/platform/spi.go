@@ -251,6 +251,12 @@ type HostFS interface {
 	// REQ-FWD-024 records at adoption and restores on release. An empty string
 	// means the value could not be read.
 	ForwardingSysctl(iface string) (string, error)
+	// SetForwardingSysctl writes it. Step 9 of REQ-RCN-022 calls this under
+	// REQ-FWD-020, and release calls it under REQ-FWD-024.
+	//
+	// The per-interface node exists only while the link does, so writing to an
+	// interface with no node is not an error — there is nothing to configure.
+	SetForwardingSysctl(iface, value string) error
 }
 
 // DesiredState is the part of the store the readiness report needs. doctor

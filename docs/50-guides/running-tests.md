@@ -88,10 +88,19 @@ Keep them separate and keep them few. A privileged container is not isolated fro
 can write the host's global `net.ipv4.ip_forward`, which `REQ-FWD-021` forbids the agent from
 touching at all.
 
-One trap worth knowing before you write an assertion in this tier. Docker enables forwarding in
-its containers, so `net.ipv4.conf.<iface>.forwarding` starts at `1` there, while a freshly
-booted host usually starts at `0`. A test for `REQ-FWD-024`, which records a baseline and
-restores it, has to set the baseline it expects rather than assume one.
+Two traps worth knowing before you write an assertion in this tier.
+
+Docker enables forwarding in its containers, so `net.ipv4.conf.<iface>.forwarding` starts at
+`1` there, while a freshly booted host usually starts at `0`. A test for `REQ-FWD-020` or
+`REQ-FWD-024` has to set the baseline it expects rather than assume one — otherwise the write
+it means to verify is skipped as already-matching and the test asserts nothing.
+
+`wg set <iface> private-key <path>` fails in a privileged container with `fopen: Permission
+denied`, for any path and as root, while the same call from a `CAP_NET_ADMIN` container
+succeeds. Pipe the key to `/dev/stdin` instead; that works in both tiers, and it keeps a
+private key off the filesystem. Only the `wg` binary is affected — ordinary file reads work,
+which the store's own tests confirm in the same tier. The product code never reads a key file:
+it configures the device through `wgctrl`.
 
 ## Writing a test
 

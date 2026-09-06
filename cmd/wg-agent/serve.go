@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"wg-agent/internal/platform/hostfs"
 	"wg-agent/internal/platform/link"
 	"wg-agent/internal/platform/wg"
 	"wg-agent/internal/reconcile"
@@ -74,7 +75,12 @@ func serveCmd(args []string, stdout, stderr io.Writer) int {
 	defer func() { _ = dev.Close() }()
 
 	nl := link.New()
-	engine := &reconcile.Engine{Store: st, Link: nl, Device: dev}
+	engine := &reconcile.Engine{
+		Store:  st,
+		Link:   nl,
+		Device: dev,
+		HostFS: hostfs.New(),
+	}
 
 	if *once {
 		if err := engine.Pass(); err != nil {

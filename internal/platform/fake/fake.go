@@ -26,6 +26,10 @@ type Node struct {
 	Forwarding map[string]string
 	RouteTable map[string][]netip.Prefix
 
+	// SysctlReadOnly makes every forwarding write fail, which is what an
+	// ordinary container does and what REQ-CFG-011 exists to carve out.
+	SysctlReadOnly bool
+
 	// Calls records every mutation in order. A test asserts on it to prove a
 	// write did not happen, which is what REQ-RCN-012 and REQ-RCN-051 demand.
 	Calls []string
@@ -200,11 +204,33 @@ func (n *Node) ForwardingSysctl(iface string) (string, error) {
 	return v, nil
 }
 
+// SetForwardingSysctl records the write, and refuses when SysctlReadOnly is
+// set — the ordinary container case, and what `ProtectKernelTunables=yes`
+// produces without the carve-out of REQ-CFG-011.
+func (n *Node) SetForwardingSysctl(iface, value string) error {
+	if _, ok := n.Links[iface]; !ok {
+		// The node goes with the link.
+		return nil
+	}
+	if n.Forwarding[iface] == value {
+		return nil
+	}
+	if n.SysctlReadOnly {
+		return fmt.Errorf("write forwarding sysctl of %q: read-only file system", iface)
+	}
+	n.Forwarding[iface] = value
+	n.Calls = append(n.Calls, "SetForwarding("+iface+","+value+")")
+	return nil
+}
+
 // WithForwarding sets the interface's forwarding baseline.
 func (n *Node) WithForwarding(iface, v string) *Node {
 	n.Forwarding[iface] = v
 	return n
 }
+
+// WithReadOnlySysctl makes every forwarding write fail.
+func (n *Node) WithReadOnlySysctl() *Node { n.SysctlReadOnly = true; return n }
 
 // ── platform.DesiredState ───────────────────────────────────────────────────
 

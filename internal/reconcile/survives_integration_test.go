@@ -32,8 +32,7 @@ func TestIntegration_AdoptedInterfaceReturnsAfterItsLinkIsGone_REQ_RCN_020(t *te
 	priv, pub := genKey(t)
 	_, peerPub := genKey(t)
 	mustRun(t, "ip", "link", "add", name, "type", "wireguard")
-	writeKey(t, priv)
-	mustRun(t, "wg", "set", name, "private-key", "/tmp/wgs0.key", "listen-port", "51993")
+	wgSetKey(t, name, priv, "listen-port", "51993")
 	mustRun(t, "wg", "set", name, "peer", peerPub, "allowed-ips", "10.94.0.2/32")
 	mustRun(t, "ip", "addr", "add", "10.94.0.1/24", "dev", name)
 	mustRun(t, "ip", "link", "set", name, "up")
@@ -140,10 +139,18 @@ func mustRun(t *testing.T, name string, args ...string) {
 	}
 }
 
-func writeKey(t *testing.T, priv string) {
+// wgSetKey pipes the private key to `wg` on stdin rather than through a file.
+//
+// A file is refused outright in a privileged container — `wg` reports
+// `fopen: Permission denied` for any path, while the same call from a
+// CAP_NET_ADMIN container succeeds. Reading from /dev/stdin works in both, and
+// keeps a private key off the filesystem, which a test should do in any case.
+func wgSetKey(t *testing.T, iface, priv string, extra ...string) {
 	t.Helper()
-	if err := exec.Command("sh", "-c",
-		"printf '%s\n' "+priv+" > /tmp/wgs0.key").Run(); err != nil {
-		t.Fatalf("write key: %v", err)
+	args := append([]string{"set", iface, "private-key", "/dev/stdin"}, extra...)
+	cmd := exec.Command("wg", args...)
+	cmd.Stdin = strings.NewReader(priv + "\n")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("wg %v: %v: %s", args, err, out)
 	}
 }

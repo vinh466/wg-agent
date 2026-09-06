@@ -2,8 +2,9 @@
 //
 // It is the algorithm of REQ-RCN-022, written against the ports of
 // internal/platform, so the whole of it runs against package fake without
-// privilege. Steps 9 and 10 — the forwarding sysctl and nftables — are deferred
-// under B-04 in docs/60-planning/backlog.md and are absent here.
+// privilege. Step 10 — the nftables table — is deferred under B-04 in
+// docs/60-planning/backlog.md and is absent here; step 9 is present, because
+// B-04 keeps REQ-FWD-020.
 package reconcile
 
 import "time"
@@ -28,6 +29,10 @@ const (
 	// ReasonStoreCorrupt reports desired state that cannot be applied as
 	// written, as distinct from an application that failed.
 	ReasonStoreCorrupt = "STORE_CORRUPT"
+	// ReasonSysctlWriteDenied is what step 9 carries when the forwarding sysctl
+	// cannot be written. REQ-FWD-025 would surface this at startup instead, and
+	// is deferred under B-04, so reconcile is where it appears.
+	ReasonSysctlWriteDenied = "SYSCTL_WRITE_DENIED"
 )
 
 // Oper state values of REQ-RES-019.

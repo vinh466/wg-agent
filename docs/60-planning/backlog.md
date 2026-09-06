@@ -114,11 +114,19 @@ membership rather than creation) and `REQ-FWD-024`, which records the pre-adopti
 
 **Returns when:** a second interface exists, or peers need egress.
 
-**Deviation recorded:** the reconcile engine performs steps 1 to 8 and 11 of `REQ-RCN-022` and
-skips steps 9 and 10. A managed interface therefore carries the forwarding value the host
-already had and no nftables rules at all, so `forward_policy` and `nat` are stored and not
-enforced. `REQ-FWD-024` still records the pre-adoption sysctl value, so release restores what
-adoption found.
+**Deviation recorded:** the reconcile engine performs every step of `REQ-RCN-022` except step
+10, the nftables table. Step 9 is performed, because `REQ-FWD-020` is one of the three
+requirements this item keeps: without it two peers of one interface are not forwarded to each
+other, which is the whole of the flat-LAN-per-group pattern.
+
+The consequence is that an `ALLOW` axis is enforced and a `DENY` axis is not. `inter_interface`
+and `external` default to `DENY` and stay unenforced until step 10 lands, which on a
+single-interface node with no egress makes the claim vacuous rather than false — the trade this
+item already argues for. `nat` is stored and not applied.
+
+`REQ-FWD-025` is deferred, so an unwritable sysctl surfaces as a `DEGRADED` condition carrying
+`SYSCTL_WRITE_DENIED` on the affected interface rather than as a startup failure. The tunnel
+still works; forwarding between its peers does not.
 
 The default `ForwardPolicySpec` sets `inter_interface: DENY` and `external: DENY`, and a
 `DENY` axis requires nftables. On a node with one interface there is no second interface to

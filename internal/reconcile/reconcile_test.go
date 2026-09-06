@@ -580,6 +580,126 @@ func TestReconcile_PeerCountComesFromTheKernel_REQ_RES_032(t *testing.T) {
 	}
 }
 
+// ── step 9, the forwarding sysctl ───────────────────────────────────────────
+
+// REQ-FWD-020: with intra_interface = ALLOW, forwarding is set on the
+// interface. Without it two peers of one interface are not routed to each
+// other at all, which is the whole point of the flat-LAN pattern.
+func TestReconcile_SetsForwardingWhenIntraAllows_REQ_FWD_020(t *testing.T) {
+	n := fake.NewNode()
+	s := newStore()
+	spec := baseSpec()
+	spec.ForwardPolicy = model.DefaultForwardPolicy() // intra ALLOW, inter DENY
+	s.ifaces["wg0"] = spec
+
+	e := &reconcile.Engine{Store: s, Link: fake.LinkView{N: n}, Device: n, HostFS: n}
+	if st := e.Interface("wg0"); st.Condition.State != reconcile.Ready {
+		t.Fatalf("condition = %+v", st.Condition)
+	}
+	if got := n.Forwarding["wg0"]; got != "1" {
+		t.Errorf("forwarding = %q, want 1", got)
+	}
+}
+
+// The condition of REQ-FWD-020, in each direction.
+func TestReconcile_ForwardingFollowsThePolicy_REQ_FWD_020(t *testing.T) {
+	cases := []struct {
+		name        string
+		intra, inte model.Axis
+		want        string
+	}{
+		{"intra allows", model.Allow, model.Deny, "1"},
+		{"inter allows", model.Deny, model.Allow, "1"},
+		{"inter allow-list", model.Deny, model.AllowList, "1"},
+		{"both deny", model.Deny, model.Deny, ""},
+		// An unset policy is an invalid spec. Forwarding is not opened for one:
+		// `inter != DENY` read literally would, which is the reading the engine
+		// deliberately does not take.
+		{"unset", "", "", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			n := fake.NewNode()
+			s := newStore()
+			spec := baseSpec()
+			spec.ForwardPolicy = model.ForwardPolicySpec{
+				IntraInterface: c.intra, InterInterface: c.inte, External: model.Deny,
+			}
+			s.ifaces["wg0"] = spec
+
+			e := &reconcile.Engine{Store: s, Link: fake.LinkView{N: n}, Device: n, HostFS: n}
+			if st := e.Interface("wg0"); st.Condition.State != reconcile.Ready {
+				t.Fatalf("condition = %+v", st.Condition)
+			}
+			if got := n.Forwarding["wg0"]; got != c.want {
+				t.Errorf("forwarding = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// REQ-FWD-022: an interface desired state does not describe keeps its value.
+func TestReconcile_LeavesForeignForwardingAlone_REQ_FWD_022(t *testing.T) {
+	n := fake.NewNode()
+	n.AddInterface("wg1", "10.101.0.1/24", 51821).WithForwarding("wg1", "0")
+	s := newStore()
+
+	e := &reconcile.Engine{Store: s, Link: fake.LinkView{N: n}, Device: n, HostFS: n}
+	if err := e.Pass(); err != nil {
+		t.Fatalf("pass: %v", err)
+	}
+	if got := n.Forwarding["wg1"]; got != "0" {
+		t.Errorf("forwarding of a foreign interface = %q, want it untouched at 0", got)
+	}
+}
+
+// A sysctl that cannot be written is a reconcile failure carrying
+// SYSCTL_WRITE_DENIED. REQ-FWD-025 would surface it at startup instead and is
+// deferred, so this is where it appears.
+func TestReconcile_ReadOnlySysctlIsDegraded_REQ_FWD_020(t *testing.T) {
+	n := fake.NewNode().WithReadOnlySysctl()
+	s := newStore()
+	spec := baseSpec()
+	spec.ForwardPolicy = model.DefaultForwardPolicy()
+	s.ifaces["wg0"] = spec
+
+	e := &reconcile.Engine{Store: s, Link: fake.LinkView{N: n}, Device: n, HostFS: n}
+	st := e.Interface("wg0")
+
+	if st.Condition.State != reconcile.Degraded {
+		t.Fatalf("condition = %+v, want DEGRADED", st.Condition)
+	}
+	if st.Condition.Reason != reconcile.ReasonSysctlWriteDenied {
+		t.Errorf("reason = %q, want SYSCTL_WRITE_DENIED", st.Condition.Reason)
+	}
+	// Everything before step 9 still happened: the interface is usable as a
+	// tunnel even though forwarding between its peers is not configured.
+	if !n.Links["wg0"].AdminUp {
+		t.Error("the link was not brought up")
+	}
+}
+
+// A second pass writes nothing when the value already matches, which is what
+// keeps a read-only /proc/sys from failing an otherwise converged interface.
+func TestReconcile_ForwardingWriteIsSkippedWhenItMatches_REQ_RES_003(t *testing.T) {
+	n := fake.NewNode()
+	s := newStore()
+	spec := baseSpec()
+	spec.ForwardPolicy = model.DefaultForwardPolicy()
+	s.ifaces["wg0"] = spec
+
+	e := &reconcile.Engine{Store: s, Link: fake.LinkView{N: n}, Device: n, HostFS: n}
+	e.Interface("wg0")
+	n.ResetCalls()
+
+	if st := e.Interface("wg0"); st.Condition.State != reconcile.Ready {
+		t.Fatalf("second pass: %+v", st.Condition)
+	}
+	if n.Did("SetForwarding") {
+		t.Errorf("second pass rewrote the sysctl: %v", n.Calls)
+	}
+}
+
 // REQ-RES-017 decides ownership from desired state and the deletion record
 // alone, never from creation history.
 func TestOwnership_DecidedFromStoreAlone_REQ_RES_017(t *testing.T) {
