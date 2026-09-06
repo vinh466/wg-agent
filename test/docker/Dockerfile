@@ -14,10 +14,13 @@ RUN apk add --no-cache \
       iproute2 \
       nftables \
       git \
-      make
+      make \
+      gcc \
+      musl-dev
 
 # REQ-CFG-020 builds the release binary statically; keeping the test build the
-# same avoids a difference between what is tested and what ships.
+# same avoids a difference between what is tested and what ships. The race tier
+# overrides this per run, because -race needs cgo — which is why gcc is above.
 ENV CGO_ENABLED=0
 ENV GOCACHE=/tmp/gocache
 ENV GOMODCACHE=/tmp/gomodcache

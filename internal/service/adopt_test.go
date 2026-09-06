@@ -341,7 +341,7 @@ func TestAdopt_AdoptAfterReleaseIsPermitted_REQ_RES_017(t *testing.T) {
 	if _, err := (service.Release{}).Do(st, "wg0"); err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	// Ownership is decided from the store, so a released interface is FOREIGN
+	// model.Ownership is decided from the store, so a released interface is FOREIGN
 	// again and may be adopted a second time.
 	if _, err := adopter(n).Do(st, policy("wg0"), false); err != nil {
 		t.Fatalf("re-adopt: %v", err)

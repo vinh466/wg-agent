@@ -16,6 +16,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"sort"
+
+	"wg-agent/internal/model"
 )
 
 // SchemaVersion is the version this build understands. REQ-RCN-005 requires the
@@ -110,4 +113,65 @@ func (s *Snapshot) DeletionRecord(name string) bool {
 func (s *Snapshot) AdoptionRecord(name string) bool {
 	_, ok := s.f.Adoptions[name]
 	return ok
+}
+
+// Names lists the interfaces desired state describes, sorted. It is the set
+// REQ-RCN-022 iterates.
+func (s *Snapshot) Names() []string {
+	out := make([]string, 0, len(s.f.Interfaces))
+	for k := range s.f.Interfaces {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Interface returns one stored spec. The second result reports whether desired
+// state describes the interface at all, which REQ-RES-017 calls MANAGED.
+func (s *Snapshot) Interface(name string) (model.InterfaceSpec, bool, error) {
+	i, ok := s.f.Interfaces[name]
+	if !ok {
+		return model.InterfaceSpec{}, false, nil
+	}
+	var spec model.InterfaceSpec
+	if len(i.Spec) > 0 {
+		if err := json.Unmarshal(i.Spec, &spec); err != nil {
+			return model.InterfaceSpec{}, true, fmt.Errorf("decode spec of %q: %w", name, err)
+		}
+	}
+	return spec, true, nil
+}
+
+// Identity returns the instance_id and created_at REQ-RES-018 assigns. They sit
+// beside the spec rather than inside it, per REQ-RES-034.
+func (s *Snapshot) Identity(name string) (instanceID, createdAt string, ok bool) {
+	i, found := s.f.Interfaces[name]
+	if !found {
+		return "", "", false
+	}
+	return i.InstanceID, i.CreatedAt, true
+}
+
+// Peers returns the stored peers of one interface.
+func (s *Snapshot) Peers(name string) ([]model.Peer, error) {
+	raw, ok := s.f.Peers[name]
+	if !ok {
+		return nil, nil
+	}
+	var out []model.Peer
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("decode peer specs of %q: %w", name, err)
+	}
+	return out, nil
+}
+
+// DeletionNames lists the interfaces a deletion record names, sorted.
+// REQ-RCN-037 requires each to be cleared once its link is absent.
+func (s *Snapshot) DeletionNames() []string {
+	out := make([]string, 0, len(s.f.Deletions))
+	for k := range s.f.Deletions {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -10,6 +10,7 @@ package platform
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/netip"
 	"time"
 )
@@ -22,13 +23,23 @@ type Key struct {
 	present bool
 }
 
-// KeyFromBytes wraps a 32-byte key. A zero-length slice yields an absent key.
+// KeyFromBytes wraps a 32-byte key. Anything else, and 32 zero bytes, yield an
+// absent key.
+//
+// All-zero is absent because that is the kernel's own convention: a device
+// without a private key and a peer without a preshared key both read back as
+// zero, and writing zero is how a preshared key is cleared. Holding the rule
+// here rather than in each adapter is what keeps package fake and the wgctrl
+// adapter from disagreeing about what an unset key looks like.
 func KeyFromBytes(b []byte) Key {
 	if len(b) != 32 {
 		return Key{}
 	}
 	var k Key
 	copy(k.b[:], b)
+	if k.b == ([32]byte{}) {
+		return Key{}
+	}
 	k.present = true
 	return k
 }
@@ -52,6 +63,20 @@ func (k Key) Base64() string {
 		return ""
 	}
 	return base64.StdEncoding.EncodeToString(k.b[:])
+}
+
+// ParseKey is the inverse of Base64. It is the one decoder, so a value that
+// round-trips through the store or the contract meets the same rule at both
+// ends — REQ-RES-027 fixes standard base64 with padding outside the REST paths.
+func ParseKey(b64 string) (Key, error) {
+	b, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return Key{}, fmt.Errorf("decode key: %w", err)
+	}
+	if len(b) != 32 {
+		return Key{}, fmt.Errorf("key is %d bytes, want 32", len(b))
+	}
+	return KeyFromBytes(b), nil
 }
 
 // DeviceState is one WireGuard device as the kernel holds it. A single read
@@ -91,6 +116,38 @@ type LinkState struct {
 	Addresses []netip.Prefix
 }
 
+// DeviceConfig is a delta applied to a WireGuard device. A nil pointer leaves
+// the field as the kernel holds it, which is what lets REQ-RCN-011 enforce the
+// agent-owned fields without touching anything else.
+type DeviceConfig struct {
+	PrivateKey *Key
+	ListenPort *int
+	Fwmark     *uint32
+	Peers      []PeerConfig
+	// ReplacePeers removes every peer the list omits, and clears the endpoint of
+	// every peer it keeps. REQ-RCN-023 confines it to BatchUpdatePeers with
+	// replace_all; reconcile uses deltas so a learned endpoint survives.
+	ReplacePeers bool
+}
+
+// PeerConfig is a delta applied to one peer, keyed by public key.
+type PeerConfig struct {
+	PublicKey string
+	Remove    bool
+	// UpdateOnly refuses to create the peer if it is absent, which keeps a
+	// delta from resurrecting one another writer removed.
+	UpdateOnly   bool
+	PresharedKey *Key
+	AllowedIPs   []netip.Prefix
+	// ReplaceAllowedIPs makes AllowedIPs the whole set rather than an addition.
+	ReplaceAllowedIPs bool
+	// Endpoint is applied at peer creation only. REQ-RCN-013 permits it when
+	// the spec changes, which is the write path rather than reconcile, and
+	// REQ-RCN-051 forbids reconcile from overwriting one the kernel learned.
+	Endpoint            *string
+	PersistentKeepalive *time.Duration
+}
+
 // Device reads and configures a WireGuard device. It cannot create or destroy
 // the interface itself.
 type Device interface {
@@ -98,14 +155,37 @@ type Device interface {
 	Names() ([]string, error)
 	// Snapshot returns one device and all of its peers.
 	Snapshot(name string) (DeviceState, error)
+	// Configure applies a delta.
+	Configure(name string, cfg DeviceConfig) error
 }
 
-// Link owns interface lifecycle and addressing.
+// Link owns interface lifecycle, addressing and routes.
 type Link interface {
 	// Names lists every network interface, whatever its type.
 	Names() ([]string, error)
 	// State returns one interface, including its addresses.
 	State(name string) (LinkState, error)
+
+	// Add creates a WireGuard link. wgctrl cannot do this, which is the
+	// boundary docs/00-overview/architecture.md fixes.
+	Add(name string) error
+	// Del removes it.
+	Del(name string) error
+	// SetUp and SetDown drive the administrative flag REQ-RES-019 reads.
+	SetUp(name string) error
+	SetDown(name string) error
+	SetMTU(name string, mtu int) error
+
+	AddrAdd(name string, p netip.Prefix) error
+	AddrDel(name string, p netip.Prefix) error
+
+	// Routes lists the routes whose device is this interface, excluding the
+	// ones the kernel derives from its addresses. Step 8 of REQ-RCN-022 removes
+	// what the union of allowed_ips omits, and the interface's own subnet route
+	// is not the agent's to remove.
+	Routes(name string) ([]netip.Prefix, error)
+	RouteAdd(name string, p netip.Prefix) error
+	RouteDel(name string, p netip.Prefix) error
 }
 
 // UnitState is what can be learned about a systemd unit without executing

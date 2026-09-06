@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"wg-agent/internal/model"
 	"wg-agent/internal/platform"
 	"wg-agent/internal/platform/hostfs"
 	"wg-agent/internal/platform/link"
@@ -101,10 +102,10 @@ func writeText(w io.Writer, r service.Report) {
 		fmt.Fprintf(w, "%s  [%s]\n", iface.Name, iface.Ownership)
 
 		switch iface.Ownership {
-		case service.Managed:
+		case model.Managed:
 			fmt.Fprintln(w, "  Already under management. Adoption does not apply.")
 			continue
-		case service.Orphaned:
+		case model.Orphaned:
 			fmt.Fprintln(w, "  A deletion record names this link. Remove it with `ip link del`,")
 			fmt.Fprintln(w, "  and the record clears itself on the next reconcile pass.")
 			continue

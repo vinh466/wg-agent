@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"wg-agent/internal/model"
 	"wg-agent/internal/platform"
 	"wg-agent/internal/platform/fake"
 	"wg-agent/internal/service"
@@ -55,7 +56,7 @@ func TestReadiness_NamesEveryForeignInterface_REQ_DIA_040(t *testing.T) {
 		t.Fatalf("want 2 interfaces, got %d", len(r.Interfaces))
 	}
 	for _, i := range r.Interfaces {
-		if i.Ownership != service.Foreign {
+		if i.Ownership != model.Foreign {
 			t.Errorf("%s: want FOREIGN, got %s", i.Name, i.Ownership)
 		}
 		if i.Spec == nil {
@@ -218,8 +219,8 @@ func TestReadiness_OwnershipFromStoreNotCreationHistory_REQ_RES_017(t *testing.T
 		AddInterface("wg2", "10.2.0.1/24", 51822)
 
 	r := build(t, n)
-	want := map[string]service.Ownership{
-		"wg0": service.Managed, "wg1": service.Orphaned, "wg2": service.Foreign,
+	want := map[string]model.Ownership{
+		"wg0": model.Managed, "wg1": model.Orphaned, "wg2": model.Foreign,
 	}
 	for name, w := range want {
 		got := only(t, r, name)
@@ -358,15 +359,25 @@ func TestReadiness_CleanInterfacePasses_REQ_DIA_040(t *testing.T) {
 }
 
 func TestKey_StringRedacts_REQ_SEC_050(t *testing.T) {
-	k := platform.KeyFromBytes(make([]byte, 32))
+	b := make([]byte, 32)
+	for i := range b {
+		b[i] = 7
+	}
+	k := platform.KeyFromBytes(b)
 	if got := k.String(); got != "[redacted]" {
 		t.Errorf("String must redact, got %q", got)
 	}
-	if !strings.Contains(k.Base64(), "AAAA") {
-		t.Error("Base64 must still expose the value for the store")
+	if !strings.Contains(k.Base64(), "Bwc") {
+		t.Errorf("Base64 must still expose the value for the store, got %q", k.Base64())
 	}
 	var absent platform.Key
 	if absent.String() != "" || absent.Present() {
 		t.Error("an unset key must render empty and report absent")
+	}
+	// The kernel reads an unset key back as zeros, so KeyFromBytes reports one
+	// absent. Without this, a device with no private key would look like a
+	// device holding a key of zeros.
+	if platform.KeyFromBytes(make([]byte, 32)).Present() {
+		t.Error("an all-zero key must report absent")
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"wg-agent/internal/model"
 	"wg-agent/internal/platform"
 )
 
@@ -23,18 +24,6 @@ const (
 	Warn    Result = "WARN"
 	Fail    Result = "FAIL"
 	Unknown Result = "UNKNOWN"
-)
-
-// Ownership is the vocabulary of REQ-RES-017. Every value is decided from
-// desired state and the deletion record, both of which the store holds —
-// creation history is not among them, because the agent has no durable memory
-// of it.
-type Ownership string
-
-const (
-	Managed  Ownership = "MANAGED"
-	Foreign  Ownership = "FOREIGN"
-	Orphaned Ownership = "ORPHANED"
 )
 
 // Finding carries the fields REQ-DIA-002 requires, per REQ-DIA-041.
@@ -99,10 +88,10 @@ type AdoptableSpec struct {
 
 // InterfaceReadiness is one interface's entry in the report.
 type InterfaceReadiness struct {
-	Name      string         `json:"name"`
-	Ownership Ownership      `json:"ownership"`
-	Spec      *AdoptableSpec `json:"spec,omitempty"`
-	Findings  []Finding      `json:"findings"`
+	Name      string          `json:"name"`
+	Ownership model.Ownership `json:"ownership"`
+	Spec      *AdoptableSpec  `json:"spec,omitempty"`
+	Findings  []Finding       `json:"findings"`
 }
 
 // Blocking reports whether adoption of this interface is refused. REQ-RCN-064
@@ -188,7 +177,7 @@ func (r Readiness) interfaceEntry(
 	// REQ-DIA-040 scopes the report to FOREIGN interfaces. A managed or
 	// orphaned one is named so an operator sees the whole node, and carries no
 	// findings because adoption does not apply to it.
-	if out.Ownership != Foreign {
+	if out.Ownership != model.Foreign {
 		return out, nil
 	}
 
@@ -223,17 +212,13 @@ func (r Readiness) interfaceEntry(
 	return out, nil
 }
 
-// ownershipOf decides REQ-RES-017's three values from the two facts the store
-// holds. Order matters: desired state wins, then the deletion record.
-func ownershipOf(name string, d platform.DesiredState) Ownership {
-	switch {
-	case d != nil && d.Describes(name):
-		return Managed
-	case d != nil && d.DeletionRecord(name):
-		return Orphaned
-	default:
-		return Foreign
+// ownershipOf asks the store the two questions model.OwnershipOf decides from,
+// tolerating an absent store as a node with no desired state.
+func ownershipOf(name string, d platform.DesiredState) model.Ownership {
+	if d == nil {
+		return model.Foreign
 	}
+	return model.OwnershipOf(d.Describes(name), d.DeletionRecord(name))
 }
 
 func specOf(name string, ls platform.LinkState, ds platform.DeviceState) *AdoptableSpec {

@@ -90,7 +90,7 @@ func (a Adopt) Do(st *store.Store, req AdoptRequest, dryRun bool) (*AdoptResult,
 	snap := st.Snapshot()
 
 	// REQ-RCN-074 — adoption applies to a FOREIGN interface alone.
-	if own := ownershipOf(req.Name, snap); own != Foreign {
+	if own := ownershipOf(req.Name, snap); own != model.Foreign {
 		return nil, reasonErr(ReasonInterfaceNotForeign,
 			"%s is %s; adoption applies to a FOREIGN interface", req.Name, own)
 	}

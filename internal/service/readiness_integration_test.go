@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"wg-agent/internal/model"
 	"wg-agent/internal/platform/hostfs"
 	"wg-agent/internal/platform/link"
 	"wg-agent/internal/platform/wg"
@@ -83,7 +84,7 @@ func TestReadiness_RealInterfaceIsAdoptable_REQ_DIA_040(t *testing.T) {
 	wgLink(t, "wgtest0", "10.123.0.1/24", "51999")
 
 	i := only(t, realReport(t), "wgtest0")
-	if i.Ownership != service.Foreign {
+	if i.Ownership != model.Foreign {
 		t.Fatalf("a link no store describes is FOREIGN, got %s", i.Ownership)
 	}
 	if i.Spec == nil {

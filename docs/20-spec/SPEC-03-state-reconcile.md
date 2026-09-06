@@ -131,19 +131,39 @@ trace.
                                  agent-owned difference → update (delta)
  5. Addresses match?          → add and remove per diff
  6. MTU matches?              → set
- 7. manage_routes enabled?    → sync routes with the union of allowed_ips
- 8. spec.enabled?             → bring up or down
+ 7. spec.enabled?             → bring up or down
+ 8. manage_routes enabled?    → sync routes with the union of allowed_ips
  9. Forwarding sysctl matches?→ set per SPEC-02 section 5
 10. nftables rules match?     → sync table inet wg_agent
 11. Write status and conditions
 ```
 
+Routing follows the administrative flag rather than preceding it. The kernel refuses a route
+whose output device is down, and withdraws the routes of a device the moment it goes down, so
+an order that synchronised routes first would fail on every interface created in the same pass
+and on every interface after a restart.
+
+> **REQ-RCN-024** — Reconcile MUST NOT synchronise routes while the link is administratively
+> down.
+
+Rationale: a down link holds no routes, because the kernel withdrew them. Treating that empty
+set as drift would make every pass over a `enabled: false` interface attempt an addition the
+kernel rejects, which `REQ-RCN-040` would then report as a permanent `DEGRADED` condition on an
+interface that is in the state its spec asks for.
+
 > **REQ-RCN-036** — Each full reconcile pass MUST classify every WireGuard link absent from
 > desired state as `FOREIGN` or `ORPHANED`, per section 6.
 
 > **REQ-RCN-023** — The agent MUST use incremental peer updates rather than whole-list
-> replacement, except during `BatchUpdatePeers` with `replace_all = true` and during a full
-> reconcile.
+> replacement, except during `BatchUpdatePeers` with `replace_all = true`.
+
+Rationale: whole-list replacement clears every peer before adding the list back, so a peer
+re-added without an endpoint loses the one the kernel learned. Desired state holds no endpoint
+to supply, because `REQ-RCN-063` keeps one out of the store, so a reconcile pass using
+replacement would erase every learned endpoint on the periodic interval of `REQ-RCN-020` —
+the repeated disconnection of roaming clients that `REQ-RCN-051` exists to prevent. A caller
+issuing `BatchUpdatePeers` with `replace_all` is stating an intent to discard what is there,
+which reconcile is not.
 
 ## 6. Interfaces outside desired state
 
@@ -284,7 +304,7 @@ The kernel supplies the fields it holds; the request supplies the ones it does n
 default would be a guess applied to a live node. Taking the defaults of `REQ-FWD-001` and of
 `manage_routes` in [SPEC-01](SPEC-01-resource-model.md) would let `REQ-FWD-003` turn an axis
 into a drop rule that step 10 of `REQ-RCN-022` installs on traffic that was passing, and would
-let step 7 act on routes the previous manager never asked for. Naming them in the request keeps
+let step 8 act on routes the previous manager never asked for. Naming them in the request keeps
 adoption a decision rather than a side effect, for the same reason `REQ-VAL-015` refuses an
 implicit takeover.
 

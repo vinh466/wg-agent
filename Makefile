@@ -28,7 +28,7 @@ MOUNT   := -v $(ROOT):/src $(CACHE)
 USER    := --user $(shell id -u):$(shell id -g)
 
 .PHONY: help check test test-integration bench docker-image docker-test \
-        docker-test-privileged docker-shell fmt-docker unit-docker probe \
+        docker-test-privileged docker-shell fmt-docker unit-docker race-docker probe \
         proto-image proto proto-check fmt vet clean
 
 help:
@@ -105,6 +105,12 @@ fmt-docker: docker-image
 # The unit tier alone, for a fast inner loop.
 unit-docker: docker-image
 	$(DOCKER) run --rm $(MOUNT) -w /src $(IMAGE) $(GO) test ./...
+
+# The same tier under the race detector. REQ-RCN-042 requires the agent to
+# serialize operations on one interface, and the test that asserts it is only
+# meaningful here: without -race a missing lock passes silently.
+race-docker: docker-image
+	$(DOCKER) run --rm -e CGO_ENABLED=1 $(MOUNT) -w /src $(IMAGE) $(GO) test -race ./...
 
 # Verifies the environment before any product code exists: that a container can
 # create a WireGuard link through netlink, configure it through wgctrl, and read

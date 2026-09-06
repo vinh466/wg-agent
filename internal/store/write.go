@@ -81,6 +81,37 @@ func (s *Store) Close() error {
 // Snapshot returns a read view of the state currently held.
 func (s *Store) Snapshot() *Snapshot { return &Snapshot{f: s.f} }
 
+// ── Read delegation ─────────────────────────────────────────────────────────
+//
+// The holder of the lock is also the process that reconciles, so it reads
+// desired state through the handle it already has rather than re-reading the
+// file. Each call reflects the last committed transaction.
+
+func (s *Store) Names() []string { return s.Snapshot().Names() }
+
+func (s *Store) Interface(name string) (model.InterfaceSpec, bool, error) {
+	return s.Snapshot().Interface(name)
+}
+
+func (s *Store) Peers(name string) ([]model.Peer, error) { return s.Snapshot().Peers(name) }
+
+func (s *Store) Describes(name string) bool { return s.Snapshot().Describes(name) }
+
+func (s *Store) DeletionRecord(name string) bool { return s.Snapshot().DeletionRecord(name) }
+
+func (s *Store) DeletionNames() []string { return s.Snapshot().DeletionNames() }
+
+// ClearDeletion commits the removal of one deletion record — REQ-RCN-037.
+func (s *Store) ClearDeletion(name string) error {
+	if !s.Snapshot().DeletionRecord(name) {
+		return nil
+	}
+	return s.Update(func(t *Txn) error {
+		t.ClearDeletion(name)
+		return nil
+	})
+}
+
 // Txn is the mutable view handed to Update. Nothing reaches disk until Update
 // returns without error.
 type Txn struct{ f *file }
@@ -230,6 +261,19 @@ func (t *Txn) Peers(name string) ([]model.Peer, error) {
 	}
 	return out, nil
 }
+
+// PutDeletion records that link removal did not complete, which REQ-RCN-033
+// requires and REQ-RCN-034 reads to call the interface ORPHANED.
+func (t *Txn) PutDeletion(name, at string) {
+	if t.f.Deletions == nil {
+		t.f.Deletions = map[string]deletion{}
+	}
+	t.f.Deletions[name] = deletion{RecordedAt: at}
+}
+
+// ClearDeletion drops the record, which REQ-RCN-037 requires once the link is
+// absent.
+func (t *Txn) ClearDeletion(name string) { delete(t.f.Deletions, name) }
 
 // PutAdoption records that the interface was adopted, carrying the forwarding
 // sysctl value REQ-FWD-024 restores — REQ-RCN-070.

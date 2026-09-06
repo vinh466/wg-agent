@@ -24,6 +24,11 @@ type Node struct {
 	Managed    map[string]bool
 	Deleted    map[string]bool
 	Forwarding map[string]string
+	RouteTable map[string][]netip.Prefix
+
+	// Calls records every mutation in order. A test asserts on it to prove a
+	// write did not happen, which is what REQ-RCN-012 and REQ-RCN-051 demand.
+	Calls []string
 }
 
 // NewNode returns an empty node.
@@ -36,7 +41,19 @@ func NewNode() *Node {
 		Managed:    map[string]bool{},
 		Deleted:    map[string]bool{},
 		Forwarding: map[string]string{},
+		RouteTable: map[string][]netip.Prefix{},
 	}
+}
+
+// testKey returns a distinct non-zero key. Zeros would read back as absent,
+// because platform.KeyFromBytes follows the kernel in treating an all-zero key
+// as no key at all.
+func testKey(seed byte) platform.Key {
+	b := make([]byte, 32)
+	for i := range b {
+		b[i] = seed
+	}
+	return platform.KeyFromBytes(b)
 }
 
 // AddInterface registers a WireGuard interface with one address and no peers.
@@ -51,7 +68,7 @@ func (n *Node) AddInterface(name, cidr string, port int) *Node {
 	}
 	n.Devices[name] = platform.DeviceState{
 		Name:       name,
-		PrivateKey: platform.KeyFromBytes(make([]byte, 32)),
+		PrivateKey: testKey(1),
 		PublicKey:  "pub-" + name,
 		ListenPort: port,
 	}
@@ -64,7 +81,7 @@ func (n *Node) AddPeer(iface, publicKey, allowed string, endpoint string, psk bo
 	p := platform.PeerState{PublicKey: publicKey, Endpoint: endpoint,
 		PersistentKeepalive: 25 * time.Second}
 	if psk {
-		p.PresharedKey = platform.KeyFromBytes(make([]byte, 32))
+		p.PresharedKey = testKey(2)
 	}
 	if allowed != "" {
 		pre, err := netip.ParsePrefix(allowed)

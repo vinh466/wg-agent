@@ -85,10 +85,6 @@ func (w *Wgctrl) Snapshot(name string) (platform.DeviceState, error) {
 	return out, nil
 }
 
-// keyOf converts a wgtypes key, treating the zero value as absent.
-func keyOf(k wgtypes.Key) platform.Key {
-	if (k == wgtypes.Key{}) {
-		return platform.Key{}
-	}
-	return platform.KeyFromBytes(k[:])
-}
+// keyOf converts a wgtypes key. platform.KeyFromBytes owns the rule that all
+// zeros means absent, so both this adapter and package fake reach it.
+func keyOf(k wgtypes.Key) platform.Key { return platform.KeyFromBytes(k[:]) }
