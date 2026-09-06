@@ -218,7 +218,12 @@ func (e *Engine) apply(name string) Status {
 			st.degraded(ReasonReconcileFailed, err.Error())
 			return st
 		}
-		st.PeerCount = len(peers)
+		// SPEC-01 defines peer_count as the count in the kernel, so it is read
+		// back rather than assumed from the desired set: a peer the kernel
+		// declined to create would otherwise be counted as present.
+		if after, err := e.Device.Snapshot(name); err == nil {
+			st.PeerCount = len(after.Peers)
+		}
 	}
 
 	// Step 5 — addresses.

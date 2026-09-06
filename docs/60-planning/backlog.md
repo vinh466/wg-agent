@@ -114,6 +114,12 @@ membership rather than creation) and `REQ-FWD-024`, which records the pre-adopti
 
 **Returns when:** a second interface exists, or peers need egress.
 
+**Deviation recorded:** the reconcile engine performs steps 1 to 8 and 11 of `REQ-RCN-022` and
+skips steps 9 and 10. A managed interface therefore carries the forwarding value the host
+already had and no nftables rules at all, so `forward_policy` and `nat` are stored and not
+enforced. `REQ-FWD-024` still records the pre-adoption sysctl value, so release restores what
+adoption found.
+
 The default `ForwardPolicySpec` sets `inter_interface: DENY` and `external: DENY`, and a
 `DENY` axis requires nftables. On a node with one interface there is no second interface to
 isolate it from. Deferring this trades an unenforced default for not carrying

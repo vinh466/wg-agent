@@ -151,6 +151,27 @@ set as drift would make every pass over a `enabled: false` interface attempt an 
 kernel rejects, which `REQ-RCN-040` would then report as a permanent `DEGRADED` condition on an
 interface that is in the state its spec asks for.
 
+```mermaid
+flowchart TD
+    n0[interface in desired state] --> n1{1. link present}
+    n1 -- no --> n2[create it]
+    n1 -- yes --> n3{2. type wireguard}
+    n2 --> n3
+    n3 -- no --> nx[DEGRADED, left untouched]
+    n3 -- yes --> n4[3, 4. device and peer deltas]
+    n4 --> n5[5. addresses]
+    n5 --> n6[6. MTU]
+    n6 --> n7{7. spec.enabled}
+    n7 -- false --> nd[bring down] --> n11[11. status and conditions]
+    n7 -- true --> nu[bring up] --> n8{8. manage_routes}
+    n8 -- no --> n11
+    n8 -- yes --> nr[routes = union of allowed_ips] --> n11
+```
+
+Steps 9 and 10 are omitted from the diagram: both belong to [SPEC-02](SPEC-02-forward-policy.md)
+and neither changes the shape above. The one branch worth reading twice is step 7 to step 8 —
+routing is reachable only from the `true` arm, which is `REQ-RCN-024` drawn rather than stated.
+
 > **REQ-RCN-036** — Each full reconcile pass MUST classify every WireGuard link absent from
 > desired state as `FOREIGN` or `ORPHANED`, per section 6.
 

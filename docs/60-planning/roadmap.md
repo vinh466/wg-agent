@@ -101,8 +101,9 @@ The first vertical slice is built. Everything else is specified and unbuilt.
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
-| `doctor`, `adopt` and `release` | Built and covered by tests |
+| `doctor`, `adopt`, `release` and `serve` | Built and covered by tests |
 | Store, both directions, with the lock of `REQ-RCN-006` | Built |
+| Reconcile engine and loop — `REQ-RCN-022` steps 1-8 and 11 | Built; steps 9 and 10 deferred under `B-04` |
 | `.proto`, generated gRPC, REST gateway and OpenAPI | Generated and committed |
 | Everything else | Specified, not built |
 
@@ -113,10 +114,16 @@ filesystem adapters those need. It was chosen first because it reaches a real no
 API or the `.proto`, and because adopting an interface that already exists is the first thing an
 operator does on a node that already runs WireGuard.
 
-An operator can therefore take a `wg-quick` node over today: `doctor` names what blocks it,
-`adopt --dry-run` shows what would be stored, and `adopt` stores it while the tunnel keeps
-running. What is not built is the part that acts on that desired state — the reconcile engine —
-so nothing yet enforces the spec the store now holds.
+An operator can therefore take a `wg-quick` node over: `doctor` names what blocks it,
+`adopt --dry-run` shows what would be stored, `adopt` stores it while the tunnel keeps running,
+and `serve` applies it. The integration tier runs that sequence end to end on every change,
+including the reboot case — delete the link, run one pass, find the interface back with the same
+public key and the same peers.
+
+What is not built is the API. Every change still goes through the CLI and the store, so the
+agent manages interfaces without yet serving anyone. Steps 9 and 10 of `REQ-RCN-022` — the
+forwarding sysctl and the nftables table — stay deferred under `B-04`, which a single-interface
+node does not need and a node routing between two does.
 
 Module statuses stay `Accepted` rather than moving to `Implemented`. That status is
 module-granular, and no module is wholly built — SPEC-11's interface diagnostics are deferred

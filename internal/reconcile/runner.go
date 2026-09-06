@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"math/rand"
+	"sync"
 	"time"
 
 	"wg-agent/internal/platform"
@@ -37,7 +38,16 @@ type Runner struct {
 	// uses the global source.
 	Rand *rand.Rand
 
+	once    sync.Once
 	trigger chan string
+}
+
+// triggers returns the channel, creating it on first use. The service layer
+// holds a Runner before Run is called, so a Trigger that arrived early has to
+// land in the same channel Run will read rather than be dropped.
+func (r *Runner) triggers() chan string {
+	r.once.Do(func() { r.trigger = make(chan string, 1) })
+	return r.trigger
 }
 
 // Trigger asks for a pass. The name is advisory: a pass covers every interface,
@@ -45,11 +55,8 @@ type Runner struct {
 // channel is not an error — a pass is already pending, which is what the
 // caller wanted.
 func (r *Runner) Trigger(name string) {
-	if r.trigger == nil {
-		return
-	}
 	select {
-	case r.trigger <- name:
+	case r.triggers() <- name:
 	default:
 	}
 }
@@ -110,7 +117,7 @@ func (r *Runner) jitter(backoff time.Duration) time.Duration {
 // interval. Cancellation returns ctx.Err() and writes nothing to the kernel,
 // which is what REQ-API-074 requires of shutdown.
 func (r *Runner) Run(ctx context.Context) error {
-	r.trigger = make(chan string, 1)
+	triggers := r.triggers()
 
 	done := make(chan struct{})
 	defer close(done)
@@ -148,7 +155,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			return ctx.Err()
 
 		case <-timer.C:
-		case <-r.trigger:
+		case <-triggers:
 		case ev, ok := <-events:
 			if !ok {
 				// The subscription ended. Carry on with the timer rather than
@@ -157,6 +164,10 @@ func (r *Runner) Run(ctx context.Context) error {
 				continue
 			}
 			r.log().Info("link event", "interface", ev.Name, "deleted", ev.Deleted)
+			// One pass covers every interface, so a burst — a reboot bringing
+			// several links down at once — is coalesced into one rather than
+			// producing a pass per event.
+			events = drain(events, r.log())
 		}
 
 		if !timer.Stop() {
@@ -174,6 +185,22 @@ func (r *Runner) Run(ctx context.Context) error {
 			delay = r.interval()
 		}
 		timer.Reset(delay)
+	}
+}
+
+// drain consumes the events already queued, so a burst produces one pass. It
+// returns the channel, or nil if the subscription closed while draining.
+func drain(events <-chan platform.LinkEvent, log *slog.Logger) <-chan platform.LinkEvent {
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				return nil
+			}
+			log.Info("link event", "interface", ev.Name, "deleted", ev.Deleted)
+		default:
+			return events
+		}
 	}
 }
 

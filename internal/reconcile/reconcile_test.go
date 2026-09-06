@@ -551,6 +551,35 @@ func TestReconcile_MissingPrivateKeyWarnsRatherThanClears_REQ_RES_033(t *testing
 	}
 }
 
+// SPEC-01 defines peer_count as the count in the kernel, so a pass reads it
+// back after a write rather than assuming the desired set took effect.
+func TestReconcile_PeerCountComesFromTheKernel_REQ_RES_032(t *testing.T) {
+	n := fake.NewNode()
+	n.AddInterface("wg0", "10.100.0.1/24", 51820)
+	d := n.Devices["wg0"]
+	d.PrivateKey = platform.KeyFromBytes(mustKey(key(1)))
+	n.Devices["wg0"] = d
+	n.AddPeer("wg0", key(8), "10.100.0.8/32", "", false)
+	n.AddPeer("wg0", key(9), "10.100.0.9/32", "", false)
+
+	s := newStore()
+	s.ifaces["wg0"] = baseSpec()
+	// Desired state names one of the two, so the other goes.
+	s.peers["wg0"] = []model.Peer{peer(key(9), "10.100.0.9/32")}
+
+	st := engine(n, s).Interface("wg0")
+
+	if st.Condition.State != reconcile.Ready {
+		t.Fatalf("condition = %+v", st.Condition)
+	}
+	if st.PeerCount != 1 {
+		t.Errorf("peer_count = %d, want 1", st.PeerCount)
+	}
+	if got := len(n.Devices["wg0"].Peers); got != 1 {
+		t.Errorf("kernel holds %d peers, want 1", got)
+	}
+}
+
 // REQ-RES-017 decides ownership from desired state and the deletion record
 // alone, never from creation history.
 func TestOwnership_DecidedFromStoreAlone_REQ_RES_017(t *testing.T) {

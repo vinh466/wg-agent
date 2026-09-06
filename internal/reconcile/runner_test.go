@@ -251,5 +251,53 @@ func TestRunner_ShutdownLeavesTheKernelAlone_REQ_API_074(t *testing.T) {
 	}
 }
 
+// A trigger that arrives before Run starts is not dropped. The service layer
+// holds the runner before the loop is running, so an API write during startup
+// still gets its pass — REQ-RCN-020.
+func TestRunner_TriggerBeforeRunIsNotLost_REQ_RCN_020(t *testing.T) {
+	c := &countingStore{}
+	r := runnerOver(c, fake.NewNode())
+	r.Interval = time.Hour
+
+	r.Trigger("wg0")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = r.Run(ctx) }()
+
+	// The startup pass is one; the queued trigger is the second. With the
+	// interval at an hour, nothing else can produce it.
+	if !waitFor(t, 2*time.Second, func() bool { return c.passes.Load() >= 2 }) {
+		t.Fatalf("passes = %d, want 2: a trigger before Run must survive",
+			c.passes.Load())
+	}
+}
+
+// A burst of events produces one pass, not one per event: a pass covers every
+// interface in any case, so N passes would be N times the work for the same
+// result — REQ-RCN-021.
+func TestRunner_CoalescesAnEventBurst_REQ_RCN_021(t *testing.T) {
+	ch := make(chan platform.LinkEvent, 8)
+	for i := 0; i < 5; i++ {
+		ch <- platform.LinkEvent{Name: "wg0", Deleted: true}
+	}
+
+	out := drain(ch, quietLog())
+	if out == nil {
+		t.Fatal("drain closed a channel that is open")
+	}
+	if len(ch) != 0 {
+		t.Errorf("%d events left queued, want 0", len(ch))
+	}
+
+	// A closed subscription is reported as nil, so the loop stops selecting
+	// on it rather than spinning on a closed channel.
+	closed := make(chan platform.LinkEvent)
+	close(closed)
+	if drain(closed, quietLog()) != nil {
+		t.Error("drain must report a closed subscription as nil")
+	}
+}
+
 // Compile-time proof that the fake subscription satisfies the port.
 var _ platform.LinkEvents = (*fake.Events)(nil)
