@@ -83,16 +83,22 @@ docker-image:
 
 # The container's own network namespace is the isolation boundary. CAP_NET_ADMIN
 # is enough to create a WireGuard link, configure it and read it back.
+#
+# -p 1 on the integration tier: `go test ./...` runs packages concurrently, and
+# every package here shares the container's one network namespace. Two packages
+# creating and deleting links at once make wgctrl enumerate a device that is
+# gone by the time it is read. The unit tier touches no kernel and stays
+# parallel.
 docker-test: docker-image
 	$(DOCKER) run --rm $(CAPS) $(MOUNT) -w /src $(IMAGE) \
-	  sh -c '$(GO) test ./... && $(GO) test -tags=integration -count=1 ./...'
+	  sh -c '$(GO) test ./... && $(GO) test -tags=integration -count=1 -p 1 ./...'
 
 # Docker mounts /proc/sys read-only, so the forwarding sysctl of REQ-FWD-020 and
 # the nftables table of REQ-FWD-010 need a privileged container. Kept separate
 # because a privileged container is not isolated from the host.
 docker-test-privileged: docker-image
 	$(DOCKER) run --rm --privileged $(MOUNT) -w /src $(IMAGE) \
-	  $(GO) test -tags='integration privileged' -count=1 ./...
+	  $(GO) test -tags='integration privileged' -count=1 -p 1 ./...
 
 docker-shell: docker-image
 	$(DOCKER) run --rm -it $(CAPS) $(MOUNT) -w /src $(IMAGE) sh

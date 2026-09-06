@@ -112,6 +112,23 @@ Unit tests above the platform layer use a fake adapter rather than the kernel. T
 lets the whole reconcile algorithm of `REQ-RCN-022` — drift, adoption, orphan handling — run in
 milliseconds without privilege.
 
+### Integration tests share one network namespace
+
+`go test ./...` runs packages concurrently, and every package in the container sees the same
+network namespace. Two packages creating and deleting WireGuard links at the same time make
+`wgctrl` enumerate a device that is gone by the time it reads it, and the failure looks like
+`list devices: file does not exist` in whichever package lost the race.
+
+`make docker-test` passes `-p 1` for that reason. If you run the integration tier by hand, pass
+it too:
+
+```
+go test -tags=integration -count=1 -p 1 ./...
+```
+
+Give a link a name no other package uses. That keeps the failure to a scheduling race you can
+reproduce, rather than one package deleting another's interface by name.
+
 ## Taking over a node by hand
 
 The integration tier does this in a container, and the same sequence works on a real node:
