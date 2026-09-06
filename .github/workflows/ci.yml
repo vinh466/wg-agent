@@ -29,11 +29,26 @@ jobs:
       - name: Probe the environment
         run: make probe
 
-  # Activates with the first Go package. Until then there is nothing to compile,
-  # and `make check` above is the gate that matters.
+  # REQ-API-061: a compatibility-breaking change within a package version is
+  # blocked. The comparison needs main's history, so the checkout is unshallow.
+  #
+  # Regeneration runs too: gen/ is committed, and a .proto edited without
+  # regenerating would leave the committed contract describing something else.
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Lint and check for breaking changes
+        run: make proto-check
+      - name: Regenerate
+        run: make proto
+      - name: gen/ must match the committed contract
+        run: git diff --exit-code gen docs/30-api
+
   test:
     runs-on: ubuntu-latest
-    if: hashFiles('go.mod') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Load the WireGuard module on the host

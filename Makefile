@@ -2,6 +2,8 @@
 #
 # Task-oriented documentation: docs/50-guides/running-tests.md
 #
+#   make proto                  regenerate gen/ and the OpenAPI document
+#   make proto-check            lint the contract and check it for breaking changes
 #   make check                  documentation integrity and REQ-ID traceability
 #   make probe                  drive real WireGuard in a container, no host toolchain
 #   make docker-test            unit and integration tests in a container
@@ -13,6 +15,7 @@
 GO      ?= go
 DOCKER  ?= docker
 IMAGE   ?= wg-agent-test
+PROTOIMG ?= wg-agent-proto
 ROOT    := $(CURDIR)
 CAPS    := --cap-add=NET_ADMIN
 # Named volumes hold the build and module caches, so a repeated run takes under
@@ -26,7 +29,7 @@ USER    := --user $(shell id -u):$(shell id -g)
 
 .PHONY: help check test test-integration bench docker-image docker-test \
         docker-test-privileged docker-shell fmt-docker unit-docker probe \
-        fmt vet clean
+        proto-image proto proto-check fmt vet clean
 
 help:
 	@sed -n 's/^# \{0,2\}//p' $(MAKEFILE_LIST) | sed -n '1,14p'
@@ -53,6 +56,26 @@ fmt:
 
 vet:
 	$(GO) vet ./...
+
+# ── Code generation ─────────────────────────────────────────────────────────
+#
+# ADR-0003 makes api/proto the source of truth and REQ-API-060 generates the
+# clients from it. gen/ is committed so a build needs no network and a contract
+# change is visible in review.
+proto-image:
+	$(DOCKER) build -q -t $(PROTOIMG) -f test/docker/Dockerfile.proto .
+
+proto: proto-image
+	$(DOCKER) run --rm $(MOUNT) -w /src $(PROTOIMG) buf generate
+	$(DOCKER) run --rm -v $(ROOT):/src alpine:3.20 \
+	  chown -R $(shell id -u):$(shell id -g) /src/gen /src/docs/30-api
+
+# REQ-API-061 blocks a compatibility-breaking change within a package version.
+# The comparison is against main, which is the baseline gen/ was built from.
+proto-check: proto-image
+	$(DOCKER) run --rm $(MOUNT) -w /src $(PROTOIMG) buf lint
+	$(DOCKER) run --rm $(MOUNT) -w /src $(PROTOIMG) \
+	  buf breaking --against '.git#branch=main'
 
 # ── Container targets ───────────────────────────────────────────────────────
 docker-image:

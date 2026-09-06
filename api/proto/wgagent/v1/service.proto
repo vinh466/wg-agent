@@ -1,0 +1,391 @@
+// The service surface of SPEC-04 section 3 and the REST mapping of
+// REQ-API-063.
+//
+// REQ-API-002 requires the REST mapping to be declared with google.api.http
+// annotations here rather than in separate configuration.
+syntax = "proto3";
+
+package wgagent.v1;
+
+option go_package = "wg-agent/gen/go/wgagent/v1;wgagentv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "wgagent/v1/resources.proto";
+
+// ── InterfaceService ────────────────────────────────────────────────────────
+
+service InterfaceService {
+  rpc CreateInterface(CreateInterfaceRequest) returns (Interface) {
+    option (google.api.http) = {post: "/v1/interfaces" body: "*"};
+  }
+  rpc GetInterface(GetInterfaceRequest) returns (Interface) {
+    option (google.api.http) = {get: "/v1/interfaces/{name}"};
+  }
+  rpc ListInterfaces(ListInterfacesRequest) returns (ListInterfacesResponse) {
+    option (google.api.http) = {get: "/v1/interfaces"};
+  }
+  rpc UpdateInterface(UpdateInterfaceRequest) returns (Interface) {
+    option (google.api.http) = {put: "/v1/interfaces/{name}" body: "*"};
+  }
+  rpc DeleteInterface(DeleteInterfaceRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/interfaces/{name}"};
+  }
+  rpc RotateInterfaceKey(RotateInterfaceKeyRequest) returns (RotateInterfaceKeyResponse) {
+    option (google.api.http) = {post: "/v1/interfaces/{name}:rotateKey" body: "*"};
+  }
+  rpc AdoptInterface(AdoptInterfaceRequest) returns (AdoptInterfaceResponse) {
+    option (google.api.http) = {post: "/v1/interfaces/{name}:adopt" body: "*"};
+  }
+  rpc ReleaseInterface(ReleaseInterfaceRequest) returns (ReleaseInterfaceResponse) {
+    option (google.api.http) = {post: "/v1/interfaces/{name}:release" body: "*"};
+  }
+}
+
+message CreateInterfaceRequest {
+  string name = 1;
+  InterfaceSpec spec = 2;
+}
+
+message GetInterfaceRequest {
+  string name = 1;
+}
+
+// REQ-API-011 to REQ-API-015. page_token is opaque; REQ-API-014 makes an empty
+// next_page_token mean the page returned is the last one.
+message ListInterfacesRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListInterfacesResponse {
+  repeated Interface interfaces = 1;
+  string next_page_token = 2;
+}
+
+// revision carries the optimistic-concurrency token of REQ-API-030. Omitting it
+// overwrites unconditionally under REQ-API-032, which is why it has no presence
+// marker: the empty string is the omission.
+message UpdateInterfaceRequest {
+  string name = 1;
+  InterfaceSpec spec = 2;
+  string revision = 3;
+}
+
+message DeleteInterfaceRequest {
+  string name = 1;
+  string revision = 2;
+}
+
+message RotateInterfaceKeyRequest {
+  string name = 1;
+}
+
+// warning is the field REQ-KEY-004 requires: rotation disconnects every peer
+// until each is updated with the new public key.
+message RotateInterfaceKeyResponse {
+  Interface interface = 1;
+  string warning = 2;
+}
+
+// AdoptInterfaceRequest is REQ-RCN-066. The three policy fields use explicit
+// presence because the requirement rejects a request that omits any of them
+// with ADOPTION_FIELD_REQUIRED: the kernel holds no forward policy and no
+// routing intent, so a default would be a guess applied to a live node.
+//
+// validate_only is REQ-API-068 — return the spec the request would store
+// without writing it.
+message AdoptInterfaceRequest {
+  string name = 1;
+  optional ForwardPolicySpec forward_policy = 2;
+  optional NatSpec nat = 3;
+  optional bool manage_routes = 4;
+  bool validate_only = 5;
+}
+
+// Write-only fields are excluded from spec here under REQ-DIA-047 and
+// REQ-RES-013: the response states that a key is present, never its value.
+message AdoptInterfaceResponse {
+  Interface interface = 1;
+  repeated Peer peers = 2;
+  repeated CheckResult findings = 3;
+  bool validate_only = 4;
+}
+
+message ReleaseInterfaceRequest {
+  string name = 1;
+}
+
+message ReleaseInterfaceResponse {
+  string name = 1;
+  uint32 peers_removed = 2;
+  string forwarding_restored = 3;
+}
+
+// ── PeerService ─────────────────────────────────────────────────────────────
+
+service PeerService {
+  rpc CreatePeer(CreatePeerRequest) returns (Peer) {
+    option (google.api.http) = {post: "/v1/interfaces/{interface_name}/peers" body: "*"};
+  }
+  rpc GetPeer(GetPeerRequest) returns (Peer) {
+    option (google.api.http) = {get: "/v1/interfaces/{interface_name}/peers/{public_key}"};
+  }
+  rpc ListPeers(ListPeersRequest) returns (ListPeersResponse) {
+    option (google.api.http) = {get: "/v1/interfaces/{interface_name}/peers"};
+  }
+  rpc UpdatePeer(UpdatePeerRequest) returns (Peer) {
+    option (google.api.http) = {
+      put: "/v1/interfaces/{interface_name}/peers/{public_key}"
+      body: "*"
+    };
+  }
+  rpc DeletePeer(DeletePeerRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/interfaces/{interface_name}/peers/{public_key}"};
+  }
+  rpc BatchUpdatePeers(BatchUpdatePeersRequest) returns (BatchUpdatePeersResponse) {
+    option (google.api.http) = {
+      post: "/v1/interfaces/{interface_name}/peers:batchUpdate"
+      body: "*"
+    };
+  }
+}
+
+message CreatePeerRequest {
+  string interface_name = 1;
+  string public_key = 2;
+  PeerSpec spec = 3;
+}
+
+message GetPeerRequest {
+  string interface_name = 1;
+  string public_key = 2;
+}
+
+message ListPeersRequest {
+  string interface_name = 1;
+  uint32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListPeersResponse {
+  repeated Peer peers = 1;
+  string next_page_token = 2;
+}
+
+message UpdatePeerRequest {
+  string interface_name = 1;
+  string public_key = 2;
+  PeerSpec spec = 3;
+  string revision = 4;
+}
+
+message DeletePeerRequest {
+  string interface_name = 1;
+  string public_key = 2;
+  string revision = 3;
+}
+
+// interface_revision is REQ-API-072. It is the interface's revision rather than
+// each peer's, because replace_all deletes every peer the request omits, and
+// REQ-API-077 makes that revision move when the peer set changes.
+message BatchUpdatePeersRequest {
+  string interface_name = 1;
+  repeated Peer peers = 2;
+  bool replace_all = 3;
+  string interface_revision = 4;
+}
+
+message BatchUpdatePeersResponse {
+  repeated Peer peers = 1;
+}
+
+// ── RuntimeService ──────────────────────────────────────────────────────────
+//
+// WatchPeerStatus is deliberately absent. Nothing specified its request scope,
+// its stream element or what emitted an event, and REQ-API-061 would freeze a
+// wrong shape permanently. It returns with the watch work deferred under B-05.
+
+service RuntimeService {
+  rpc GetInterfaceStatus(GetInterfaceStatusRequest) returns (InterfaceStatus) {
+    option (google.api.http) = {get: "/v1/interfaces/{name}/status"};
+  }
+  rpc ListPeerStatus(ListPeerStatusRequest) returns (ListPeerStatusResponse) {
+    option (google.api.http) = {get: "/v1/interfaces/{interface_name}/peers:status"};
+  }
+}
+
+message GetInterfaceStatusRequest {
+  string name = 1;
+}
+
+message ListPeerStatusRequest {
+  string interface_name = 1;
+  uint32 page_size = 2;
+  string page_token = 3;
+}
+
+// Peer rather than PeerStatus: REQ-RES-034 keeps identity outside status, so a
+// bare status carries nothing to say which peer it belongs to.
+message ListPeerStatusResponse {
+  repeated Peer peers = 1;
+  string next_page_token = 2;
+}
+
+// ── ConfigService ───────────────────────────────────────────────────────────
+
+service ConfigService {
+  rpc GenerateClientConfig(GenerateClientConfigRequest) returns (GenerateClientConfigResponse) {
+    option (google.api.http) = {
+      post: "/v1/interfaces/{interface_name}/peers/{public_key}:generateConfig"
+      body: "*"
+    };
+  }
+  rpc GenerateKeyPair(GenerateKeyPairRequest) returns (GenerateKeyPairResponse) {
+    option (google.api.http) = {post: "/v1/keys:generate" body: "*"};
+  }
+}
+
+// ClientRouting is REQ-KEY-030.
+enum ClientRouting {
+  CLIENT_ROUTING_UNSPECIFIED = 0;
+  CLIENT_ROUTING_AUTO = 1;
+  CLIENT_ROUTING_FULL_TUNNEL = 2;
+  CLIENT_ROUTING_CUSTOM = 3;
+}
+
+// endpoint is REQ-KEY-037: taken from the request, or from the node.endpoint
+// configuration key when omitted. REQ-KEY-038 refuses the request when neither
+// supplies one, because a .conf without an Endpoint reaches nothing.
+message GenerateClientConfigRequest {
+  string interface_name = 1;
+  string public_key = 2;
+  ClientRouting routing = 3;
+  repeated string extra_allowed_ips = 4;
+  repeated string dns = 5;
+  string endpoint = 6;
+  bool include_qr = 7;
+}
+
+// qr is REQ-KEY-039, present when the request asked for one.
+message GenerateClientConfigResponse {
+  string config = 1;
+  repeated string derived_allowed_ips = 2;
+  string routing_explanation = 3;
+  string qr = 4;
+}
+
+message GenerateKeyPairRequest {}
+
+// REQ-KEY-040. REQ-KEY-041 puts this response under REQ-KEY-012 and
+// REQ-KEY-013: the private key is returned once and never stored, and no API
+// returns an already generated one.
+message GenerateKeyPairResponse {
+  string private_key = 1;
+  string public_key = 2;
+}
+
+// ── DiagnosticsService ──────────────────────────────────────────────────────
+
+service DiagnosticsService {
+  rpc DiagnoseInterface(DiagnoseInterfaceRequest) returns (DiagnoseInterfaceResponse) {
+    option (google.api.http) = {get: "/v1/interfaces/{name}:diagnose"};
+  }
+  rpc GetOverview(GetOverviewRequest) returns (GetOverviewResponse) {
+    option (google.api.http) = {get: "/v1/overview"};
+  }
+}
+
+// CheckResult is REQ-DIA-002. observed and expected are lists because
+// REQ-DIA-031 requires a peer-scoped check to name every public key concerned,
+// and a single string would need a separator no requirement defines.
+//
+// REQ-DIA-041 reuses this shape for a readiness finding rather than defining a
+// second one, and REQ-DIA-051 fixes the closed set hint_code is drawn from.
+message CheckResult {
+  string name = 1;
+  Result result = 2;
+  repeated string observed = 3;
+  repeated string expected = 4;
+  string hint_code = 5;
+  string hint = 6;
+}
+
+message DiagnoseInterfaceRequest {
+  string name = 1;
+}
+
+message DiagnoseInterfaceResponse {
+  repeated CheckResult checks = 1;
+}
+
+message GetOverviewRequest {}
+
+// OverviewComponent is REQ-DIA-052: one envelope for all nine components
+// rather than thirty typed fields across nine messages, so a component can gain
+// a detail without that being a change to the contract under REQ-API-061.
+message OverviewComponent {
+  string name = 1;
+  Result result = 2;
+  string message = 3;
+  map<string, string> details = 4;
+}
+
+message GetOverviewResponse {
+  repeated OverviewComponent components = 1;
+}
+
+// ── SystemService ───────────────────────────────────────────────────────────
+
+service SystemService {
+  rpc GetHealth(GetHealthRequest) returns (GetHealthResponse) {
+    option (google.api.http) = {get: "/v1/health"};
+  }
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse) {
+    option (google.api.http) = {get: "/v1/version"};
+  }
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse) {
+    option (google.api.http) = {post: "/v1/reconcile" body: "*"};
+  }
+}
+
+message GetHealthRequest {}
+
+// REQ-API-051: success only after every startup check passes and the first
+// reconcile pass completes.
+message GetHealthResponse {
+  bool serving = 1;
+}
+
+message GetVersionRequest {}
+
+// REQ-API-078 — the same five values the agent row of REQ-DIA-020 reports.
+message GetVersionResponse {
+  string version = 1;
+  string commit = 2;
+  string go_version = 3;
+  google.protobuf.Timestamp start_time = 4;
+  uint64 uptime_seconds = 5;
+}
+
+// REQ-RCN-020: an explicit Reconcile takes its scope from the request body, so
+// one collection-level path covers the whole node and a single interface.
+message ReconcileRequest {
+  string interface_name = 1;
+}
+
+message ReconcileResponse {
+  repeated Interface interfaces = 1;
+}
+
+// ── Error details ───────────────────────────────────────────────────────────
+
+// AdoptionBlocked is the payload REQ-API-067 requires an ADOPTION_BLOCKED
+// status to carry. REQ-API-079 puts it in google.rpc.Status.details, because
+// ErrorInfo's only extensible member is a map<string, string> and a finding
+// carries two lists.
+message AdoptionBlocked {
+  string interface_name = 1;
+  repeated CheckResult findings = 2;
+}

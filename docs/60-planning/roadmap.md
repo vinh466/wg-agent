@@ -103,6 +103,7 @@ The first vertical slice is built. Everything else is specified and unbuilt.
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
 | `doctor`, `adopt` and `release` | Built and covered by tests |
 | Store, both directions, with the lock of `REQ-RCN-006` | Built |
+| `.proto`, generated gRPC, REST gateway and OpenAPI | Generated and committed |
 | Everything else | Specified, not built |
 
 The slice covers section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md), section 6.3 of
@@ -142,6 +143,15 @@ it and does not name it.
 
 ## Next actions
 
-1. Scaffold the repository per the [architecture](../00-overview/architecture.md) and begin M0
-2. Author `api/proto/wgagent/v1/*.proto` against SPEC-01 and SPEC-04, then `buf generate`
+1. Build the apply path and the reconcile engine of section 5 of
+   [SPEC-03](../20-spec/SPEC-03-state-reconcile.md), and `serve` to run it. Until it exists the
+   store is written and read by nothing: an adopted interface does not survive a reboot, which
+   the [test guide](../50-guides/running-tests.md) warns about rather than pretends away
+2. Then the service layer over the generated contract, and the listeners and tokens of
+   [SPEC-05](../20-spec/SPEC-05-security.md)
 3. Settle OQ-06 to OQ-08 before M3 opens, which moves SPEC-10 to `Accepted`
+
+The `.proto` was written before the engine deliberately. It is the only artefact whose mistakes
+cannot be corrected — `REQ-API-003` turns a wrong field into a package version bump and
+`REQ-API-061` enforces that permanently — so generating it early converted "the specification is
+complete enough" from an opinion into a build that either succeeds or does not.

@@ -1,0 +1,17 @@
+version: v2
+modules:
+  - path: api/proto
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - STANDARD
+  except:
+    # Both rules require a dedicated response message per RPC. Returning the
+    # resource itself is what AIP-131 prescribes and what the REST table of
+    # REQ-API-063 implies: GET /v1/interfaces/{name} answers with an Interface.
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

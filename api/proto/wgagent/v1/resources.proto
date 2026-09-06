@@ -1,0 +1,183 @@
+// The resource model of SPEC-01 and the two policy shapes of SPEC-02.
+//
+// ADR-0003 makes this directory the source of truth for the API contract, and
+// REQ-API-061 has CI block a compatibility-breaking change within v1.
+syntax = "proto3";
+
+package wgagent.v1;
+
+option go_package = "wg-agent/gen/go/wgagent/v1;wgagentv1";
+
+import "google/protobuf/timestamp.proto";
+
+// Axis is a forward-policy axis value. SPEC-02 section 2 fixes the set;
+// AXIS_ALLOW_LIST applies to inter_interface alone, per REQ-FWD-002.
+enum Axis {
+  AXIS_UNSPECIFIED = 0;
+  AXIS_ALLOW = 1;
+  AXIS_DENY = 2;
+  AXIS_ALLOW_LIST = 3;
+}
+
+// OperState is the administrative state of a link. REQ-RES-019 derives it from
+// the administrative flag, because a WireGuard link reports its operational
+// state as unknown even while up.
+enum OperState {
+  OPER_STATE_UNSPECIFIED = 0;
+  OPER_STATE_UP = 1;
+  OPER_STATE_DOWN = 2;
+  OPER_STATE_ABSENT = 3;
+}
+
+// Ownership is REQ-RES-017. Every value is decided from desired state and the
+// deletion record, both of which the store holds.
+enum Ownership {
+  OWNERSHIP_UNSPECIFIED = 0;
+  OWNERSHIP_MANAGED = 1;
+  OWNERSHIP_FOREIGN = 2;
+  OWNERSHIP_ORPHANED = 3;
+}
+
+// ConditionState is the lifecycle state of REQ-RES-032. The three values are
+// mutually exclusive, which is why this is one field rather than a list.
+enum ConditionState {
+  CONDITION_STATE_UNSPECIFIED = 0;
+  CONDITION_STATE_READY = 1;
+  CONDITION_STATE_PROGRESSING = 2;
+  CONDITION_STATE_DEGRADED = 3;
+}
+
+// Result is the vocabulary of REQ-DIA-002, reused by REQ-DIA-021 and
+// REQ-DIA-041 rather than duplicated.
+enum Result {
+  RESULT_UNSPECIFIED = 0;
+  RESULT_PASS = 1;
+  RESULT_WARN = 2;
+  RESULT_FAIL = 3;
+  RESULT_UNKNOWN = 4;
+}
+
+// Condition is REQ-RES-032. reason is drawn from the closed set of
+// REQ-API-041; a READY condition carries none.
+message Condition {
+  ConditionState state = 1;
+  string reason = 2;
+  string message = 3;
+}
+
+// Warning is one entry of REQ-RES-033: the reason code and message of one
+// validation finding.
+message Warning {
+  string reason = 1;
+  string message = 2;
+}
+
+// ForwardPolicySpec is SPEC-02 section 2.
+message ForwardPolicySpec {
+  Axis intra_interface = 1;
+  Axis inter_interface = 2;
+  repeated string allowed_peer_interfaces = 3;
+  Axis external = 4;
+}
+
+// NatSpec is SPEC-02 section 6.
+message NatSpec {
+  bool enabled = 1;
+  string masquerade_out_interface = 2;
+  bool enable_uplink_forwarding = 3;
+}
+
+// InterfaceSpec is SPEC-01 section 3.2.
+//
+// It carries no name: REQ-RES-034 keeps identity outside spec and status.
+//
+// mtu, manage_routes and enabled use explicit presence under REQ-API-076,
+// because their defaults are not their zero values. Without it a caller that
+// omits enabled would take the link down, and one that omits manage_routes
+// would drop its routes — REQ-API-064 replaces the whole spec.
+//
+// listen_port, fwmark and persistent_keepalive need no presence marker: their
+// zero value carries meaning and is also their default, which is the
+// distinction SPEC-04 section 5.1 draws.
+message InterfaceSpec {
+  // Write-only. REQ-RES-013 keeps it out of every response.
+  string private_key = 1;
+  uint32 listen_port = 2;
+  repeated string addresses = 3;
+  optional uint32 mtu = 4;
+  uint32 fwmark = 5;
+  optional bool manage_routes = 6;
+  ForwardPolicySpec forward_policy = 7;
+  NatSpec nat = 8;
+  optional bool enabled = 9;
+  map<string, string> labels = 10;
+}
+
+// InterfaceStatus is SPEC-01 section 3.3. A caller never writes it.
+message InterfaceStatus {
+  string public_key = 1;
+  uint32 listen_port = 2;
+  string instance_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  // Opaque under REQ-RES-031: compared and returned, never parsed.
+  string revision = 5;
+  OperState oper_state = 6;
+  Ownership ownership = 7;
+  uint32 peer_count = 8;
+  Condition condition = 9;
+  repeated Warning warnings = 10;
+  // The uplink derived under REQ-FWD-031, empty when NAT is off.
+  string masquerade_out_interface = 11;
+  google.protobuf.Timestamp last_reconcile_at = 12;
+}
+
+// Interface is the resource. REQ-RES-034 puts identity here rather than in
+// spec, so that a FOREIGN interface — returned with status populated and spec
+// absent under REQ-RCN-031 — is still addressable.
+message Interface {
+  string name = 1;
+  InterfaceSpec spec = 2;
+  InterfaceStatus status = 3;
+}
+
+// PeerSpec is SPEC-01 section 4.2.
+message PeerSpec {
+  // Write-only. REQ-RES-022 keeps it out of every response.
+  string preshared_key = 1;
+  repeated string allowed_ips = 2;
+  // Kernel-owned under REQ-RCN-013 and REQ-RCN-051. Adoption stores none.
+  string endpoint = 3;
+  uint32 persistent_keepalive = 4;
+  map<string, string> labels = 5;
+}
+
+// PeerStatus is SPEC-01 section 4.3.
+//
+// last_handshake_at and handshake_age_seconds use explicit presence because
+// REQ-RES-023 requires null rather than an epoch-zero value when no handshake
+// has occurred.
+message PeerStatus {
+  google.protobuf.Timestamp last_handshake_at = 1;
+  optional uint64 handshake_age_seconds = 2;
+  bool online = 3;
+  uint64 rx_bytes = 4;
+  uint64 tx_bytes = 5;
+  string resolved_endpoint = 6;
+  string protocol_version = 7;
+  string revision = 8;
+  Condition condition = 9;
+  repeated Warning warnings = 10;
+}
+
+// Peer is the resource. REQ-RES-020 makes the pair (interface_name,
+// public_key) its identity, and REQ-RES-034 keeps that out of the spec.
+//
+// public_key carries the encoding of REQ-RES-027 — standard base64 with
+// padding. REQ-API-081 makes the REST gateway convert the unpadded base64url
+// of a path segment into it.
+message Peer {
+  string interface_name = 1;
+  string public_key = 2;
+  PeerSpec spec = 3;
+  PeerStatus status = 4;
+}
