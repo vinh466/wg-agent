@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"encoding/base64"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"wg-agent/internal/platform/fake"
 	"wg-agent/internal/service"
 	"wg-agent/internal/store"
+	"wg-agent/internal/validate"
 )
 
 // openStore returns an exclusively held store under a temporary directory.
@@ -27,6 +29,17 @@ func openStore(t *testing.T) (*store.Store, string) {
 	}
 	t.Cleanup(func() { _ = st.Close() })
 	return st, path
+}
+
+// peerKey returns a distinct valid public key. REQ-VAL-011 requires base64 of
+// exactly 32 bytes, and adoption validates the spec it is about to store, so a
+// placeholder like "peer-a" is a key no kernel would have held.
+func peerKey(seed byte) string {
+	b := make([]byte, 32)
+	for i := range b {
+		b[i] = seed
+	}
+	return base64.StdEncoding.EncodeToString(b)
 }
 
 func adopter(n *fake.Node) service.Adopt {
@@ -94,8 +107,8 @@ func TestAdopt_StoresKernelStateAndKeepsTheKey_REQ_RCN_061(t *testing.T) {
 
 func TestAdopt_StoresEveryPeerWithoutEndpoint_REQ_RCN_062(t *testing.T) {
 	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820)
-	n.AddPeer("wg0", "peer-a", "10.0.0.2/32", "", true)
-	n.AddPeer("wg0", "peer-b", "10.0.0.3/32", "203.0.113.7:51820", false)
+	n.AddPeer("wg0", peerKey(0xa), "10.0.0.2/32", "", true)
+	n.AddPeer("wg0", peerKey(0xb), "10.0.0.3/32", "203.0.113.7:51820", false)
 	st, _ := openStore(t)
 
 	res, err := adopter(n).Do(st, policy("wg0"), false)
@@ -258,7 +271,7 @@ func TestAdopt_RejectsAllowListOnTheWrongAxis_REQ_FWD_002(t *testing.T) {
 func TestRelease_ReturnsInterfaceToForeign_REQ_RCN_069(t *testing.T) {
 	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820).
 		WithForwarding("wg0", "0")
-	n.AddPeer("wg0", "peer-a", "10.0.0.2/32", "", false)
+	n.AddPeer("wg0", peerKey(0xa), "10.0.0.2/32", "", false)
 	st, _ := openStore(t)
 
 	if _, err := adopter(n).Do(st, policy("wg0"), false); err != nil {
@@ -345,5 +358,71 @@ func TestAdopt_AdoptAfterReleaseIsPermitted_REQ_RES_017(t *testing.T) {
 	// again and may be adopted a second time.
 	if _, err := adopter(n).Do(st, policy("wg0"), false); err != nil {
 		t.Fatalf("re-adopt: %v", err)
+	}
+}
+
+// REQ-RCN-064 defers to REQ-VAL-001, so a condition validation names is
+// reported with its own reason code rather than as ADOPTION_BLOCKED. A peer
+// left half-configured by hand is where this arrives: the kernel permits a peer
+// with no allowed_ips, and REQ-VAL-017 does not.
+func TestAdopt_ValidationRejectsWithItsOwnCode_REQ_VAL_001(t *testing.T) {
+	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820)
+	n.AddPeer("wg0", peerKey(0xc), "", "", false) // no allowed_ips
+	st, _ := openStore(t)
+
+	_, err := adopter(n).Do(st, policy("wg0"), false)
+	if err == nil {
+		t.Fatal("adoption stored a spec that fails validation")
+	}
+	var ve *validate.Error
+	if !errors.As(err, &ve) {
+		t.Fatalf("error %v is not a validate.Error", err)
+	}
+	if ve.Reason() != validate.ReasonAllowedIPsReq {
+		t.Errorf("reason = %q, want ALLOWED_IPS_REQUIRED", ve.Reason())
+	}
+	if st.Snapshot().Describes("wg0") {
+		t.Error("the store must be left unchanged")
+	}
+}
+
+// A warning does not block the adoption, and travels with the result so the
+// operator sees it — REQ-VAL-002 and REQ-RES-033.
+func TestAdopt_WarningsTravelWithTheResult_REQ_VAL_002(t *testing.T) {
+	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820)
+	// Outside the interface subnet: valid for site-to-site, usually a mistake.
+	n.AddPeer("wg0", peerKey(0xd), "192.168.77.0/24", "", false)
+	st, _ := openStore(t)
+
+	res, err := adopter(n).Do(st, policy("wg0"), false)
+	if err != nil {
+		t.Fatalf("a warning must not block: %v", err)
+	}
+	if len(res.Warnings) == 0 {
+		t.Fatal("the warning is missing from the result")
+	}
+	found := false
+	for _, w := range res.Warnings {
+		if w.Reason == validate.ReasonAllowedIPsSubnet {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("warnings = %+v, want ALLOWED_IPS_OUT_OF_SUBNET", res.Warnings)
+	}
+	if !st.Snapshot().Describes("wg0") {
+		t.Error("the interface must have been stored")
+	}
+}
+
+// Validation runs before the store is touched, so a dry run reports the same
+// refusal a real adoption would.
+func TestAdopt_DryRunAlsoValidates_REQ_VAL_001(t *testing.T) {
+	n := fake.NewNode().AddInterface("wg0", "10.0.0.1/24", 51820)
+	n.AddPeer("wg0", peerKey(0xc), "", "", false)
+	st, _ := openStore(t)
+
+	if _, err := adopter(n).Do(st, policy("wg0"), true); err == nil {
+		t.Fatal("a dry run must report the same refusal")
 	}
 }

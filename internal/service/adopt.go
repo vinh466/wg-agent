@@ -7,6 +7,7 @@ import (
 	"wg-agent/internal/model"
 	"wg-agent/internal/platform"
 	"wg-agent/internal/store"
+	"wg-agent/internal/validate"
 )
 
 // Reason codes of REQ-API-041 that adoption and release produce.
@@ -51,6 +52,9 @@ type AdoptResult struct {
 	Spec     model.InterfaceSpec
 	Peers    []model.Peer
 	Findings []Finding
+	// Warnings are the REQ-VAL-002 findings on the spec that was stored. They
+	// do not block, and REQ-RES-033 puts them in status.warnings.
+	Warnings []validate.Finding
 	// DryRun is true when nothing was written — REQ-CLI-006 and REQ-API-068.
 	DryRun bool
 }
@@ -106,6 +110,25 @@ func (a Adopt) Do(st *store.Store, req AdoptRequest, dryRun bool) (*AdoptResult,
 		return nil, fmt.Errorf("the readiness report does not name %q", req.Name)
 	}
 
+	spec, peers, err := a.read(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// REQ-VAL-001 on the spec adoption would store. REQ-RCN-064 defers to it
+	// explicitly — "a FAIL finding that REQ-VAL-001 does not itself reject" —
+	// so a condition validation names is reported with its own reason code
+	// rather than as ADOPTION_BLOCKED, which says nothing about the cause.
+	host, err := validate.ReadHost(a.Device, a.Link)
+	if err != nil {
+		return nil, err
+	}
+	vr := validate.Validator{Host: host, Desired: snap}.
+		Interface(req.Name, spec, peers, validate.Adopt)
+	if err := vr.Err(); err != nil {
+		return nil, err
+	}
+
 	// REQ-RCN-064 — a FAIL finding refuses the adoption and leaves the store
 	// unchanged. The findings travel with the error under REQ-API-067.
 	if entry.Blocking() {
@@ -116,14 +139,9 @@ func (a Adopt) Do(st *store.Store, req AdoptRequest, dryRun bool) (*AdoptResult,
 		}
 	}
 
-	spec, peers, err := a.read(req)
-	if err != nil {
-		return nil, err
-	}
-
 	result := &AdoptResult{
 		Name: req.Name, Spec: spec, Peers: peers,
-		Findings: entry.Findings, DryRun: dryRun,
+		Findings: entry.Findings, Warnings: vr.Warnings, DryRun: dryRun,
 	}
 	if dryRun {
 		return result, nil
