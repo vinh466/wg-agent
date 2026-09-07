@@ -104,10 +104,13 @@ the install script solve distribution to strangers.
 ## B-04 — Forward policy and NAT
 
 **Defers:** `REQ-FWD-001` to `REQ-FWD-005`, `REQ-FWD-010` to `REQ-FWD-017`, `REQ-FWD-021`,
-`REQ-FWD-023`, `REQ-FWD-025`, `REQ-FWD-030` to `REQ-FWD-032`, `REQ-FWD-040` to
-`REQ-FWD-042`. Twenty-two requirements.
+`REQ-FWD-023`, `REQ-FWD-030` to `REQ-FWD-032`, `REQ-FWD-040` to
+`REQ-FWD-042`. Twenty-one requirements.
 
-**Keeps:** `REQ-FWD-020` (set `forwarding = 1` on the agent's own WireGuard interfaces) and
+**Keeps:** `REQ-FWD-020` (set `forwarding = 1` on the agent's own WireGuard interfaces),
+`REQ-FWD-025` (verify the sysctl is writable at startup, returned from this item once
+`REQ-FWD-020` was implemented — the check is what turns a hardened unit missing the
+`REQ-CFG-011` carve-out from a puzzling `DEGRADED` into a named startup failure) and
 `REQ-FWD-022` (never touch the sysctl of an interface desired state does not describe, amended
 by [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) to test desired-state
 membership rather than creation) and `REQ-FWD-024`, which records the pre-adoption value.
@@ -124,9 +127,11 @@ and `external` default to `DENY` and stay unenforced until step 10 lands, which 
 single-interface node with no egress makes the claim vacuous rather than false — the trade this
 item already argues for. `nat` is stored and not applied.
 
-`REQ-FWD-025` is deferred, so an unwritable sysctl surfaces as a `DEGRADED` condition carrying
-`SYSCTL_WRITE_DENIED` on the affected interface rather than as a startup failure. The tunnel
-still works; forwarding between its peers does not.
+An unwritable sysctl is caught at startup by `REQ-FWD-025` and named
+`SYSCTL_WRITE_DENIED`, so a unit hardened without the `REQ-CFG-011` carve-out fails at
+deployment. Should one slip past the check, reconcile reports the same code as a `DEGRADED`
+condition on the affected interface: the tunnel still works, and forwarding between its peers
+does not.
 
 The default `ForwardPolicySpec` sets `inter_interface: DENY` and `external: DENY`, and a
 `DENY` axis requires nftables. On a node with one interface there is no second interface to

@@ -51,6 +51,14 @@ impossible to issue.
 > **REQ-CFG-002** — The agent MUST refuse to start on encountering an unrecognized
 > configuration key rather than ignoring it silently.
 
+> **REQ-CFG-042** — A command-line flag naming a configuration key MUST take precedence over
+> both the file and the environment variable of `REQ-CFG-001`.
+
+`REQ-CFG-042` completes the precedence order, which is otherwise undecidable where all three
+supply a value: defaults, then the file, then the environment, then a flag. A flag is the layer
+an operator reaches for once, to answer a question about the running node, and one that
+silently lost to a file in `/etc` would send them looking for a bug in the agent.
+
 > **REQ-CFG-004** — The systemd unit MUST load `/etc/default/wg-agent` through
 > `EnvironmentFile`.
 

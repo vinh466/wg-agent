@@ -1,8 +1,12 @@
-//go:build integration
+//go:build integration && privileged
 
-// Integration tier: the subcommand is driven the way an operator drives it,
-// against a real kernel. Run inside a dedicated network namespace — `make
-// docker-test` supplies one.
+// Privileged tier: the subcommand is driven the way an operator drives it.
+//
+// This sits in the privileged tier rather than the integration one because
+// `serve` runs check 5 of REQ-API-050 before it applies anything, and
+// REQ-FWD-025 makes an unwritable forwarding sysctl a startup failure. Docker
+// mounts /proc/sys read-only, so a CAP_NET_ADMIN container is a host the agent
+// correctly refuses to run on. Run with `make docker-test-privileged`.
 package main
 
 import (

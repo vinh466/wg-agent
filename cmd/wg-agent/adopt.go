@@ -26,7 +26,7 @@ import (
 func adoptCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("adopt", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	storePath := fs.String("store", store.DefaultPath, "path to the desired-state store")
+	sf := addStoreFlags(fs)
 	output := fs.String("output", "text", "output format: text or json")
 	dryRun := fs.Bool("dry-run", false, "print the spec that would be stored and write nothing")
 	intra := fs.String("intra", "", "intra_interface axis: allow or deny")
@@ -75,7 +75,13 @@ func adoptCmd(args []string, stdout, stderr io.Writer) int {
 	}
 	defer device.Close()
 
-	st, code := openStoreForWrite(*storePath, stderr)
+	storePath, err := sf.resolveStorePath()
+	if err != nil {
+		fmt.Fprintf(stderr, "configuration: %v\n", err)
+		return 1
+	}
+
+	st, code := openStoreForWrite(storePath, stderr)
 	if st == nil {
 		return code
 	}
@@ -104,7 +110,7 @@ func adoptCmd(args []string, stdout, stderr io.Writer) int {
 func releaseCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("release", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	storePath := fs.String("store", store.DefaultPath, "path to the desired-state store")
+	sf := addStoreFlags(fs)
 	output := fs.String("output", "text", "output format: text or json")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "usage: wg-agent release <interface>")
@@ -126,7 +132,13 @@ func releaseCmd(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	st, code := openStoreForWrite(*storePath, stderr)
+	storePath, err := sf.resolveStorePath()
+	if err != nil {
+		fmt.Fprintf(stderr, "configuration: %v\n", err)
+		return 1
+	}
+
+	st, code := openStoreForWrite(storePath, stderr)
 	if st == nil {
 		return code
 	}

@@ -1,0 +1,48 @@
+[Unit]
+Description=WireGuard control plane agent
+Documentation=https://github.com/vinh466/wg-agent
+# The data plane runs in the kernel and does not depend on this service, so the
+# ordering below is about the agent's own dependencies rather than about the
+# tunnel: REQ-API-074 makes stopping the agent leave every interface running.
+After=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wg-agent serve
+Restart=on-failure
+RestartSec=5s
+
+# REQ-CFG-010 — a dedicated account holding CAP_NET_ADMIN and nothing else.
+User=wg-agent
+Group=wg-agent
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+# REQ-CFG-004 and REQ-CFG-005 — the per-host overrides of REQ-CFG-001. The
+# leading `-` is what tolerates the file being absent.
+EnvironmentFile=-/etc/default/wg-agent
+
+# REQ-CFG-011 — ProtectKernelTunables=yes mounts /proc/sys read-only, and
+# REQ-FWD-020 has to write net.ipv4.conf.<iface>.forwarding. Opening only that
+# subtree keeps the rest of /proc/sys protected. Where a systemd version does
+# not honour the carve-out, REQ-CFG-012 permits ProtectKernelTunables=no
+# instead; check 5 of REQ-API-050 fails the start rather than letting the agent
+# run half-configured, so the trade is visible at deployment.
+ReadWritePaths=/var/lib/wg-agent /run/wg-agent /proc/sys/net/ipv4/conf
+
+[Install]
+WantedBy=multi-user.target

@@ -26,7 +26,7 @@ func doctorCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	output := fs.String("output", "text", "output format: text or json")
-	storePath := fs.String("store", store.DefaultPath, "path to the desired-state store")
+	sf := addStoreFlags(fs)
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "usage: wg-agent doctor [--output text|json] [--store PATH]")
 		fmt.Fprintln(stderr, "\nReports what adopting each existing WireGuard interface would produce,")
@@ -49,7 +49,13 @@ func doctorCmd(args []string, stdout, stderr io.Writer) int {
 	}
 	defer device.Close()
 
-	desired, err := store.Read(*storePath)
+	storePath, err := sf.resolveStorePath()
+	if err != nil {
+		fmt.Fprintf(stderr, "configuration: %v\n", err)
+		return 1
+	}
+
+	desired, err := store.Read(storePath)
 	if err != nil {
 		fmt.Fprintf(stderr, "cannot read the store: %v\n", err)
 		return 1

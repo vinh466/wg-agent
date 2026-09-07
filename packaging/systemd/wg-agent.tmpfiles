@@ -1,0 +1,9 @@
+# REQ-CFG-021 — the runtime directory holding the unix socket of REQ-SEC-003.
+#
+# 0750 on the directory keeps the socket path unreachable to accounts outside
+# the group, so REQ-SEC-003's mode on the socket itself is not the only barrier.
+d /run/wg-agent 0750 wg-agent wg-agent -
+
+# The store directory. REQ-RCN-004 puts mode 0600 on the file; 0700 here keeps
+# the lock file beside it out of reach as well.
+d /var/lib/wg-agent 0700 wg-agent wg-agent -
