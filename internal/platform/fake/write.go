@@ -27,6 +27,14 @@ func (n *Node) Configure(name string, cfg platform.DeviceConfig) error {
 
 	if cfg.PrivateKey != nil {
 		d.PrivateKey = *cfg.PrivateKey
+		// The kernel derives the public key on receipt, so the fake does too.
+		// Leaving it empty would let a test above the port see a device the
+		// kernel could not be in: one with a private key and no public one.
+		if pub, err := d.PrivateKey.PublicKey(); err == nil {
+			d.PublicKey = pub.Base64()
+		} else {
+			d.PublicKey = ""
+		}
 		n.Calls = append(n.Calls, "SetPrivateKey("+name+")")
 	}
 	if cfg.ListenPort != nil {

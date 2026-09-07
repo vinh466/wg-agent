@@ -70,10 +70,15 @@ func (n *Node) AddInterface(name, cidr string, port int) *Node {
 		Name: name, Type: "wireguard", MTU: 1420, AdminUp: true,
 		Addresses: []netip.Prefix{p},
 	}
+	priv := testKey(1)
+	pub, err := priv.PublicKey()
+	if err != nil {
+		panic("fake: cannot derive a public key: " + err.Error())
+	}
 	n.Devices[name] = platform.DeviceState{
 		Name:       name,
-		PrivateKey: testKey(1),
-		PublicKey:  "pub-" + name,
+		PrivateKey: priv,
+		PublicKey:  pub.Base64(),
 		ListenPort: port,
 	}
 	return n

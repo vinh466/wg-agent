@@ -5,6 +5,7 @@ go 1.23.12
 require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0
 	github.com/vishvananda/netlink v1.3.1
+	golang.org/x/crypto v0.31.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/genproto/googleapis/api v0.0.0-20241118233622-e639e219e697
 	google.golang.org/grpc v1.68.1
@@ -19,7 +20,6 @@ require (
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect

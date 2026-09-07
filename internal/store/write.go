@@ -232,6 +232,44 @@ func (t *Txn) PutInterface(name string, spec model.InterfaceSpec, instanceID, cr
 	return nil
 }
 
+// PutPeer inserts or replaces one peer, keyed by public key. REQ-RES-020 makes
+// the pair (interface_name, public_key) the identity.
+func (t *Txn) PutPeer(name string, p model.Peer) error {
+	peers, err := t.Peers(name)
+	if err != nil {
+		return err
+	}
+	for i := range peers {
+		if peers[i].PublicKey == p.PublicKey {
+			peers[i] = p
+			return t.PutPeers(name, peers)
+		}
+	}
+	return t.PutPeers(name, append(peers, p))
+}
+
+// RemovePeer drops one peer. The second result reports whether it was there,
+// which REQ-API-070 turns into PEER_NOT_FOUND.
+func (t *Txn) RemovePeer(name, publicKey string) (bool, error) {
+	peers, err := t.Peers(name)
+	if err != nil {
+		return false, err
+	}
+	out := make([]model.Peer, 0, len(peers))
+	found := false
+	for _, p := range peers {
+		if p.PublicKey == publicKey {
+			found = true
+			continue
+		}
+		out = append(out, p)
+	}
+	if !found {
+		return false, nil
+	}
+	return true, t.PutPeers(name, out)
+}
+
 // PutPeers replaces the peer set of one interface.
 func (t *Txn) PutPeers(name string, peers []model.Peer) error {
 	if t.f.Peers == nil {

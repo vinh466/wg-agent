@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
+
+	"golang.org/x/crypto/curve25519"
 )
 
 // Key is a WireGuard key. Its String method redacts, so a key cannot reach a
@@ -63,6 +65,21 @@ func (k Key) Base64() string {
 		return ""
 	}
 	return base64.StdEncoding.EncodeToString(k.b[:])
+}
+
+// PublicKey derives the public half of a private key.
+//
+// It lives here because the derivation is a property of a WireGuard key rather
+// than of any one caller: the wgctrl adapter reads a public key back from the
+// kernel, and package fake has to produce the same value for the same private
+// key or a test above the port would see a device the kernel could not be in.
+func (k Key) PublicKey() (Key, error) {
+	if !k.present {
+		return Key{}, fmt.Errorf("no private key")
+	}
+	var pub [32]byte
+	curve25519.ScalarBaseMult(&pub, &k.b)
+	return KeyFromBytes(pub[:]), nil
 }
 
 // ParseKey is the inverse of Base64. It is the one decoder, so a value that

@@ -145,10 +145,16 @@ than false, which is why the trade is acceptable here and not in a release.
 
 ## B-05 — API scaffolding for machine consumers
 
-**Defers:** `REQ-API-011` to `REQ-API-015` (pagination), `REQ-API-030` to `REQ-API-033`
-(revisions and optimistic concurrency), `REQ-API-034`, `REQ-API-035` and `REQ-API-062`
+**Defers:** `REQ-API-011` to `REQ-API-015` (pagination), `REQ-API-031` to `REQ-API-033`
+(optimistic concurrency), `REQ-API-034`, `REQ-API-035` and `REQ-API-062`
 (batch peer updates), `REQ-API-060` and `REQ-API-061` (published clients and the
-`buf breaking` compatibility gate). Fourteen requirements.
+`buf breaking` compatibility gate). Thirteen requirements.
+
+**Keeps:** `REQ-API-030` and `REQ-API-077`, the revision itself. `REQ-RES-031` is not deferred
+and already puts an opaque `revision` in `status`, so deferring the field while keeping the
+requirement that it move when the peer set changes would leave two live requirements without a
+subject. What is deferred is the enforcement: `REQ-API-032` makes an omitted revision an
+unconditional overwrite, which is the behaviour a single writer wants.
 
 **Returns when:** a second writer exists, or a client is published to anyone.
 

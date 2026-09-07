@@ -19,6 +19,9 @@ const (
 	ReasonAdoptionBlocked       = "ADOPTION_BLOCKED"
 	ReasonForwardPolicyUplink   = "FORWARD_POLICY_NEEDS_UPLINK"
 	ReasonInvalidArgument       = "INVALID_ARGUMENT"
+	ReasonInterfaceNotManaged   = "INTERFACE_NOT_MANAGED"
+	ReasonPeerNotFound          = "PEER_NOT_FOUND"
+	ReasonPeerExists            = "PEER_EXISTS"
 )
 
 // Error carries a reason code alongside the message, so a caller can branch on
