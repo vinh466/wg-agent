@@ -117,6 +117,16 @@ type PeerState struct {
 	// it out of desired state; REQ-DIA-048 warns when one is present.
 	Endpoint            string
 	PersistentKeepalive time.Duration
+
+	// Runtime fields, read from the kernel under REQ-RES-024. They are never
+	// stored: REQ-RCN-050 keeps a traffic counter out of desired state.
+	//
+	// LastHandshake is the zero time when no handshake has occurred, which
+	// SPEC-01 reports as a null handshake_age_seconds.
+	LastHandshake   time.Time
+	ReceiveBytes    int64
+	TransmitBytes   int64
+	ProtocolVersion int
 }
 
 // LinkState is one network interface as netlink holds it.

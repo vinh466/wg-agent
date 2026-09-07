@@ -68,6 +68,10 @@ func (w *Wgctrl) Snapshot(name string) (platform.DeviceState, error) {
 			PublicKey:           p.PublicKey.String(),
 			PresharedKey:        keyOf(p.PresharedKey),
 			PersistentKeepalive: p.PersistentKeepaliveInterval,
+			LastHandshake:       p.LastHandshakeTime,
+			ReceiveBytes:        p.ReceiveBytes,
+			TransmitBytes:       p.TransmitBytes,
+			ProtocolVersion:     p.ProtocolVersion,
 		}
 		if p.Endpoint != nil {
 			peer.Endpoint = p.Endpoint.String()
