@@ -26,7 +26,8 @@ Read [docs/README.md](docs/README.md) before touching anything under `docs/`.
 6. **Run `docs/check-docs.sh` before finishing any docs change.** A non-zero exit is a
    blocking failure, not a warning.
 
-7. **No `exec.Command` in production paths** (`REQ-SEC-041`). Test helpers only.
+7. **No child processes in production paths** (`REQ-SEC-041`) — no `Process.Start`,
+   no shelling out to `wg`, `ip`, `sysctl` or `nft`. Test helpers only.
 
 ---
 
@@ -92,11 +93,14 @@ duplication that rule 5 exists to prevent.
 
 ## Test naming
 
-```go
-func TestForwardPolicy_IntraDeny_REQ_FWD_012(t *testing.T) { ... }
+```csharp
+[Fact]
+public void ForwardPolicy_IntraDeny_REQ_FWD_012() { ... }
 ```
 
-CI matches these against the spec, so the ID must be exact.
+`docs/check-traceability.sh` matches these against the spec, so the ID must be
+exact and must use underscores. A hyphenated ID in a method name is a failure,
+not a style preference.
 
 ---
 
@@ -106,11 +110,24 @@ Authoritative layout: [docs/00-overview/architecture.md](docs/00-overview/archit
 
 | Path | Contents |
 |---|---|
-| `api/proto/wgagent/v1/` | Source of truth for the API contract |
-| `gen/` | Generated code — committed, never hand-edited |
-| `internal/` | Implementation |
+| `api/proto/wgagent/v1/` | Source of truth for the API contract — [ADR-0003](docs/10-decisions/ADR-0003-protobuf-source-of-truth.md) |
+| `src/WgAgent.Platform/` | Ports and the types that cross them. References no adapter |
+| `src/WgAgent.Platform.Linux/` | netlink adapters. The only code needing privilege |
+| `src/` (rest) | Implementation |
+| `tests/` | Test projects |
 | `docs/` | All documentation — start at `docs/README.md` |
 | `packaging/` | systemd units, Debian packaging |
+
+The dependency points inwards. `WgAgent.Platform` must never reference an
+adapter project: that rule is what keeps every layer above it testable without
+privilege, and a project reference is how the compiler enforces it.
+
+## Implementation language
+
+C# on .NET 9, published with NativeAOT for `linux-x64` against glibc. The Go
+implementation this replaces is preserved on the `impl/go` branch and is worth
+consulting when implementing a requirement it already covered — it was verified
+against a real kernel.
 
 ## Language
 

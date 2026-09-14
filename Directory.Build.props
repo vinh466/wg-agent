@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- A warning that reaches a review is a warning nobody reads. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- REQ-CFG-020 builds the release binary with no runtime to install.
+         NativeAOT also removes the JIT, which is what lets the systemd unit
+         of REQ-CFG-010 keep MemoryDenyWriteExecute=yes. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsAotCompatible>true</IsAotCompatible>
+
+    <!-- LibraryImport generates unsafe marshalling code. The only native calls
+         in this repository are socket(2), bind(2) and close(2) against libc;
+         see src/WgAgent.Platform.Linux/Netlink/Libc.cs for why. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+</Project>

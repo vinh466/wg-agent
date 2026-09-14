@@ -30,21 +30,22 @@ defined=$(
   | grep -oP 'REQ-[A-Z]{3}-\d{3}' | sort -u
 )
 
-mapfile -t GOFILES < <(find . -name '*.go' -not -path './gen/*' -not -path './vendor/*' | sort)
+mapfile -t SRCFILES < <(find . -name '*.cs' \
+  -not -path '*/bin/*' -not -path '*/obj/*' -not -path './gen/*' | sort)
 
-if [ ${#GOFILES[@]} -eq 0 ]; then
+if [ ${#SRCFILES[@]} -eq 0 ]; then
   hdr "Traceability"
-  grn "  no Go files yet — nothing to trace"
+  grn "  no C# files yet — nothing to trace"
   [ $QUIET -eq 1 ] || printf '\n\033[32m%s\033[0m\n' "PASS"
   exit 0
 fi
 
 # ── 1. Every ID referenced from code is defined ─────────────────────────────
-# Go test names carry the ID with underscores: TestX_REQ_FWD_012.
+# Test method names carry the ID with underscores: Thing_Does_REQ_FWD_012.
 hdr "1. Code references resolve to a requirement"
 used=$(
-  { grep -rhoP 'REQ-[A-Z]{3}-\d{3}' "${GOFILES[@]}" 2>/dev/null
-    grep -rhoP 'REQ_[A-Z]{3}_\d{3}' "${GOFILES[@]}" 2>/dev/null | tr '_' '-'
+  { grep -rhoP 'REQ-[A-Z]{3}-\d{3}' "${SRCFILES[@]}" 2>/dev/null
+    grep -rhoP 'REQ_[A-Z]{3}_\d{3}' "${SRCFILES[@]}" 2>/dev/null | tr '_' '-'
   } | grep -v 'REQ-XXX-' | sort -u
 )
 n=0
@@ -57,7 +58,8 @@ done <<<"$used"
 # ── 2. Every Implemented requirement has a referencing test ─────────────────
 # Scope is per module: a requirement is Implemented when its module says so.
 hdr "2. Implemented requirements are covered by a test"
-mapfile -t TESTFILES < <(find . -name '*_test.go' -not -path './vendor/*' | sort)
+mapfile -t TESTFILES < <(find ./tests -name '*.cs' \
+  -not -path '*/bin/*' -not -path '*/obj/*' 2>/dev/null | sort)
 tested=""
 if [ ${#TESTFILES[@]} -gt 0 ]; then
   tested=$(
@@ -83,15 +85,16 @@ n=0
 if [ ${#TESTFILES[@]} -gt 0 ]; then
   while IFS= read -r hit; do
     red "  $hit"; fail=1; n=$((n+1))
-  done < <(grep -rnP '^func Test\w*REQ[-_][A-Z]{3}[-_]\d{3}' "${TESTFILES[@]}" 2>/dev/null \
+  done < <(grep -rnP '^\s*public\s+(async\s+)?(void|Task)\s+\w*REQ[-_][A-Z]{3}[-_]\d{3}' \
+             "${TESTFILES[@]}" 2>/dev/null \
              | grep -vP 'REQ_[A-Z]{3}_\d{3}' \
-             | sed 's/:.*func /: /' | head -10)
+             | sed 's/:\s*public.*\s/: /' | head -10)
 fi
 [ $n -eq 0 ] && grn "  ok — REQ IDs in test names use the REQ_AAA_NNN form"
 
 if [ $QUIET -eq 0 ]; then
   hdr "Summary"
-  printf "  go files        : %s\n" "${#GOFILES[@]}"
+  printf "  source files    : %s\n" "${#SRCFILES[@]}"
   printf "  test files      : %s\n" "${#TESTFILES[@]}"
   printf "  IDs referenced  : %s\n" "$(echo "$used" | grep -c . )"
   printf "  IDs under test  : %s\n" "$(echo "$tested" | grep -c . )"
