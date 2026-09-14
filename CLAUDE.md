@@ -124,10 +124,15 @@ privilege, and a project reference is how the compiler enforces it.
 
 ## Implementation language
 
-C# on .NET 9, published with NativeAOT for `linux-x64` against glibc. The Go
-implementation this replaces is preserved on the `impl/go` branch and is worth
-consulting when implementing a requirement it already covered — it was verified
-against a real kernel.
+C# on **.NET 10**, published with NativeAOT for `linux-x64` against glibc.
+
+.NET 10 rather than 9 because it is the LTS line, supported to November 2028,
+while .NET 9 reaches end of support on 10 November 2026. Nothing else differs
+for this project: both reach netlink the same way, and neither exposes X25519.
+
+The Go implementation this replaces is preserved on the `impl/go` branch and is
+worth consulting when implementing a requirement it already covered — it was
+verified against a real kernel.
 
 ## Language
 

@@ -124,10 +124,12 @@ public readonly struct Key : IEquatable<Key>
         if (_bytes is null)
             throw new InvalidOperationException("no private key");
 
-        // .NET 9 exposes no X25519: it is absent from ECCurve.NamedCurves, the
-        // OID 1.3.101.110 is rejected, and the PKCS#8 importer does not know
-        // it. BouncyCastle is pure managed, so the single-file build survives,
-        // and the AOT trimmer keeps only this curve.
+        // No .NET release through 10 exposes X25519: it is absent from
+        // ECCurve.NamedCurves, the OID 1.3.101.110 is rejected, and the PKCS#8
+        // importer does not know it. .NET 10 added the post-quantum set —
+        // MLKem, MLDsa, SlhDsa — and not this curve. BouncyCastle is pure
+        // managed, so the single-file build survives, and the AOT trimmer keeps
+        // only the curve.
         byte[] pub = new byte[Size];
         X25519.ScalarMultBase(_bytes, 0, pub, 0);
         return FromBytes(pub);

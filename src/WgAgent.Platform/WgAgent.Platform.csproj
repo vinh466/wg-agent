@@ -6,8 +6,9 @@
   <!-- This project declares the ports and the types that cross them. It must
        not reference an adapter: the dependency points inwards, so a caller
        above this layer is testable without privilege. The only package here is
-       the X25519 curve, because .NET 9 has none and Key owns the derivation. -->
+       the X25519 curve, which neither .NET 9 nor .NET 10 provides and which
+       Key owns; see Key.GetPublicKey. -->
   <ItemGroup>
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
   </ItemGroup>
 </Project>
