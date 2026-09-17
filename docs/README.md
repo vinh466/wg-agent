@@ -60,6 +60,8 @@ docs/
 ├── README.md              ← this page
 ├── CONTRIBUTING.md        Rules and checklists for changing docs
 ├── check-docs.sh          Automated integrity and style checks
+├── check-traceability.sh  Code and test references resolve to a requirement
+├── check-mermaid.sh       Every diagram parses and renders
 │
 ├── 00-overview/           Product positioning, architecture, glossary
 ├── 10-decisions/          ADRs — architectural decisions, append-only
@@ -241,12 +243,22 @@ The second form drifts out of sync the first time the spec changes.
 | Reconcile every spec `status` against the code | End of each milestone | Owner |
 | Review [open questions](60-planning/open-questions.md) | Weekly | Owner |
 | Integrity and style checks | CI, every PR | `check-docs.sh` |
+| Traceability between code and requirements | CI, every PR | `check-traceability.sh` |
+| Diagrams parse and render | CI, every PR | `check-mermaid.sh` |
 | Move superseded documents to `99-archive/` | As needed | Whoever supersedes |
 
 ```bash
-docs/check-docs.sh    # exit 0 = pass
+docs/check-docs.sh          # exit 0 = pass
+docs/check-traceability.sh
+docs/check-mermaid.sh       # needs Docker; skips without it
 ```
 
 The automated checks are mandatory. Without them the rules above are only promises.
-Seven checks run: links, duplicate IDs, orphan IDs, banned vocabulary, requirement
-format, length caps, front-matter. Details in [CONTRIBUTING.md](CONTRIBUTING.md).
+Seven checks run in `check-docs.sh`: links, duplicate IDs, orphan IDs, banned
+vocabulary, requirement format, length caps, front-matter. Details in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+`check-mermaid.sh` renders every fenced `mermaid` block through `mermaid-cli`. A
+diagram exists to be looked at, and one that fails to parse renders as nothing while
+the page still looks complete — which is the failure a reader cannot report, because
+they see no diagram to describe.

@@ -6,3 +6,6 @@ artifacts/
 
 # Local tool manifests are committed; their restore cache is not
 .dotnet/
+
+# Local session state: settings and worktrees
+.claude/
