@@ -88,6 +88,24 @@ releases is what makes that look like a dependency inversion.
 
 ## State as of the front-matter date
 
+**Direction proposed 2026-09-29 — [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md).**
+v1 narrows to a wrapper over `wg` and `wg-quick` that replaces the operator's manual work; the
+rest of the specification stays and moves to the backlog. The milestone table above predates
+the change and is rewritten when the v1 specification is cut. Proposed split:
+
+| In v1 | To the backlog |
+|---|---|
+| Interfaces the agent creates: create, get, list, update, delete — IPv4 addresses, listen port, MTU, private key generated or supplied | Forward policy and NAT — SPEC-02 |
+| Peers: add, get, list, update, remove — a supplied public key, or a key pair the agent generates | Drift correction and the periodic reconcile — SPEC-03 sections 3 to 5 |
+| A client `.conf` for a peer created with a generated key, returned once | Adoption and `doctor` — SPEC-03 section 6.3, SPEC-11 section 5 |
+| Runtime status from `wg show dump`: handshake, transfer, endpoint | Diagnostics and the node overview — SPEC-11 |
+| A CLI and an API over one core | Metrics and audit — SPEC-08 |
+| Validation that refuses what `wg-quick` would refuse | Backup, restore and migration — SPEC-10 |
+| A `.deb` carrying the agent's unit | Tokens and the loopback HTTP listener — SPEC-05 section 4; QR codes — `REQ-KEY-039` |
+
+Interfaces the operator configured by hand stay untouched: the agent reads, edits and deletes
+only the files it created. The overlay stays IPv4 only under ADR-0005.
+
 The specification is complete for M0 through M2. The implementation is at zero, deliberately.
 
 An implementation in Go reached a working vertical slice, and a partial port of it to C#
@@ -102,6 +120,7 @@ without marking them, so removing the code was cheaper than proving the absence 
 |---|---|
 | Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
 | ADR-0001 through ADR-0012 | Accepted; ADR-0002 superseded by ADR-0012 |
+| ADR-0013 | Proposed — the wrapper direction; supersedes ADR-0012 on acceptance |
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
@@ -128,12 +147,11 @@ it and does not name it.
 
 ## Next actions
 
-1. Close the [specification audit](spec-audit.md): decide D-01 to D-16 and F-01 to F-07, then apply them and
-   the M items as one spec change per module, then revise the backlog and the test guide
-   against the result (its section 6)
-2. Build tooling for .NET: a task runner and the container tiers of the
+1. Settle the open points of ADR-0013 and accept it: the account the agent runs as, the API
+   transport, and peers whose allowed IPs leave the interface's subnets
+2. Cut the v1 specification: amend the modules v1 keeps, mark the rest deferred in the
+   backlog, and reassess the [audit](spec-audit.md) item by item — most items belong to
+   modules that move to the backlog
+3. Build tooling for .NET: a task runner and the container tiers of the
    [test guide](../50-guides/running-tests.md)
-3. Implement module by module, following the module workflow in `CLAUDE.md`: the platform
-   ports and the netlink adapter, the store, validation, reconcile, the service layer, the
-   API listeners and tokens, the CLI
-4. Settle OQ-06 to OQ-08 before M3 opens, which moves SPEC-10 to `Accepted`
+4. Implement module by module, following the module workflow in `CLAUDE.md`

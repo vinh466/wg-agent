@@ -8,6 +8,10 @@ A read of all twelve modules before the implementation is rebuilt from them — 
 the [roadmap](roadmap.md). Nothing here is normative. Each item either becomes a spec change
 through the workflow in `CLAUDE.md`, or is closed with a reason recorded against it.
 
+The wrapper direction of [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md),
+proposed after this audit, moves most modules to the backlog. Each item is reassessed with its
+module when the v1 specification is cut; an item in a deferred module waits with it.
+
 Items are of three kinds: **D** needs a product decision, **M** has an evident fix, **P** is
 planning or non-spec documentation.
 
