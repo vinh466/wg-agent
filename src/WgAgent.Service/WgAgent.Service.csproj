@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Service</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Business logic: interface, peer, key, config and diagnose. Orchestrates
+       the Core over the ports; references no adapter. -->
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Core/WgAgent.Core.csproj" />
+  </ItemGroup>
+</Project>

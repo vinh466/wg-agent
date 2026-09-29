@@ -20,4 +20,13 @@
          see src/WgAgent.Platform.Linux/Netlink/Libc.cs for why. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <!-- The agent targets Linux only (CLAUDE.md, glibc linux-x64). Declaring it at
+       the assembly level lets CA1416 accept the Unix-only surface the store lock,
+       file modes and netlink adapters need, without a guard at every call site. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatform">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>WgAgent.IntegrationTests</RootNamespace>
+    <IsPackable>false</IsPackable>
+
+    <!-- Real WireGuard in a network namespace, CAP_NET_ADMIN. Runs the
+         privileged adapter against the kernel; see docs/50-guides/running-tests.md. -->
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/WgAgent.Cli/WgAgent.Cli.csproj" />
+    <ProjectReference Include="../../src/WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
+    <ProjectReference Include="../WgAgent.Testing/WgAgent.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

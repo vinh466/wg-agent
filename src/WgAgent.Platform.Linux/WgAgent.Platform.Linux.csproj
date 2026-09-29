@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Platform.Linux</RootNamespace>
+  </PropertyGroup>
+
+  <!-- The only project that needs privilege. It implements the ports of
+       WgAgent.Platform against generic netlink, rtnetlink and procfs. The
+       dependency points inwards: it references the ports, nothing references
+       it but composition in WgAgent.Cli. -->
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Platform/WgAgent.Platform.csproj" />
+  </ItemGroup>
+</Project>

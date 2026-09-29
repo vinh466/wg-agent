@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>WgAgent.Cli</RootNamespace>
+
+    <!-- The published binary is `wg-agent`, per SPEC-12. -->
+    <AssemblyName>wg-agent</AssemblyName>
+
+    <!-- REQ-CFG-020: the release binary carries no runtime to install, and
+         NativeAOT removes the JIT so the systemd unit can keep
+         MemoryDenyWriteExecute=yes (REQ-CFG-010). Publish targets glibc
+         linux-x64; a plain `dotnet build` still runs without the native
+         toolchain. -->
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- The composition root: the only project that references an adapter, wiring
+       WgAgent.Platform.Linux into the ports the service and core layers use. -->
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Service/WgAgent.Service.csproj" />
+    <ProjectReference Include="../WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
+  </ItemGroup>
+</Project>
