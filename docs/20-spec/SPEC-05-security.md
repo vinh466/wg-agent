@@ -3,10 +3,10 @@ id: SPEC-05
 title: Security, authentication and authorization
 prefix: SEC
 status: Accepted
-version: 1.7
+version: 1.8
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-29
 depends_on: [SPEC-04]
 adrs: [ADR-0007, ADR-0009]
 milestone: M2
@@ -148,7 +148,7 @@ Unit details and the `ProtectKernelTunables` trade-off are in
 
 > **REQ-SEC-041** — The agent MUST NOT execute a child process in any production path.
 
-`exec.Command` may appear in test helpers only.
+A child process may appear in test helpers only, never in a production path.
 
 Full reasoning is in [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md): an API that
 accepts a shell string and runs it with `CAP_NET_ADMIN` is a remote code execution

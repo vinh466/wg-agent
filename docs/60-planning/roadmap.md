@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-06
+updated: 2026-09-29
 ---
 
 # Roadmap
@@ -20,12 +20,12 @@ provider all wait.
 
 | Milestone | Content | Specs | Exit criteria |
 |---|---|---|---|
-| **M0 — Foundation** | Repo layout, `.proto`, `buf` toolchain, netlink and wgctrl adapters, in-memory CRUD | SPEC-01, SPEC-04 | Tests in a netns create an interface, add a peer, read statistics |
-| **M1 — Declarative** | bbolt store, reconcile engine, revisions, validation, error model, diagnostics, node overview | SPEC-03, SPEC-06, SPEC-07, SPEC-11 | Reboot self-heals. Manually deleting a link rebuilds it. Roaming survives. `GET /v1/overview` names a broken component |
+| **M0 — Foundation** | Repo layout, `.proto` contract, platform ports and the netlink adapter, in-memory CRUD | SPEC-01, SPEC-04 | Tests in a netns create an interface, add a peer, read statistics |
+| **M1 — Declarative** | file-backed store, reconcile engine, revisions, validation, error model, diagnostics, node overview | SPEC-03, SPEC-06, SPEC-07, SPEC-11 | Reboot self-heals. Manually deleting a link rebuilds it. Roaming survives. `GET /v1/overview` names a broken component |
 | **M2 — MVP** | Unix socket, loopback HTTP with tokens, roles, systemd hardening, `.deb`, install script, CLI, forward policy axes | SPEC-05, SPEC-09, SPEC-12, SPEC-02 in part | One script installs, prints a token, and the API answers on loopback. Uninstall leaves links alone. `intra`/`inter`/`external` DENY actually blocks |
 | **M3 — Operations** | Metrics, audit log, backup and restore, log rotation | SPEC-08, SPEC-10 | Dashboard shows handshake, traffic and drift. Restore onto a new node succeeds |
 | **M4 — Networking and UX** | NAT, `ALLOW_LIST`, uplink forwarding, `ClientRouting.AUTO`, QR, batch, watch | SPEC-02 remainder | All four topology patterns verified by netns tests |
-| **M5 — Ecosystem** | Terraform provider, Go client SDK, published OpenAPI, user documentation | — | `terraform apply` manages peers and detects drift |
+| **M5 — Ecosystem** | Terraform provider, a client SDK, published OpenAPI, user documentation | — | `terraform apply` manages peers and detects drift |
 
 ## The SPEC-02 split
 
@@ -88,49 +88,34 @@ releases is what makes that look like a dependency inversion.
 
 ## State as of the front-matter date
 
-The first vertical slice is built. Everything else is specified and unbuilt.
+The specification is complete for M0 through M2 and is language-neutral. The implementation
+was rewritten from Go to C# on .NET 10; see [ADR-0012](../10-decisions/ADR-0012-managed-netlink-in-dotnet.md)
+for why, and the Go reference is preserved on the `impl/go` branch, verified against a real
+kernel across 27 commits.
 
 | Item | State |
 |---|---|
-| Documentation architecture | Done |
-| Contributor and agent rules | Done |
-| Automated documentation checks | Done |
-| REQ-ID traceability check | Done — `docs/check-traceability.sh` |
-| Container test harness | Done — see [running the tests](../50-guides/running-tests.md) |
-| ADR-0001 through ADR-0011 | Accepted |
+| Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
+| ADR-0001 through ADR-0012 | Accepted; ADR-0002 superseded by ADR-0012 |
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
-| `doctor`, `adopt`, `release` and `serve` | Built and covered by tests |
-| Store, both directions, with the lock of `REQ-RCN-006` | Built |
-| Reconcile engine and loop — `REQ-RCN-022` steps 1-8 and 11 | Built; steps 9 and 10 deferred under `B-04` |
-| `.proto`, generated gRPC, REST gateway and OpenAPI | Generated and committed |
-| Everything else | Specified, not built |
+| `.proto` contract | Committed — source of truth under ADR-0003 |
+| `WgAgent.Platform` — ports and the key, cidr and state types | Built |
+| `WgAgent.Core` — store, reconcile engine, validation | Built; 51 unit tests over the in-memory platform |
+| `WgAgent.Platform.Linux` — the netlink adapter | Not built — the next work |
+| Service layer, API listeners, tokens, CLI, config, startup checks | Specified, not built |
+| Build tooling and packaging for .NET | Not built |
 
-The slice covers section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md), section 6.3 of
-[SPEC-03](../20-spec/SPEC-03-state-reconcile.md), the `doctor`, `adopt`, `release` and `version`
-subcommands of [SPEC-12](../20-spec/SPEC-12-cli.md), the store, and the netlink, wgctrl and
-filesystem adapters those need. It was chosen first because it reaches a real node without the
-API or the `.proto`, and because adopting an interface that already exists is the first thing an
-operator does on a node that already runs WireGuard.
+The Core layer carries the language-neutral half of the agent — the store, the reconcile
+algorithm of `REQ-RCN-022`, and the validation rules of SPEC-07 — with the field-ownership and
+lock decisions the Go implementation arrived at. What it drives is still the in-memory platform:
+the netlink adapter that reaches a real kernel is `WgAgent.Platform.Linux`, and it is the seam
+between what is tested and what is deployed.
 
-An operator can therefore take a `wg-quick` node over: `doctor` names what blocks it,
-`adopt --dry-run` shows what would be stored, `adopt` stores it while the tunnel keeps running,
-and `serve` applies it. The integration tier runs that sequence end to end on every change,
-including the reboot case — delete the link, run one pass, find the interface back with the same
-public key and the same peers.
-
-What is not built is the API. Every change still goes through the CLI and the store, so the
-agent manages interfaces without yet serving anyone. Steps 9 and 10 of `REQ-RCN-022` — the
-forwarding sysctl and the nftables table — stay deferred under `B-04`, which a single-interface
-node does not need and a node routing between two does.
-
-Module statuses stay `Accepted` rather than moving to `Implemented`. That status is
-module-granular, and no module is wholly built — SPEC-11's interface diagnostics are deferred
-under `B-06` while its section 5 is done.
-
-Every module the MVP depends on is `Accepted`. The specification phase is complete for
-M0 through M2.
+The Go branch reached further — `serve`, `doctor`, `adopt`, `release`, config, startup checks
+and the systemd unit — and stands as the reference for porting each of those to C#. A
+requirement it already covered has a working implementation to consult on `impl/go`.
 
 ## Interface adoption
 
@@ -150,15 +135,12 @@ it and does not name it.
 
 ## Next actions
 
-1. Build the apply path and the reconcile engine of section 5 of
-   [SPEC-03](../20-spec/SPEC-03-state-reconcile.md), and `serve` to run it. Until it exists the
-   store is written and read by nothing: an adopted interface does not survive a reboot, which
-   the [test guide](../50-guides/running-tests.md) warns about rather than pretends away
-2. Then the service layer over the generated contract, and the listeners and tokens of
-   [SPEC-05](../20-spec/SPEC-05-security.md)
-3. Settle OQ-06 to OQ-08 before M3 opens, which moves SPEC-10 to `Accepted`
-
-The `.proto` was written before the engine deliberately. It is the only artefact whose mistakes
-cannot be corrected — `REQ-API-003` turns a wrong field into a package version bump and
-`REQ-API-061` enforces that permanently — so generating it early converted "the specification is
-complete enough" from an opinion into a build that either succeeds or does not.
+1. Build tooling: a task runner and the container tiers of the [test guide](../50-guides/running-tests.md)
+   for .NET, so the unit, integration and privileged tiers run the way the guide describes
+2. `WgAgent.Platform.Linux` — the netlink adapter: `WG_CMD_SET_DEVICE` with peer chunking, the
+   rtnetlink link, address and route operations, and the `RTNLGRP_LINK` subscription of
+   `REQ-RCN-021`. The Go adapter on `impl/go` is the reference
+3. The service layer over the generated contract, config loading and the startup checks of
+   `REQ-API-050`, then the listeners and tokens of [SPEC-05](../20-spec/SPEC-05-security.md),
+   then the CLI subcommands of [SPEC-12](../20-spec/SPEC-12-cli.md)
+4. Settle OQ-06 to OQ-08 before M3 opens, which moves SPEC-10 to `Accepted`

@@ -3,10 +3,10 @@ id: SPEC-11
 title: Diagnostics
 prefix: DIA
 status: Accepted
-version: 1.6
+version: 1.7
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-29
 depends_on: [SPEC-02, SPEC-03]
 adrs: [ADR-0008, ADR-0011]
 milestone: M1
@@ -142,15 +142,15 @@ every other check to add nothing.
 | `oper_state` | UP or DOWN against `spec.enabled` | netlink |
 | `addresses` | Addresses match the spec | netlink |
 | `mtu` | MTU matches the spec | netlink |
-| `port_bound` | The kernel holds the expected UDP port | wgctrl, `/proc/net/udp` |
+| `port_bound` | The kernel holds the expected UDP port | generic netlink, `/proc/net/udp` |
 | `sysctl_forwarding` | Forwarding matches `forward_policy` | `/proc/sys` |
 | `uplink_forwarding` | Uplink forwarding when `external = ALLOW` | `/proc/sys` |
 | `nft_table` | `table inet wg_agent` exists | nftables |
 | `nft_rules` | Rules match the current `forward_policy` | nftables |
 | `nat_masquerade` | A masquerade rule exists when `nat.enabled` | nftables |
 | `routes` | Routes exist for the union of `allowed_ips` | netlink |
-| `peers_no_handshake` | Peers that have never completed a handshake | wgctrl |
-| `allowed_ips_conflicts` | Actual duplicates or overlaps | wgctrl |
+| `peers_no_handshake` | Peers that have never completed a handshake | generic netlink |
+| `allowed_ips_conflicts` | Actual duplicates or overlaps | generic netlink |
 | **`foreign_forward_chains`** | **Other tables hooked into FORWARD** | nftables |
 
 > **REQ-DIA-010** — The agent MUST implement the `foreign_forward_chains` check, listing every

@@ -1,21 +1,21 @@
 # Running the tests
 
-Three tiers, separated by what privilege they need. The rule that keeps the codebase
+Tiers, separated by what privilege they need. The rule that keeps the codebase
 maintainable is that only the platform adapters need privilege: if a test above that layer asks
 for root, a seam has leaked.
 
-| Tier | Command | Needs | Covers |
+| Tier | How | Needs | Covers |
 |---|---|---|---|
-| Documentation | `make check` | nothing | `docs/check-docs.sh` and `docs/check-traceability.sh` |
-| Unit | `make test` | a Go toolchain | everything above `internal/platform` |
-| Integration | `make docker-test` | Docker | real WireGuard through netlink and wgctrl |
-| Privileged | `make docker-test-privileged` | Docker | the forwarding sysctl and nftables tiers |
+| Documentation | `docs/check-docs.sh`, `check-traceability.sh`, `check-mermaid.sh` | nothing (mermaid needs Docker) | the docs themselves |
+| Unit | `dotnet test tests/WgAgent.Tests` | the .NET SDK | everything above `WgAgent.Platform` |
+| Integration | `WgAgent.IntegrationTests` in a container | Docker | real WireGuard through netlink |
+| Privileged | the privileged subset of `WgAgent.IntegrationTests` | Docker | the forwarding sysctl, and the nftables table under B-04 |
 
 ```mermaid
 graph TD
-  C["make check<br/>docs + traceability"] --> U["make test<br/>unit, fake adapters"]
-  U --> I["make docker-test<br/>real WireGuard, CAP_NET_ADMIN"]
-  I --> P["make docker-test-privileged<br/>sysctl + nftables"]
+  C["docs checks<br/>docs + traceability + mermaid"] --> U["dotnet test<br/>unit, fake platform"]
+  U --> I["integration<br/>real WireGuard, CAP_NET_ADMIN"]
+  I --> P["privileged<br/>sysctl + nftables"]
   P --> M["distribution matrix<br/>needs systemd, deferred B-03"]
 
   classDef none fill:#f8f8f8,stroke:#999
@@ -31,22 +31,28 @@ graph TD
 Each tier assumes the one above it passes: a failing unit tier makes an integration failure
 uninformative, because the cause could be either layer.
 
-You do not need a Go toolchain on the host. The container image in `test/docker/Dockerfile`
-carries one, so `make docker-test` is enough on a machine with only Docker installed.
-
-## Before anything else: check the environment
+The unit tier runs today. It drives `WgAgent.Core` — store, reconcile, validation — over the
+in-memory platform in `WgAgent.Testing`, so it needs no kernel and no privilege:
 
 ```bash
-make probe
+dotnet test tests/WgAgent.Tests
 ```
 
-This creates a WireGuard interface inside a container through `netlink`, configures it through
-`wgctrl`, reads the interface key and every peer back, and deletes it. It exercises the library
-boundary that [architecture.md](../00-overview/architecture.md) describes and the adoption read
-that `REQ-RCN-061` and `REQ-RCN-062` depend on.
+The container harness for the integration and privileged tiers is being rebuilt for .NET, and
+tracked with the netlink adapter it exercises: no `WgAgent.Platform.Linux` means nothing for an
+integration test to drive. The requirements those tiers verify, and the traps they set, are
+recorded below so the harness is written against them rather than rediscovering them.
 
-Run it first on any new machine. When it fails, no test above it can pass, and the reason is
-almost always one of the two below.
+## Before anything else: the environment
+
+An integration test reaches the kernel through two netlink families — generic netlink for the
+device and its peers, rtnetlink for the link, its addresses and its routes. A probe that
+creates a WireGuard interface, configures it, reads the key and every peer back, and deletes it
+exercises the library boundary [architecture.md](../00-overview/architecture.md) describes and
+the adoption read `REQ-RCN-061` and `REQ-RCN-062` depend on.
+
+When the probe fails, no test above it can pass, and the reason is almost always one of the two
+below.
 
 ### The kernel module lives on the host
 
@@ -62,8 +68,8 @@ Kernel 5.6 and later carry the module in tree. On anything older, install
 
 ### The container needs `CAP_NET_ADMIN`
 
-`make docker-test` passes `--cap-add=NET_ADMIN`. Creating a link without it fails with
-`operation not permitted`.
+Creating a link without it fails with `operation not permitted`. The integration container runs
+with `--cap-add=NET_ADMIN`.
 
 ## Why a container rather than a bare network namespace
 
@@ -72,17 +78,18 @@ Both work, and the container is preferred for three reasons.
 The container gets its own network namespace, so an interface a test creates cannot collide
 with one that matters on your machine. Test code never has to create or clean up a namespace.
 
-It pins the userspace. `wg`, `ip` and `nft` come from the image at known versions, so a failure
-is a failure of the code rather than of whatever the host happens to have installed.
+It pins the userspace. `wg` and `ip`, used to set up and inspect state around the code under
+test, come from the image at known versions, so a failure is a failure of the code rather than
+of whatever the host happens to have installed.
 
-It carries the Go toolchain, so a contributor needs Docker and nothing else.
+It carries the .NET SDK, so a contributor needs Docker and nothing else.
 
 ## What the privileged tier is for, and why it is separate
 
 Docker mounts `/proc/sys` read-only. Every requirement that writes a sysctl —
 `REQ-FWD-020`, `REQ-FWD-022`, `REQ-FWD-024`, `REQ-FWD-025` — therefore fails in an ordinary
-container, as does the `nft` table of `REQ-FWD-010`. Those tests carry the `privileged` build
-tag and run under `make docker-test-privileged`.
+container, as does the `nft` table of `REQ-FWD-010`. Those tests carry a `privileged` trait and
+run in a privileged container.
 
 Keep them separate and keep them few. A privileged container is not isolated from the host: it
 can write the host's global `net.ipv4.ip_forward`, which `REQ-FWD-021` forbids the agent from
@@ -100,43 +107,33 @@ denied`, for any path and as root, while the same call from a `CAP_NET_ADMIN` co
 succeeds. Pipe the key to `/dev/stdin` instead; that works in both tiers, and it keeps a
 private key off the filesystem. Only the `wg` binary is affected — ordinary file reads work,
 which the store's own tests confirm in the same tier. The product code never reads a key file:
-it configures the device through `wgctrl`.
+it configures the device through generic netlink.
 
 ## Writing a test
 
 Name the requirement it verifies. `docs/check-traceability.sh` matches these against the spec,
 so the ID has to be exact and use underscores:
 
-```go
-func TestForwardPolicy_IntraDeny_REQ_FWD_012(t *testing.T) { ... }
+```csharp
+[Fact]
+public void ForwardPolicy_IntraDeny_REQ_FWD_012() { ... }
 ```
 
-Put an integration test behind the build tag so `go test ./...` stays privilege-free:
+Unit tests live in `WgAgent.Tests` and drive the code over the fake platform in
+`WgAgent.Testing` rather than the kernel. That is what lets the whole reconcile algorithm of
+`REQ-RCN-022` — drift, adoption, orphan handling — run in milliseconds without privilege.
 
-```go
-//go:build integration
-```
-
-Unit tests above the platform layer use a fake adapter rather than the kernel. That is what
-lets the whole reconcile algorithm of `REQ-RCN-022` — drift, adoption, orphan handling — run in
-milliseconds without privilege.
+An integration test that touches the kernel lives in `WgAgent.IntegrationTests` instead, so the
+unit project stays privilege-free. The privileged subset carries a trait so a plain integration
+run skips it.
 
 ### Integration tests share one network namespace
 
-`go test ./...` runs packages concurrently, and every package in the container sees the same
-network namespace. Two packages creating and deleting WireGuard links at the same time make
-`wgctrl` enumerate a device that is gone by the time it reads it, and the failure looks like
-`list devices: file does not exist` in whichever package lost the race.
-
-`make docker-test` passes `-p 1` for that reason. If you run the integration tier by hand, pass
-it too:
-
-```
-go test -tags=integration -count=1 -p 1 ./...
-```
-
-Give a link a name no other package uses. That keeps the failure to a scheduling race you can
-reproduce, rather than one package deleting another's interface by name.
+Every test in the container sees the same network namespace. Two tests creating and deleting
+WireGuard links at the same time make one enumerate a device that is gone by the time it reads
+it. Run the integration tier without cross-test parallelism, and give each link a name no other
+test uses, so a failure is a race you can reproduce rather than one test deleting another's
+interface by name.
 
 ## Taking over a node by hand
 
@@ -165,17 +162,17 @@ restores the key, the peers, the addresses and the MTU, and brings it up. The in
 runs exactly that — adopt, delete the link, one pass, assert the interface is back with the same
 public key — so the claim is checked on every change.
 
-Nothing starts `serve` for you yet. The systemd unit is packaging work, deferred under `B-03`,
-so until it ships either start it under a supervisor of your own or run it in a terminal:
+The systemd unit that starts `serve` at boot is packaging work, deferred under `B-03`. Until it
+ships, either start `serve` under a supervisor of your own or run it in a terminal:
 
 ```bash
 sudo wg-agent serve --log-level=debug
 ```
 
-Two things it will not do yet. It serves no API, so the interface can only be changed by
-`adopt`, `release` and the store; and it writes no forwarding sysctl and installs no nftables
-rules, because steps 9 and 10 of `REQ-RCN-022` are deferred under `B-04`. A single-interface
-node does not need them. A node routing between two does.
+Two things it does not do while B-04 stands. It serves no API, so an interface changes only
+through `adopt`, `release` and the store; and it writes no forwarding sysctl beyond `REQ-FWD-020`
+and installs no nftables rules, because step 10 of `REQ-RCN-022` is deferred. A
+single-interface node does not need them. A node routing between two does.
 
 `serve` holds an exclusive lock on the store while it runs — `REQ-RCN-006` — so `adopt` and
 `release` refuse to write until it stops. Stop it with `SIGTERM`; `REQ-API-074` requires

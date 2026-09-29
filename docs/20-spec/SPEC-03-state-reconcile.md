@@ -3,10 +3,10 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.9
+version: 1.10
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-29
 depends_on: [SPEC-01, SPEC-02]
 adrs: [ADR-0001, ADR-0011]
 milestone: M1
@@ -63,7 +63,8 @@ guards the resource rather than a proxy for it, so it also serialises two comman
 other, and the kernel releases it when a holder dies — a socket or a pid file left behind by a
 crash answers the question wrongly.
 
-Implementation: bbolt — pure Go, no cgo, single file, transactional.
+Implementation: a single file written atomically — rendered to a temporary path and renamed over
+the original — which meets REQ-RCN-001 to REQ-RCN-005 without a database engine.
 
 ## 3. Field ownership
 

@@ -1,12 +1,12 @@
 ---
 id: ADR-0002
 title: Netlink and wgctrl instead of wg-quick
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-08-04
 supersedes: []
-superseded_by: null
+superseded_by: ADR-0012
 affects: [SPEC-01, SPEC-02, SPEC-03]
 ---
 

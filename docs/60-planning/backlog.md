@@ -230,7 +230,7 @@ platform-facing exposure is deferred.
 | `REQ-RCN-013`, `REQ-RCN-051` | `endpoint` stays kernel-owned. This is what stops a roaming client being cut on every reconcile pass |
 | `REQ-RCN-021` | Netlink event subscription. Detecting an externally deleted link is the reconcile loop's whole value on a node that other tools also touch |
 | `REQ-RCN-041` | Backoff with jitter. A retry loop without it is a busy loop |
-| `REQ-SEC-041` | No `exec.Command` in production paths |
+| `REQ-SEC-041` | No child process in production paths |
 | `REQ-CFG-027` | Package removal never deletes a link |
 
 One cost saving that needs no deferral at all: **bbolt is not mandated.** The line naming it in
