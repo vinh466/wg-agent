@@ -36,6 +36,7 @@ observed there, not inferred.
 | K-7 | Link names `all` and `default` are refused `EINVAL` | M-15 |
 | K-8 | An up WireGuard link carries no IPv6 link-local address (`addr_gen_mode = 1`) | closes a suspected adoption failure |
 | K-9 | The NativeAOT binary requires `GLIBC_2.34` when built on glibc 2.39, and runs under `MemoryDenyWriteExecute=yes` | D-10 |
+| K-10 | Under each distribution's own systemd as PID 1 (252, 255, 257), a unit with `User=nobody`, `AmbientCapabilities=CAP_NET_ADMIN`, `ProtectKernelTunables=yes` and `ReadWritePaths=/proc/sys/net/ipv4/conf` writes `conf/<if>/forwarding`, while a write outside that subtree fails `EROFS`. The kernel was the host's 7.0, not each distribution's | D-10, M-18 |
 
 Two further facts come from source rather than probe, and are marked so: an absent preshared
 key is returned as 32 zero bytes (`wg` prints it as `(none)`), and a genetlink family lookup
@@ -113,10 +114,28 @@ against `REQ-FWD-001` and `REQ-API-075`; `audit.enabled` against the uncondition
 `REQ-OBS-020`; `server.socket_mode` against `REQ-SEC-003`. **Recommend** removing all three
 keys.
 
-**D-10 — Supported distributions.** SPEC-09 section 3 lists Debian 11 and Ubuntu 20.04; both ship
-glibc 2.31 and the binary needs 2.34 (K-9). **Recommend** Debian 12/13 and Ubuntu 22.04/24.04,
-and a `.deb` dependency on `libc6 (>= 2.34)`. Assumption to confirm: both dropped releases are
-out of standard vendor support by 2026-09.
+**D-10 — Supported distributions. Decided 2026-09-29: Debian 12 and later, Ubuntu 24.04 and
+later.** SPEC-09 section 3 listed Debian 11 and Ubuntu 20.04, whose glibc 2.31 the binary cannot
+load (K-9). What the floor ships, and what it removes from the specification:
+
+| | Debian 12 | Debian 13 | Ubuntu 24.04 |
+|---|---|---|---|
+| glibc | 2.36 | 2.41 | 2.39 |
+| systemd | 252 | 257 | 255 |
+| Kernel package | 6.1 | 6.12 | 6.8 |
+| `iptables` backend | nft | nft | nft |
+
+- Every supported kernel carries WireGuard in tree: the `wireguard-dkms` path and
+  `KERNEL_TOO_OLD` in check 1 of `REQ-API-050` have no case left.
+- The `REQ-CFG-011` combination works on all three systemd versions (K-10), so the fallback of
+  `REQ-CFG-012` has no case left, and `REQ-CFG-013` covers three versions rather than six.
+- One `linux-x64` binary and one `.deb` serve every node; the package depends on
+  `libc6 (>= 2.34)`, the floor measured in K-9.
+- iptables-legacy becomes an operator's explicit choice rather than a distribution default,
+  which lowers the frequency of M-17 without removing it.
+
+Open detail, to settle with the SPEC-09 change: whether "and later" means every Debian stable
+and Ubuntu LTS release, or interim Ubuntu releases as well.
 
 **D-11 — Token reload, `REQ-CLI-016`.** "Signal the running agent" has no available mechanism:
 no pid file (the lock rationale of SPEC-03 rejects them) and no child process
