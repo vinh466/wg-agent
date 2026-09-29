@@ -99,9 +99,9 @@ the change and is rewritten when the v1 specification is cut. Proposed split:
 | Peers: add, get, list, update, remove — a supplied public key, or a key pair the agent generates | Drift correction and the periodic reconcile — SPEC-03 sections 3 to 5 |
 | A client `.conf` for a peer created with a generated key, returned once | Adoption and `doctor` — SPEC-03 section 6.3, SPEC-11 section 5 |
 | Runtime status from `wg show dump`: handshake, transfer, endpoint | Diagnostics and the node overview — SPEC-11 |
-| A CLI and an API over one core | Metrics and audit — SPEC-08 |
+| A CLI and a REST API over one core; the API reachable remotely with one secret, TLS off loopback — ADR-0014, ADR-0015 | Metrics and audit — SPEC-08 |
 | Validation that refuses what `wg-quick` would refuse | Backup, restore and migration — SPEC-10 |
-| A `.deb` carrying the agent's unit | Tokens and the loopback HTTP listener — SPEC-05 section 4; QR codes — `REQ-KEY-039` |
+| A `.deb` carrying the agent's unit | Roles, several secrets and mutual TLS — SPEC-05 section 4; QR codes — `REQ-KEY-039` |
 
 Interfaces the operator configured by hand stay untouched: the agent reads, edits and deletes
 only the files it created. The overlay stays IPv4 only under ADR-0005.
@@ -120,7 +120,7 @@ without marking them, so removing the code was cheaper than proving the absence 
 |---|---|
 | Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
 | ADR-0001 through ADR-0012 | Accepted; ADR-0002 superseded by ADR-0012 |
-| ADR-0013 | Proposed — the wrapper direction; supersedes ADR-0012 on acceptance |
+| ADR-0013 to ADR-0015 | Proposed — the wrapper, the REST contract, the network listener; they supersede ADR-0012, ADR-0003 and ADR-0009 on acceptance |
 | SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
@@ -147,8 +147,8 @@ it and does not name it.
 
 ## Next actions
 
-1. Settle the open points of ADR-0013 and accept it: the account the agent runs as, the API
-   transport, and peers whose allowed IPs leave the interface's subnets
+1. Accept ADR-0013 to ADR-0015 — the account, the API and site-to-site peers are decided;
+   ADR-0015 waits on a spike of Kestrel HTTPS under NativeAOT
 2. Cut the v1 specification: amend the modules v1 keeps, mark the rest deferred in the
    backlog, and reassess the [audit](spec-audit.md) item by item — most items belong to
    modules that move to the backlog

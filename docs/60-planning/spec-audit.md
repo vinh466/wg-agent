@@ -366,7 +366,8 @@ libnftables, 1.0.9, cannot express the persist flag, so D-16 there would need (a
 **Recommend (b) with the Ubuntu floor at 26.04 LTS** — stock kernels then carry every flag, the
 HWE step of D-16 disappears, and so does (a). Keeping Ubuntu 24.04 means (a) plus the HWE kernel.
 
-**F-02 — One API protocol.** SPEC-04 carries two surfaces: gRPC, and REST through
+**F-02 — One API protocol. Decided 2026-09-29 against the recommendation: REST, contract in
+OpenAPI — ADR-0014, proposed.** SPEC-04 carries two surfaces: gRPC, and REST through
 `google.api.http` annotations (`REQ-API-002`, `REQ-API-063`, `REQ-API-081`, `REQ-API-033`). K-14
 settles the cost of the second: the only first-party REST route from a `.proto` does not build
 under this project's warning policy, and it cannot share a plaintext endpoint with gRPC.
@@ -394,7 +395,8 @@ about eighteen of them, already mirrored one-to-one by `WG_AGENT_<PATH>` variabl
   dependency, and one layer of precedence fewer. The token file, written only by the CLI, becomes
   JSON through the source-generated serializer.
 
-**F-04 — The loopback HTTP listener and its tokens.** Both listeners are local (ADR-0009), and
+**F-04 — The loopback HTTP listener and its tokens. Decided 2026-09-29: one secret on a
+network listener, TLS off loopback — ADR-0015, proposed.** Both listeners are local (ADR-0009), and
 the unix socket already identifies its caller through the kernel. The token system exists to give
 local callers distinct roles: generation, storage at `0600`, constant-time comparison, reload,
 revocation, four `token` subcommands, and the install script printing a secret.

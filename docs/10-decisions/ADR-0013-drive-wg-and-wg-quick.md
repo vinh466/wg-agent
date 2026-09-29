@@ -66,7 +66,9 @@ Adopt **B**.
 - A peer change is applied with `wg syncconf <name> /dev/stdin`, fed a configuration the agent
   renders without the keys only `wg-quick` understands. Other peers keep their sessions.
 - A change `wg syncconf` cannot apply — an address, the MTU — restarts the unit, and the
-  response says that the interface's sessions were dropped.
+  response says that the interface's sessions were dropped. A peer whose allowed IPs leave the
+  interface's subnets is such a change: `wg syncconf` installs no route for it, so the unit is
+  restarted and `wg-quick` installs the routes at `up`.
 - State is read from `wg show <name> dump`, whose tab-separated form exists for scripts. Keys
   come from `wg genkey`, `wg pubkey` and `wg genpsk`. A secret travels over stdin or stdout,
   never in argv.
@@ -93,8 +95,8 @@ Adopt **B**.
 - Drift is not corrected: a hand edit to an agent file, or a `wg set`, persists until the agent
   next writes that interface
 - An address or MTU change drops the sessions on that interface
-- A peer whose allowed IPs leave the interface's subnets gets no route from `wg syncconf`; the
-  specification decides whether such a peer restarts the unit or is refused
+- Adding or changing a peer routed outside the interface's subnets — a site-to-site peer —
+  drops the sessions on that interface
 - Errors arrive as an exit status and text rather than an errno
 
 ### Follow-on work

@@ -32,6 +32,8 @@ Where the reasons behind the system's shape are recorded. Specs state *what*; AD
 | [ADR-0011](ADR-0011-operator-initiated-adoption.md) | Operator-initiated adoption of a pre-existing interface | Accepted | SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-07, SPEC-11, SPEC-12 |
 | [ADR-0012](ADR-0012-managed-netlink-in-dotnet.md) | Managed netlink in .NET, carrying ADR-0002 forward | Accepted | SPEC-01, SPEC-02, SPEC-03, SPEC-06, SPEC-09 |
 | [ADR-0013](ADR-0013-drive-wg-and-wg-quick.md) | Drive WireGuard through wg and wg-quick in v1 | Proposed — supersedes ADR-0012 on acceptance | SPEC-01, SPEC-02, SPEC-03, SPEC-05, SPEC-06, SPEC-09, SPEC-12 |
+| [ADR-0014](ADR-0014-rest-api-described-by-openapi.md) | A REST API whose contract is an OpenAPI document | Proposed — supersedes ADR-0003 on acceptance | SPEC-01, SPEC-04, SPEC-12 |
+| [ADR-0015](ADR-0015-network-listener-with-a-shared-secret.md) | A network listener authenticated by one shared secret | Proposed — supersedes ADR-0009 on acceptance | SPEC-04, SPEC-05, SPEC-09, SPEC-12 |
 
 ## Numbering
 
