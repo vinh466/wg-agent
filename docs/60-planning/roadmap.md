@@ -147,8 +147,8 @@ it and does not name it.
 
 ## Next actions
 
-1. Accept ADR-0013 to ADR-0015 — the account, the API and site-to-site peers are decided;
-   ADR-0015 waits on a spike of Kestrel HTTPS under NativeAOT
+1. Accept ADR-0013 to ADR-0015 — the account, the API and site-to-site peers are decided, and
+   the HTTPS spike ADR-0015 rests on passed; the TLS-off-loopback rule awaits the operator
 2. Cut the v1 specification: amend the modules v1 keeps, mark the rest deferred in the
    backlog, and reassess the [audit](spec-audit.md) item by item — most items belong to
    modules that move to the backlog

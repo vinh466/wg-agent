@@ -23,6 +23,17 @@ Under [ADR-0013](ADR-0013-drive-wg-and-wg-quick.md) the agent runs as root and c
 tunnel it created. Whoever holds the credential holds that control, so the credential and the
 channel carrying it are the whole of the access boundary.
 
+Measured on .NET 10 NativeAOT (SDK 10.0.401), with `TreatWarningsAsErrors` passed through to the
+AOT compiler:
+
+| Observation | Result |
+|---|---|
+| Kestrel HTTPS from a supplied PEM certificate and key | publishes with no warning; serves HTTP/1.1 and HTTP/2 over TLS |
+| A self-signed certificate generated in-process at first start, ECDSA P-256 or RSA 2048 | serves; key written `0600`; reused unchanged on restart |
+| Its SHA-256 fingerprint and SPKI pin computed in-process | match `openssl`; `curl --pinnedpubkey` accepts the pin and refuses a wrong one |
+| Bearer check in constant time | missing, wrong or `Basic` → 401; correct → 200; health unauthenticated |
+| OpenSSL at run time | `libssl.so.3` loaded on demand; `libssl3t64` present in the default Debian 13 and Ubuntu 24.04 images, pulled in by the essential `coreutils` |
+
 ## Alternatives considered
 
 ### A — Local only, remote through an SSH tunnel, as ADR-0009
@@ -67,13 +78,12 @@ Adopt **C**.
 ### Negative — the price paid
 - The secret is root-equivalent on the node; a leak is answered by rotating it, and nothing
   limits what a holder does before then
-- TLS makes OpenSSL (`libssl3t64`) a runtime dependency of the package
+- TLS makes OpenSSL (`libssl3t64`) a runtime dependency of the package — present on every
+  supported node already, and declared so the package says so
 - A self-signed certificate asks every client to pin a fingerprint rather than trust a CA
 - Exposure is only as narrow as the bind address and the host firewall make it
 
 ### Follow-on work
-- Spike Kestrel HTTPS under NativeAOT, with a supplied and a generated certificate, before this
-  ADR is accepted
 - Amend SPEC-05 sections 3 and 4 — `REQ-SEC-070` forbids a non-loopback bind — and the install
   flow of SPEC-09 and SPEC-12
 
