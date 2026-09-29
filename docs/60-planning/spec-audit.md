@@ -186,6 +186,13 @@ agent as `REQ-API-074` requires, and the next start reclaims it.
   named reason when the kernel refuses the flags, and documentation states that the table cannot
   be edited by hand while the agent runs. An architectural choice, so an ADR comes with the
   SPEC-02 change.
+- The alternative, for the ADR: subscribe to nftables events, tell the agent's own changes from
+  others' by the generation's process id, and resynchronise on a foreign one or a lost event.
+  It detects instead of preventing: a window stays between the foreign write and the repair, and
+  a connection opened in that window outlives it through the `established` accept of
+  `REQ-FWD-011` wherever conntrack is still tracking.
+- Cost of the flags: every write to the table goes through one netlink socket held for the
+  agent's lifetime, since ownership belongs to that socket; the table is reclaimed at startup.
 
 ## 4. Defects with an evident fix
 
