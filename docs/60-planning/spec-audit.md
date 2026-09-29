@@ -36,7 +36,9 @@ observed there, not inferred.
 | K-7 | Link names `all` and `default` are refused `EINVAL` | M-15 |
 | K-8 | An up WireGuard link carries no IPv6 link-local address (`addr_gen_mode = 1`) | closes a suspected adoption failure |
 | K-9 | The NativeAOT binary requires `GLIBC_2.34` when built on glibc 2.39, and runs under `MemoryDenyWriteExecute=yes` | D-10 |
-| K-10 | Under each distribution's own systemd as PID 1 (252, 255, 257), a unit with `User=nobody`, `AmbientCapabilities=CAP_NET_ADMIN`, `ProtectKernelTunables=yes` and `ReadWritePaths=/proc/sys/net/ipv4/conf` writes `conf/<if>/forwarding`, while a write outside that subtree fails `EROFS`. The kernel was the host's 7.0, not each distribution's | D-10, M-18 |
+| K-10 | Under each distribution's own systemd as PID 1 (252, 255, 257, 259), a unit with `User=nobody`, `AmbientCapabilities=CAP_NET_ADMIN`, `ProtectKernelTunables=yes` and `ReadWritePaths=/proc/sys/net/ipv4/conf` writes `conf/<if>/forwarding`, while a write outside that subtree fails `EROFS`. The kernel was the host's 7.0, not each distribution's | D-10, M-18 |
+| K-11 | A table created with `flags owner, persist`: while its owner runs, another process adding a chain or deleting the table gets `EPERM`, and its `flush ruleset` leaves the table in place; after the owner exits the table remains, and a new process claims ownership with the same flags. Probed on 7.0; Debian 13's 6.12 carries the flag in its UAPI header | D-16 |
+| K-12 | UAPI headers of each release's kernel: `NFT_TABLE_F_PERSIST` from 6.12 in the set (absent from 6.1 and 6.8); `WGALLOWEDIP_F_REMOVE_ME` in 7.0 only | D-10 |
 
 Two further facts come from source rather than probe, and are marked so: an absent preshared
 key is returned as 32 zero bytes (`wg` prints it as `(none)`), and a genetlink family lookup
@@ -114,28 +116,39 @@ against `REQ-FWD-001` and `REQ-API-075`; `audit.enabled` against the uncondition
 `REQ-OBS-020`; `server.socket_mode` against `REQ-SEC-003`. **Recommend** removing all three
 keys.
 
-**D-10 — Supported distributions. Decided 2026-09-29: Debian 12 and later, Ubuntu 24.04 and
+**D-10 — Supported distributions. Decided 2026-09-29: Debian 13 and later, Ubuntu 26.04 LTS and
 later.** SPEC-09 section 3 listed Debian 11 and Ubuntu 20.04, whose glibc 2.31 the binary cannot
-load (K-9). What the floor ships, and what it removes from the specification:
+load (K-9). A floor of Debian 12 and Ubuntu 24.04 was set first and raised the same day, once
+K-12 showed what the older pair costs.
 
-| | Debian 12 | Debian 13 | Ubuntu 24.04 |
-|---|---|---|---|
-| glibc | 2.36 | 2.41 | 2.39 |
-| systemd | 252 | 257 | 255 |
-| Kernel package | 6.1 | 6.12 | 6.8 |
-| `iptables` backend | nft | nft | nft |
+| | Debian 12 | Ubuntu 24.04 | **Debian 13** | **Ubuntu 26.04** |
+|---|---|---|---|---|
+| Kernel | 6.1 | 6.8 | 6.12 | 7.0 |
+| glibc | 2.36 | 2.39 | 2.41 | 2.43 |
+| systemd | 252 | 255 | 257 | 259 |
+| `iptables` backend | nft | nft | nft | nft |
+| Owned table that persists, `NFT_TABLE_F_PERSIST` | no | no | yes | yes |
+| `WGALLOWEDIP_F_REMOVE_ME` | no | no | no | yes |
+| On the .NET 10 supported-OS list | no | yes | yes | yes |
 
-- Every supported kernel carries WireGuard in tree: the `wireguard-dkms` path and
-  `KERNEL_TOO_OLD` in check 1 of `REQ-API-050` have no case left.
-- The `REQ-CFG-011` combination works on all three systemd versions (K-10), so the fallback of
-  `REQ-CFG-012` has no case left, and `REQ-CFG-013` covers three versions rather than six.
-- One `linux-x64` binary and one `.deb` serve every node; the package depends on
-  `libc6 (>= 2.34)`, the floor measured in K-9.
-- iptables-legacy becomes an operator's explicit choice rather than a distribution default,
-  which lowers the frequency of M-17 without removing it.
+What the floor buys:
+- Kernel-enforced ownership of `table inet wg_agent` (K-11), which neither older release
+  carries — D-16.
+- WireGuard in tree on every supported kernel: the `wireguard-dkms` path and `KERNEL_TOO_OLD` in
+  check 1 of `REQ-API-050` have no case left.
+- The `REQ-CFG-011` combination works on systemd 257 and 259 (K-10): the fallback of
+  `REQ-CFG-012` has no case left, and `REQ-CFG-013` covers two versions rather than six.
+- One `linux-x64` binary and one `.deb`, depending on `libc6 (>= 2.34)` as measured in K-9, on
+  releases the .NET 10 support statement covers.
+- iptables-legacy is an operator's explicit choice rather than a distribution default, which
+  lowers the frequency of M-17 without removing it.
 
-Open detail, to settle with the SPEC-09 change: whether "and later" means every Debian stable
-and Ubuntu LTS release, or interim Ubuntu releases as well.
+What it does not buy: every behaviour in K-1 to K-7 was observed on 7.0, the newest kernel of
+the set, so no M item goes away. `WGALLOWEDIP_F_REMOVE_ME` is absent from Debian 13, so
+`WGPEER_F_REPLACE_ALLOWEDIPS` stays the one mechanism for changing a peer's allowed IPs.
+
+"And later" means Debian stable releases and Ubuntu LTS releases. Interim Ubuntu releases are
+outside the tested matrix.
 
 **D-11 — Token reload, `REQ-CLI-016`.** "Signal the running agent" has no available mechanism:
 no pid file (the lock rationale of SPEC-03 rejects them) and no child process
@@ -162,6 +175,17 @@ failed ones included; reconcile corrections go to the log and the drift metric, 
 **D-15 — Carry-overs from the removed implementation.** `packaging/systemd/` was written with
 the Go implementation (800460b) and restates the unit of SPEC-09 section 4. **Recommend**
 removing it and deriving it again under B-03, as `src/` was.
+
+**D-16 — Kernel-enforced ownership of `table inet wg_agent`.** Without it, any process can
+change or delete the table, and `flush ruleset` — the first rule line of the stock
+`/etc/nftables.conf` on both supported distributions — removes every `DENY` rule until the next
+periodic pass of `REQ-RCN-020`. With the owner and persist flags (K-11) the kernel refuses
+other writers while the agent runs, `flush ruleset` passes the table by, the table outlives the
+agent as `REQ-API-074` requires, and the next start reclaims it.
+- **Recommend** adopting it: the table is created owned and persistent, startup fails with a
+  named reason when the kernel refuses the flags, and documentation states that the table cannot
+  be edited by hand while the agent runs. An architectural choice, so an ADR comes with the
+  SPEC-02 change.
 
 ## 4. Defects with an evident fix
 
@@ -303,7 +327,7 @@ limit, how the absence of logrotate is detected, and what happens at the limit w
 
 ## 6. Order of work
 
-1. Decisions D-01 to D-15.
+1. Decisions D-01 to D-16.
 2. One spec change per module, each with its version bump, carrying the decided items and the
    M items of that module.
 3. P-01 and P-02 against the amended spec.
