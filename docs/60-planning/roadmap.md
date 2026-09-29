@@ -107,7 +107,7 @@ without marking them, so removing the code was cheaper than proving the absence 
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
 | `.proto` contract | Committed — source of truth under ADR-0003 |
 | systemd unit, sysusers and tmpfiles | Committed with the removed implementation — D-15 of the [audit](spec-audit.md) |
-| Full specification audit | Read complete — 16 decisions and 30 fixes in the [audit](spec-audit.md), none applied |
+| Full specification audit | Read complete — 16 decisions, 7 foundation choices and 30 fixes in the [audit](spec-audit.md), none applied |
 | Implementation | None. Rebuilt module by module from the specification |
 
 ## Interface adoption
@@ -128,7 +128,7 @@ it and does not name it.
 
 ## Next actions
 
-1. Close the [specification audit](spec-audit.md): decide D-01 to D-16, then apply them and
+1. Close the [specification audit](spec-audit.md): decide D-01 to D-16 and F-01 to F-07, then apply them and
    the M items as one spec change per module, then revise the backlog and the test guide
    against the result (its section 6)
 2. Build tooling for .NET: a task runner and the container tiers of the

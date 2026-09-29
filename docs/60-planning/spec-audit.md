@@ -39,6 +39,9 @@ observed there, not inferred.
 | K-10 | Under each distribution's own systemd as PID 1 (252, 255, 257, 259), a unit with `User=nobody`, `AmbientCapabilities=CAP_NET_ADMIN`, `ProtectKernelTunables=yes` and `ReadWritePaths=/proc/sys/net/ipv4/conf` writes `conf/<if>/forwarding`, while a write outside that subtree fails `EROFS`. The kernel was the host's 7.0, not each distribution's | D-10, M-18 |
 | K-11 | A table created with `flags owner, persist`: while its owner runs, another process adding a chain or deleting the table gets `EPERM`, and its `flush ruleset` leaves the table in place; after the owner exits the table remains, and a new process claims ownership with the same flags. Probed on 7.0; Debian 13's 6.12 carries the flag in its UAPI header | D-16 |
 | K-12 | UAPI headers of each release's kernel: `NFT_TABLE_F_PERSIST` from 6.12 in the set (absent from 6.1 and 6.8); `WGALLOWEDIP_F_REMOVE_ME` in 7.0 only | D-10 |
+| K-13 | A NativeAOT binary drives libnftables in-process through `LibraryImport` (1.2 MB, no child process): with libnftables 1.1.3 (Debian 13) and 1.1.6 (Ubuntu 26.04) it creates an owned, persistent table, a second process gets `EPERM` and its `flush ruleset` leaves the table, further writes on the same context succeed, `list` returns JSON, and the table outlives the process. With 1.0.9, the only version Ubuntu 24.04 publishes, `flags owner, persist` is a syntax error | F-01 |
+| K-14 | ASP.NET Core under NativeAOT, SDK 10.0.401: gRPC alone (Grpc.AspNetCore 2.84.0) publishes with no trim or AOT warning, as does a Minimal API with source-generated JSON; adding JSON transcoding (10.0.12) raises 39, all inside that package — reflection-based serialisation and `MakeGenericType` — which `TreatWarningsAsErrors` turns into a failed build. A plaintext endpoint set to HTTP/1.1 and HTTP/2 serves HTTP/1.1 only; gRPC works over h2c on a TCP endpoint set to HTTP/2 alone and over a unix socket. Binaries: 11.2 MB gRPC, 9.4 MB Minimal API, 14.3 MB both with transcoding | F-02 |
+| K-15 | `RandomNumberGenerator.Fill` makes a NativeAOT process dlopen `libcrypto.so.3` and `libssl.so.3`; with them absent the process aborts. Without that call neither is loaded | F-07 |
 
 Two further facts come from source rather than probe, and are marked so: an absent preshared
 key is returned as 32 zero bytes (`wg` prints it as `(none)`), and a genetlink family lookup
@@ -336,9 +339,88 @@ limit, how the absence of logrotate is detected, and what happens at the limit w
   NativeAOT needs a source-generated parser (`REQ-CFG-037`); the REST mapping needs gRPC JSON
   transcoding under NativeAOT, to be spiked before B-05.
 
-## 6. Order of work
+## 6. Foundations
 
-1. Decisions D-01 to D-16.
+Stack and scope choices below the level of a single requirement, reviewed once the platform
+floor was fixed. **F** items are decisions; each that is adopted lands as its own ADR, because
+ADR-0012 already bundles three decisions and an accepted ADR cannot be edited.
+
+**F-01 — nftables through libnftables, and the Ubuntu release it needs.** ADR-0012 leaves the
+nftables mechanism open ("an nftables library rather than invoking `nft`", deferred under B-04).
+Two routes meet `REQ-SEC-041`:
+- (a) Encode nfnetlink batches in managed code. No dependency; the largest single block of code
+  in the kernel edge — tables, chains, expressions, verdicts, batches, and a parser for listing.
+- (b) Call libnftables, the netfilter project's own library behind `nft`, in-process (K-13).
+  Rules are written in nft syntax, or its JSON form so no string is ever assembled from input;
+  listing returns JSON, which `REQ-DIA-010` and the `nft_rules` check read directly; one context
+  held for the agent's lifetime is the owning socket D-16 needs. Cost: a package dependency
+  (`libnftables1`, which pulls libnftnl, libmnl and jansson), a native surface ADR-0012 says it
+  does not have, and one context serialised across callers — which M-23 requires anyway.
+
+(b) works on Debian 13 and on Ubuntu 26.04. It does not work on Ubuntu 24.04: its only
+libnftables, 1.0.9, cannot express the persist flag, so D-16 there would need (a) regardless.
+**Recommend (b) with the Ubuntu floor at 26.04 LTS** — stock kernels then carry every flag, the
+HWE step of D-16 disappears, and so does (a). Keeping Ubuntu 24.04 means (a) plus the HWE kernel.
+
+**F-02 — One API protocol.** SPEC-04 carries two surfaces: gRPC, and REST through
+`google.api.http` annotations (`REQ-API-002`, `REQ-API-063`, `REQ-API-081`, `REQ-API-033`). K-14
+settles the cost of the second: the only first-party REST route from a `.proto` does not build
+under this project's warning policy, and it cannot share a plaintext endpoint with gRPC.
+- (a) Both, with transcoding's warnings suppressed and two TCP endpoints.
+- (b) gRPC only. The `.proto` stays the single contract of ADR-0003, clients are generated for
+  every language the product names (Go for Terraform and Kubernetes operators), and one
+  protocol runs over the unix socket. Operators script through the CLI, or `grpcurl` against the
+  `.proto` files shipped in the package.
+- (c) REST only, through Minimal APIs. The smallest binary and `curl` without tools, but the
+  `.proto` stops being the contract and ADR-0003 is replaced rather than trimmed.
+- **Recommend (b).** The consumers in product.md are machines. `REQ-API-002`, `REQ-API-063`,
+  `REQ-API-081`, `REQ-API-033` and `REQ-RES-021` fall away, the error model of M-20 needs gRPC
+  codes only, and `WatchPeerStatus` returns later as a stream without a second design. With
+  F-04, the whole surface is one gRPC service on one unix socket.
+
+**F-03 — Configuration format.** SPEC-09 specifies a YAML file (`REQ-CFG-037`), and NativeAOT
+has no first-party YAML reader. Once D-09 removes the `defaults:` block every key is a scalar,
+about eighteen of them, already mirrored one-to-one by `WG_AGENT_<PATH>` variables
+(`REQ-CFG-001`).
+- (a) YAML with a third-party source-generated reader.
+- (b) JSON through the first-party configuration binder, which is source-generated for AOT.
+- (c) One `KEY=VALUE` file — `/etc/default/wg-agent`, which `REQ-CFG-004` already loads — read by
+  the agent and the CLI alike, then environment, then flags.
+- **Recommend (c).** One file, one syntax an operator of a Debian service expects, no parser
+  dependency, and one layer of precedence fewer. The token file, written only by the CLI, becomes
+  JSON through the source-generated serializer.
+
+**F-04 — The loopback HTTP listener and its tokens.** Both listeners are local (ADR-0009), and
+the unix socket already identifies its caller through the kernel. The token system exists to give
+local callers distinct roles: generation, storage at `0600`, constant-time comparison, reload,
+revocation, four `token` subcommands, and the install script printing a secret.
+- (a) Keep it.
+- (b) Unix socket only; the role follows the caller's group from peer credentials — members of
+  one group are `admin`, of another `reader`. A remote platform keeps its own hop: SSH forwards a
+  unix socket, and a reverse proxy can target one.
+- **Recommend (b)** for v1. No bearer secret exists to leak, and `REQ-SEC-071` to `REQ-SEC-082`,
+  `REQ-CLI-010` to `REQ-CLI-016` and `REQ-CFG-031` to `REQ-CFG-033` either fall away or shrink to a
+  group mapping. The metrics listener is separate and unaffected. Reversible: a token listener
+  can be added later without changing the socket's contract.
+
+**F-05 — QR codes, `REQ-KEY-039`.** A QR encoder is a dependency, and any platform renders one
+from the `.conf` text in a line of code. **Recommend** striking it.
+
+**F-06 — Decision records.** When F-01 to F-05, F-07 and D-10 settle, each gets an ADR of its own; the
+same ADRs supersede the stale parts of accepted ones — the Go tooling of ADR-0003, the transport
+rule of ADR-0004 that `REQ-KEY-014`'s removal left behind, the `arm64` of ADR-0010 — rather than
+leaving them contradicting the spec. `go_version` also sits in `service.proto` and is renamed
+before the contract freezes.
+
+**F-07 — Source of randomness.** Key generation (`REQ-KEY-001`) through `RandomNumberGenerator`
+brings OpenSSL in at run time (K-15). `getrandom(2)`, called through libc like the netlink
+sockets, gives the kernel's CSPRNG with no library; BouncyCastle then only derives public keys
+and needs no generator. **Recommend** `getrandom(2)` — the dependency set stays libc, plus
+libnftables under F-01.
+
+## 7. Order of work
+
+1. Decisions D-01 to D-16 and F-01 to F-07.
 2. One spec change per module, each with its version bump, carrying the decided items and the
    M items of that module.
 3. P-01 and P-02 against the amended spec.
