@@ -31,17 +31,12 @@ graph TD
 Each tier assumes the one above it passes: a failing unit tier makes an integration failure
 uninformative, because the cause could be either layer.
 
-The unit tier runs today. It drives `WgAgent.Core` — store, reconcile, validation — over the
-in-memory platform in `WgAgent.Testing`, so it needs no kernel and no privilege:
+Only the documentation tier runs today. The implementation is rebuilt from the specification,
+so there is no code yet for the unit tier to drive, and no netlink adapter for the integration
+tiers to exercise. Each tier arrives with the first module that needs it.
 
-```bash
-dotnet test tests/WgAgent.Tests
-```
-
-The container harness for the integration and privileged tiers is being rebuilt for .NET, and
-tracked with the netlink adapter it exercises: no `WgAgent.Platform.Linux` means nothing for an
-integration test to drive. The requirements those tiers verify, and the traps they set, are
-recorded below so the harness is written against them rather than rediscovering them.
+The requirements the container tiers verify, and the traps they set, are recorded below so
+the harness is written against them rather than rediscovering them.
 
 ## Before anything else: the environment
 

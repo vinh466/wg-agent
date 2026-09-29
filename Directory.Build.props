@@ -9,15 +9,16 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
-    <!-- REQ-CFG-020 builds the release binary with no runtime to install.
-         NativeAOT also removes the JIT, which is what lets the systemd unit
-         of REQ-CFG-010 keep MemoryDenyWriteExecute=yes. -->
+    <!-- ADR-0012 ships one self-contained NativeAOT binary with no runtime to
+         install. NativeAOT also removes the JIT, which is what lets the systemd
+         unit of REQ-CFG-010 keep MemoryDenyWriteExecute=yes. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <IsAotCompatible>true</IsAotCompatible>
 
     <!-- LibraryImport generates unsafe marshalling code. The only native calls
-         in this repository are socket(2), bind(2) and close(2) against libc;
-         see src/WgAgent.Platform.Linux/Netlink/Libc.cs for why. -->
+         the agent makes are socket(2), bind(2) and close(2) against libc, because
+         .NET refuses AF_NETLINK through its managed Socket constructor; see
+         ADR-0012. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

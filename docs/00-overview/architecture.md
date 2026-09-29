@@ -141,6 +141,9 @@ needs the kernel module and the agent binary, and neither `wg`, `ip`, `bash` nor
 
 ## Repository layout
 
+The target structure. A project is created when the first module that needs it is
+implemented, so a directory below may not exist yet.
+
 ```
 api/proto/wgagent/v1/         .proto — source of truth for the API contract
 src/

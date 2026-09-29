@@ -4,7 +4,7 @@ title: Packaging assets
 status: partial
 owner: Vinh Nguyen
 created: 2026-09-07
-updated: 2026-09-07
+updated: 2026-09-29
 ---
 
 # Packaging
@@ -19,7 +19,8 @@ What is here, and what is not.
 | `systemd/wg-agent.sysusers` | The account the unit runs as, part of `REQ-CFG-021` |
 | `systemd/wg-agent.tmpfiles` | The runtime and state directories, part of `REQ-CFG-021` |
 
-Install by hand until the package exists:
+No agent binary exists while the implementation is rebuilt from the specification. Once it
+does, install by hand until the package exists:
 
 ```bash
 sudo install -m 0755 wg-agent /usr/bin/wg-agent
@@ -45,5 +46,8 @@ Deferred under `B-03` in [the backlog](../docs/60-planning/backlog.md): the `.de
 
 `REQ-CFG-013` requires the `REQ-CFG-011` combination to be verified against every systemd
 version the tested distributions ship. That needs `systemd` as PID 1, which Docker does not
-provide, so it stays with `B-03`. What is verified here is that the unit file carries the
-directives the requirements name — see `packaging_test.go`.
+provide, so it stays with `B-03`.
+
+A check that the unit file carries the directives `REQ-CFG-010`, `REQ-CFG-011` and `REQ-CFG-005`
+name is part of the rebuild's test suite. Until it exists, nothing asserts that an edit to
+`wg-agent.service` kept them.

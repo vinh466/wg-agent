@@ -88,10 +88,15 @@ releases is what makes that look like a dependency inversion.
 
 ## State as of the front-matter date
 
-The specification is complete for M0 through M2 and is language-neutral. The implementation
-was rewritten from Go to C# on .NET 10; see [ADR-0012](../10-decisions/ADR-0012-managed-netlink-in-dotnet.md)
-for why, and the Go reference is preserved on the `impl/go` branch, verified against a real
-kernel across 27 commits.
+The specification is complete for M0 through M2. The implementation is at zero, deliberately.
+
+An implementation in Go reached a working vertical slice, and a partial port of it to C#
+followed the move to .NET. Both were removed, and the code is rebuilt from the specification
+alone, because a port reproduces decisions the specification never made. Two were found on
+inspection: the forwarding condition of `REQ-FWD-020` implemented differently from its text,
+with the comment that justified the difference lost in the port, and a reconcile behaviour
+for a missing private key that no requirement asks for. A port carries such decisions
+without marking them, so removing the code was cheaper than proving the absence of more.
 
 | Item | State |
 |---|---|
@@ -101,21 +106,9 @@ kernel across 27 commits.
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
 | `.proto` contract | Committed — source of truth under ADR-0003 |
-| `WgAgent.Platform` — ports and the key, cidr and state types | Built |
-| `WgAgent.Core` — store, reconcile engine, validation | Built; 51 unit tests over the in-memory platform |
-| `WgAgent.Platform.Linux` — the netlink adapter | Not built — the next work |
-| Service layer, API listeners, tokens, CLI, config, startup checks | Specified, not built |
-| Build tooling and packaging for .NET | Not built |
-
-The Core layer carries the language-neutral half of the agent — the store, the reconcile
-algorithm of `REQ-RCN-022`, and the validation rules of SPEC-07 — with the field-ownership and
-lock decisions the Go implementation arrived at. What it drives is still the in-memory platform:
-the netlink adapter that reaches a real kernel is `WgAgent.Platform.Linux`, and it is the seam
-between what is tested and what is deployed.
-
-The Go branch reached further — `serve`, `doctor`, `adopt`, `release`, config, startup checks
-and the systemd unit — and stands as the reference for porting each of those to C#. A
-requirement it already covered has a working implementation to consult on `impl/go`.
+| systemd unit, sysusers and tmpfiles | Committed — the unit is SPEC-09 section 4 verbatim |
+| Full specification audit | In progress — see the next actions |
+| Implementation | None. Rebuilt module by module from the specification |
 
 ## Interface adoption
 
@@ -135,12 +128,14 @@ it and does not name it.
 
 ## Next actions
 
-1. Build tooling: a task runner and the container tiers of the [test guide](../50-guides/running-tests.md)
-   for .NET, so the unit, integration and privileged tiers run the way the guide describes
-2. `WgAgent.Platform.Linux` — the netlink adapter: `WG_CMD_SET_DEVICE` with peer chunking, the
-   rtnetlink link, address and route operations, and the `RTNLGRP_LINK` subscription of
-   `REQ-RCN-021`. The Go adapter on `impl/go` is the reference
-3. The service layer over the generated contract, config loading and the startup checks of
-   `REQ-API-050`, then the listeners and tokens of [SPEC-05](../20-spec/SPEC-05-security.md),
-   then the CLI subcommands of [SPEC-12](../20-spec/SPEC-12-cli.md)
+1. Audit the whole specification before any code. The audit looks for requirements written
+   after the code that needed them, requirements phrased in the terms of one language or
+   library, conditions whose edge cases an implementation would have to invent, and
+   contradictions between modules or with the backlog. Each finding is decided — keep,
+   amend or drop — through the spec-change workflow
+2. Build tooling for .NET: a task runner and the container tiers of the
+   [test guide](../50-guides/running-tests.md)
+3. Implement module by module, following the module workflow in `CLAUDE.md`: the platform
+   ports and the netlink adapter, the store, validation, reconcile, the service layer, the
+   API listeners and tokens, the CLI
 4. Settle OQ-06 to OQ-08 before M3 opens, which moves SPEC-10 to `Accepted`

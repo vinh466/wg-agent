@@ -91,6 +91,28 @@ how a spec turns into a transcript.
 Do not skip step 1. Placing a requirement in the wrong module is what creates the
 duplication that rule 5 exists to prevent.
 
+## Workflow for implementing a module
+
+The implementation is derived from the specification and from nothing else. No earlier
+implementation, in any language, is consulted — and that includes this repository's own
+history. Code that is copied carries decisions the specification never made, and a port
+reproduces them invisibly: nothing about a copied line says which of its behaviours a
+requirement asked for.
+
+```
+1. Read the module        docs/20-spec/SPEC-NN — every REQ, its rationale, its links
+2. Resolve doubt first    an ambiguous or unimplementable REQ is a spec change, made
+                          through the workflow above before any code is written
+3. Write the tests        one per REQ, named with its ID, failing for the right reason
+4. Write the code         until those tests pass
+5. Nothing unspecified    behaviour no REQ asks for is removed, or specified first —
+                          never kept because it seemed sensible
+6. Checks                 docs/check-*.sh and every test tier must pass
+```
+
+A project under `src/` is created when the first module that needs it is implemented, not
+ahead of it. An empty project is a claim about structure that no requirement has tested.
+
 ## Test naming
 
 ```csharp
@@ -130,9 +152,9 @@ C# on **.NET 10**, published with NativeAOT for `linux-x64` against glibc.
 while .NET 9 reaches end of support on 10 November 2026. Nothing else differs
 for this project: both reach netlink the same way, and neither exposes X25519.
 
-The Go implementation this replaces is preserved on the `impl/go` branch and is
-worth consulting when implementing a requirement it already covered — it was
-verified against a real kernel.
+An earlier implementation in Go, and a partial port of it to C#, were removed so the
+code is rebuilt from the specification alone — see the module workflow above. Their
+commits remain in history. They are not a reference.
 
 ## Language
 

@@ -6,8 +6,6 @@ syntax = "proto3";
 
 package wgagent.v1;
 
-option go_package = "wg-agent/gen/go/wgagent/v1;wgagentv1";
-
 import "google/protobuf/timestamp.proto";
 
 // Axis is a forward-policy axis value. SPEC-02 section 2 fixes the set;

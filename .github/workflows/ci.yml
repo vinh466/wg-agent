@@ -6,8 +6,13 @@ on:
   pull_request:
 
 jobs:
-  # Documentation integrity and REQ-ID traceability. No toolchain, so this gate
-  # is the one that holds while the spec is ahead of the code.
+  # Documentation integrity, REQ-ID traceability and diagram rendering. No
+  # toolchain beyond Docker, so this gate holds while the specification is ahead
+  # of the code.
+  #
+  # The build, test and contract jobs arrive with the tooling they run, as the
+  # implementation is rebuilt from the specification. A job that calls a target
+  # nothing defines fails on every push and teaches the reader to ignore red.
   docs:
     runs-on: ubuntu-latest
     steps:
@@ -16,44 +21,5 @@ jobs:
         run: docs/check-docs.sh
       - name: REQ-ID traceability
         run: docs/check-traceability.sh
-
-  # Verifies a container can drive real WireGuard: netlink creates the link,
-  # wgctrl configures it, and the interface key and peers read back. This is the
-  # premise the adoption requirements rest on, so it is checked on every change.
-  probe:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Load the WireGuard module on the host
-        run: sudo modprobe wireguard && lsmod | grep wireguard
-      - name: Probe the environment
-        run: make probe
-
-  # REQ-API-061: a compatibility-breaking change within a package version is
-  # blocked. The comparison needs main's history, so the checkout is unshallow.
-  #
-  # Regeneration runs too: gen/ is committed, and a .proto edited without
-  # regenerating would leave the committed contract describing something else.
-  contract:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Lint and check for breaking changes
-        run: make proto-check
-      - name: Regenerate
-        run: make proto
-      - name: gen/ must match the committed contract
-        run: git diff --exit-code gen docs/30-api
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Load the WireGuard module on the host
-        run: sudo modprobe wireguard
-      - name: Unit and integration tiers
-        run: make docker-test
-      - name: Privileged tier
-        run: make docker-test-privileged
+      - name: Diagrams render
+        run: docs/check-mermaid.sh
