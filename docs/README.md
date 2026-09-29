@@ -69,7 +69,7 @@ docs/
 ├── 30-api/                API contract (generated from .proto, never hand-edited)
 ├── 40-concepts/           Explanations — how the system works
 ├── 50-guides/             Task-oriented operational guides
-├── 60-planning/           Roadmap, milestones, risks, open questions, backlog
+├── 60-planning/           Roadmap, milestones, risks, open questions, backlog, spec audit
 ├── 90-rfcs/              Proposals under discussion, not yet accepted
 └── 99-archive/            Superseded documents, kept for history
 ```

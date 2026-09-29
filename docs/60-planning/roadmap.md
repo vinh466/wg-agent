@@ -106,8 +106,8 @@ without marking them, so removing the code was cheaper than proving the absence 
 | SPEC-10 | Draft — three M3 decisions unsettled |
 | Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
 | `.proto` contract | Committed — source of truth under ADR-0003 |
-| systemd unit, sysusers and tmpfiles | Committed — the unit is SPEC-09 section 4 verbatim |
-| Full specification audit | In progress — see the next actions |
+| systemd unit, sysusers and tmpfiles | Committed with the removed implementation — D-15 of the [audit](spec-audit.md) |
+| Full specification audit | Read complete — 15 decisions and 30 fixes in the [audit](spec-audit.md), none applied |
 | Implementation | None. Rebuilt module by module from the specification |
 
 ## Interface adoption
@@ -128,11 +128,9 @@ it and does not name it.
 
 ## Next actions
 
-1. Audit the whole specification before any code. The audit looks for requirements written
-   after the code that needed them, requirements phrased in the terms of one language or
-   library, conditions whose edge cases an implementation would have to invent, and
-   contradictions between modules or with the backlog. Each finding is decided — keep,
-   amend or drop — through the spec-change workflow
+1. Close the [specification audit](spec-audit.md): decide D-01 to D-15, then apply them and
+   the M items as one spec change per module, then revise the backlog and the test guide
+   against the result (its section 6)
 2. Build tooling for .NET: a task runner and the container tiers of the
    [test guide](../50-guides/running-tests.md)
 3. Implement module by module, following the module workflow in `CLAUDE.md`: the platform
