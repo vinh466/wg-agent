@@ -1,12 +1,12 @@
 ---
 id: ADR-0009
 title: Local-only management listeners in v1
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-08-04
-updated: 2026-08-05
+updated: 2026-09-29
 supersedes: []
-superseded_by: null
+superseded_by: ADR-0015
 affects: [SPEC-04, SPEC-05, SPEC-06, SPEC-09]
 ---
 

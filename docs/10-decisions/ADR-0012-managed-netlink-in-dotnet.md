@@ -1,12 +1,12 @@
 ---
 id: ADR-0012
 title: Managed netlink in .NET, carrying ADR-0002 forward
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-09-29
 updated: 2026-09-29
 supersedes: [ADR-0002]
-superseded_by: null
+superseded_by: ADR-0013
 affects: [SPEC-01, SPEC-02, SPEC-03, SPEC-06, SPEC-09]
 ---
 

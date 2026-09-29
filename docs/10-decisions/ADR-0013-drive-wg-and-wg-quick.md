@@ -1,7 +1,7 @@
 ---
 id: ADR-0013
 title: Drive WireGuard through wg and wg-quick in v1
-status: Proposed
+status: Accepted
 owner: Vinh Nguyen
 created: 2026-09-29
 updated: 2026-09-29

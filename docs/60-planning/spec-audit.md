@@ -9,7 +9,7 @@ the [roadmap](roadmap.md). Nothing here is normative. Each item either becomes a
 through the workflow in `CLAUDE.md`, or is closed with a reason recorded against it.
 
 The wrapper direction of [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md),
-proposed after this audit, moves most modules to the backlog. Each item is reassessed with its
+decided after this audit, moves most modules to the backlog. Each item is reassessed with its
 module when the v1 specification is cut; an item in a deferred module waits with it.
 
 Items are of three kinds: **D** needs a product decision, **M** has an evident fix, **P** is
@@ -367,7 +367,7 @@ libnftables, 1.0.9, cannot express the persist flag, so D-16 there would need (a
 HWE step of D-16 disappears, and so does (a). Keeping Ubuntu 24.04 means (a) plus the HWE kernel.
 
 **F-02 — One API protocol. Decided 2026-09-29 against the recommendation: REST, contract in
-OpenAPI — ADR-0014, proposed.** SPEC-04 carries two surfaces: gRPC, and REST through
+OpenAPI — ADR-0014.** SPEC-04 carries two surfaces: gRPC, and REST through
 `google.api.http` annotations (`REQ-API-002`, `REQ-API-063`, `REQ-API-081`, `REQ-API-033`). K-14
 settles the cost of the second: the only first-party REST route from a `.proto` does not build
 under this project's warning policy, and it cannot share a plaintext endpoint with gRPC.
@@ -396,7 +396,7 @@ about eighteen of them, already mirrored one-to-one by `WG_AGENT_<PATH>` variabl
   JSON through the source-generated serializer.
 
 **F-04 — The loopback HTTP listener and its tokens. Decided 2026-09-29: one secret on a
-network listener, TLS off loopback — ADR-0015, proposed.** Both listeners are local (ADR-0009), and
+network listener, plain HTTP on a private network — ADR-0015.** Both listeners are local (ADR-0009), and
 the unix socket already identifies its caller through the kernel. The token system exists to give
 local callers distinct roles: generation, storage at `0600`, constant-time comparison, reload,
 revocation, four `token` subcommands, and the install script printing a secret.

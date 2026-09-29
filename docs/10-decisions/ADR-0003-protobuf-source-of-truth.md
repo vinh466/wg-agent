@@ -1,12 +1,12 @@
 ---
 id: ADR-0003
 title: Protobuf as the source of truth, gRPC plus a REST gateway
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-09-29
 supersedes: []
-superseded_by: null
+superseded_by: ADR-0014
 affects: [SPEC-04]
 ---
 

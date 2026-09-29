@@ -1,7 +1,7 @@
 ---
 id: ADR-0014
 title: A REST API whose contract is an OpenAPI document
-status: Proposed
+status: Accepted
 owner: Vinh Nguyen
 created: 2026-09-29
 updated: 2026-09-29
@@ -56,7 +56,8 @@ Adopt **C**.
 - The server is ASP.NET Core Minimal APIs with source-generated JSON serialisation.
 - A contract test compares the routes, parameters and schemas the server exposes with the
   document, so a divergence fails the build rather than a client.
-- The `.proto` files are removed when this ADR is accepted.
+- The `.proto` files are removed by the SPEC-04 change that adopts the document, so the
+  repository never holds a contract `REQ-API-001` does not name.
 
 ## Consequences
 
