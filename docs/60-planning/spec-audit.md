@@ -116,36 +116,35 @@ against `REQ-FWD-001` and `REQ-API-075`; `audit.enabled` against the uncondition
 `REQ-OBS-020`; `server.socket_mode` against `REQ-SEC-003`. **Recommend** removing all three
 keys.
 
-**D-10 — Supported distributions. Decided 2026-09-29: Debian 13 and later, Ubuntu 26.04 LTS and
+**D-10 — Supported distributions. Decided 2026-09-29: Debian 13 and later, Ubuntu 24.04 LTS and
 later.** SPEC-09 section 3 listed Debian 11 and Ubuntu 20.04, whose glibc 2.31 the binary cannot
-load (K-9). A floor of Debian 12 and Ubuntu 24.04 was set first and raised the same day, once
-K-12 showed what the older pair costs.
+load (K-9). The floor moved twice the same day — Debian 12 with Ubuntu 24.04, then Debian 13
+with Ubuntu 26.04 after K-12, then Ubuntu back to 24.04, whose HWE kernel matches 26.04's.
 
-| | Debian 12 | Ubuntu 24.04 | **Debian 13** | **Ubuntu 26.04** |
-|---|---|---|---|---|
-| Kernel | 6.1 | 6.8 | 6.12 | 7.0 |
-| glibc | 2.36 | 2.39 | 2.41 | 2.43 |
-| systemd | 252 | 255 | 257 | 259 |
-| `iptables` backend | nft | nft | nft | nft |
-| Owned table that persists, `NFT_TABLE_F_PERSIST` | no | no | yes | yes |
-| `WGALLOWEDIP_F_REMOVE_ME` | no | no | no | yes |
-| On the .NET 10 supported-OS list | no | yes | yes | yes |
+| | Debian 13 | Ubuntu 24.04, GA kernel | Ubuntu 24.04, HWE kernel |
+|---|---|---|---|
+| Kernel | 6.12 | 6.8 | 7.0 |
+| glibc | 2.41 | 2.39 | 2.39 |
+| systemd | 257 | 255 | 255 |
+| `iptables` backend | nft | nft | nft |
+| Owned table that persists, `NFT_TABLE_F_PERSIST` | yes | **no** | yes |
+| `WGALLOWEDIP_F_REMOVE_ME` | no | no | yes |
+| On the .NET 10 supported-OS list | yes | yes | yes |
 
 What the floor buys:
-- Kernel-enforced ownership of `table inet wg_agent` (K-11), which neither older release
-  carries — D-16.
 - WireGuard in tree on every supported kernel: the `wireguard-dkms` path and `KERNEL_TOO_OLD` in
   check 1 of `REQ-API-050` have no case left.
-- The `REQ-CFG-011` combination works on systemd 257 and 259 (K-10): the fallback of
+- The `REQ-CFG-011` combination works on systemd 255 and 257 (K-10): the fallback of
   `REQ-CFG-012` has no case left, and `REQ-CFG-013` covers two versions rather than six.
 - One `linux-x64` binary and one `.deb`, depending on `libc6 (>= 2.34)` as measured in K-9, on
   releases the .NET 10 support statement covers.
 - iptables-legacy is an operator's explicit choice rather than a distribution default, which
   lowers the frequency of M-17 without removing it.
 
-What it does not buy: every behaviour in K-1 to K-7 was observed on 7.0, the newest kernel of
-the set, so no M item goes away. `WGALLOWEDIP_F_REMOVE_ME` is absent from Debian 13, so
-`WGPEER_F_REPLACE_ALLOWEDIPS` stays the one mechanism for changing a peer's allowed IPs.
+What it leaves open: the GA kernel of Ubuntu 24.04 lacks the flag D-16 rests on, so D-16 now
+carries a kernel condition. No M item goes away on any kernel of the set — K-1 to K-7 were
+observed on 7.0. `WGPEER_F_REPLACE_ALLOWEDIPS` stays the one mechanism for changing a peer's
+allowed IPs, since Debian 13 lacks `WGALLOWEDIP_F_REMOVE_ME`.
 
 "And later" means Debian stable releases and Ubuntu LTS releases. Interim Ubuntu releases are
 outside the tested matrix.
@@ -182,8 +181,13 @@ change or delete the table, and `flush ruleset` — the first rule line of the s
 periodic pass of `REQ-RCN-020`. With the owner and persist flags (K-11) the kernel refuses
 other writers while the agent runs, `flush ruleset` passes the table by, the table outlives the
 agent as `REQ-API-074` requires, and the next start reclaims it.
-- **Recommend** adopting it: the table is created owned and persistent, startup fails with a
-  named reason when the kernel refuses the flags, and documentation states that the table cannot
+- Kernel condition: 6.9 or later. Debian 13 meets it; Ubuntu 24.04 meets it with the HWE kernel
+  (`linux-generic-hwe-24.04` or `linux-virtual-hwe-24.04`, 7.0) and not with the GA kernel (6.8).
+  Requiring the HWE kernel keeps D-16. Accepting the GA kernel leaves either the window up to the
+  next periodic pass, or the event-driven repair below — on every node, since two paths would
+  double the test surface.
+- **Recommend** adopting it with the HWE kernel required on Ubuntu: the table is created owned
+  and persistent, startup fails with a named reason when the kernel refuses the flags, and documentation states that the table cannot
   be edited by hand while the agent runs. An architectural choice, so an ADR comes with the
   SPEC-02 change.
 - The alternative, for the ADR: subscribe to nftables events, tell the agent's own changes from
