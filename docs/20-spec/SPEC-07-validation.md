@@ -191,6 +191,12 @@ the file would carry none.
 A request that names a key and asks for one to be generated has two answers, and choosing either
 would silently discard what the caller sent.
 
+> **REQ-VAL-050** — The agent MUST reject a request body or document carrying a member its schema
+> does not define, with `FIELD_UNKNOWN`.
+
+Under the whole-spec replacement of `REQ-API-064` a misspelled member is an omitted one, and takes
+its default without a word: `"enable": false` would leave an interface running.
+
 > **REQ-VAL-021** — The agent MUST reject `external = ALLOW` combined with
 > `nat.enable_uplink_forwarding = false` with `FORWARD_POLICY_NEEDS_UPLINK`.
 
@@ -264,6 +270,7 @@ Syntactically valid, practically broken.
 | Line break in a hook | REQ-VAL-045 | Error |
 | No free address for a generated peer | REQ-VAL-046 | Error |
 | A key supplied and generated at once | REQ-VAL-048, REQ-VAL-049 | Error |
+| A member the schema does not define | REQ-VAL-050 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |
 | One-sided `inter_interface` | REQ-VAL-023 | Warning |

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/WgAgent.Cli/WgAgent.Cli.csproj" />
     <Project Path="src/WgAgent.Core/WgAgent.Core.csproj" />
     <Project Path="src/WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
     <Project Path="src/WgAgent.Platform/WgAgent.Platform.csproj" />

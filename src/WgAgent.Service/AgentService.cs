@@ -93,11 +93,19 @@ public sealed class AgentService
     }
 
     /// <param name="keepHooks">True for a write from the API, which leaves the CLI's hooks alone (REQ-API-085).</param>
-    public WriteResult<InterfaceResource> UpdateInterface(string name, InterfaceSpec spec, bool keepHooks = false)
+    public WriteResult<InterfaceResource> UpdateInterface(string name, InterfaceSpec spec, bool keepHooks = false) =>
+        UpdateInterface(name, _ => spec, keepHooks);
+
+    /// <summary>
+    /// UpdateInterface with the spec computed from the stored one under the same lock, for the CLI,
+    /// which changes only the fields its flags name (REQ-CLI-027).
+    /// </summary>
+    public WriteResult<InterfaceResource> UpdateInterface(string name, Func<InterfaceSpec, InterfaceSpec> change, bool keepHooks = false)
     {
         using var held = Lock();
         var state = _store.Load();
         var before = Managed(state, name);
+        var spec = change(before.Spec);
 
         // REQ-API-064 replaces the whole spec; REQ-API-065 keeps the write-only key it omits.
         var resolved = Defaults.Apply(spec) with { PrivateKey = spec.PrivateKey ?? before.Spec.PrivateKey };
@@ -180,7 +188,7 @@ public sealed class AgentService
                 Dns = request.Dns ?? [],   // REQ-KEY-034
                 ServerPublicKey = interfaceKey.ToString(),
                 PresharedKey = generatedPsk,   // REQ-KEY-045
-                AllowedIps = request.ClientAllowedIps ?? [.. subnets.Select(s => s.ToString())],   // REQ-KEY-044
+                AllowedIps = request.ClientAllowedIps is { Count: > 0 } chosen ? chosen : [.. subnets.Select(s => s.ToString())],   // REQ-KEY-044
                 Endpoint = $"{host}:{after.Spec.ListenPort ?? Defaults.ListenPort}",   // REQ-KEY-036, REQ-KEY-037
                 PersistentKeepalive = request.ClientPersistentKeepalive ?? ClientConfigRenderer.DefaultKeepalive,   // REQ-KEY-046
             });
@@ -189,12 +197,17 @@ public sealed class AgentService
         return new CreatePeerResult(peer, result.Restarted, privateKey, generatedPsk, clientConfiguration);
     }
 
-    public WriteResult<PeerResource> UpdatePeer(string interfaceName, string publicKey, PeerSpec spec)
+    public WriteResult<PeerResource> UpdatePeer(string interfaceName, string publicKey, PeerSpec spec) =>
+        UpdatePeer(interfaceName, publicKey, _ => spec);
+
+    /// <summary>UpdatePeer with the spec computed from the stored one under the same lock (REQ-CLI-027).</summary>
+    public WriteResult<PeerResource> UpdatePeer(string interfaceName, string publicKey, Func<PeerSpec, PeerSpec> change)
     {
         using var held = Lock();
         var state = _store.Load();
         var before = Managed(state, interfaceName);
         if (!before.Peers.TryGetValue(publicKey, out var old)) throw PeerNotFound(interfaceName, publicKey);
+        var spec = change(old);
 
         var resolved = Defaults.Apply(spec) with { PresharedKey = spec.PresharedKey ?? old.PresharedKey };   // REQ-API-065
         Throw(PeerRules.Check(new PeerCheck

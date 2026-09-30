@@ -71,6 +71,16 @@ addresses, the port, the hooks and each peer's keys and allowed IPs from the old
 document — the API's JSON representation, with the hooks beside it — and one command recreates the
 interface as it was. One write means a mistake anywhere in the document leaves nothing behind.
 
+> **REQ-CLI-034** — The document of `REQ-CLI-025` MUST be an object holding the interface's `spec`
+> and a `peers` array whose entries each hold a peer's `public_key` and `spec`, in the
+> representation of [SPEC-01](SPEC-01-resource-model.md).
+
+> **REQ-CLI-035** — `interface create` MUST refuse a document given together with a flag setting a
+> field of the spec.
+
+The interface's name is the command's argument, as for every other subcommand, so the document
+carries none. A document and a flag together would leave two answers for the same field.
+
 The subcommands of section 3 — `doctor`, `adopt` and `release` — and `export`, `import` and
 `overview` arrive with the modules that own their behavior; when they do, they join the table of
 `REQ-CLI-001`. The [backlog](../60-planning/backlog.md) holds them.
@@ -90,6 +100,32 @@ running agent will do rather than a separate code path.
 four fields are the ones that answer whether the migration worked: `REQ-RES-017` ownership says
 the interface is managed, `REQ-RES-035` operational state says it is up, and `REQ-RES-032`
 condition says whether reconciliation succeeded.
+
+### 2.1. Flags
+
+> **REQ-CLI-026** — A flag setting a field of a spec or a request MUST be named `--` and the field's
+> name with every underscore replaced by a hyphen, and be given once per entry of a list or map, a
+> map entry as `key=value`.
+
+> **REQ-CLI-027** — `interface update` and `peer update` MUST start from the stored spec and change
+> only the fields their flags name, a list or map replaced whole.
+
+> **REQ-CLI-029** — A flag given an empty value MUST contribute no entry to a list or map, and leave
+> a scalar field without a value.
+
+> **REQ-CLI-028** — The CLI MUST NOT accept a private key or a preshared key as a command-line
+> argument.
+
+`--allowed-ips 10.8.0.2/32 --allowed-ips 192.168.1.0/24` sets two entries, `--labels site=hn` one.
+An operator changing one field names one flag: `REQ-CLI-027` is what spares them repeating the
+rest of the spec, which `REQ-API-064` would otherwise replace. `REQ-CLI-029` is how a field is
+cleared — `--post-up ''` removes every hook, `--endpoint ''` the endpoint — and a scalar left
+without a value takes its default under `REQ-API-075`.
+
+Every account on the node reads another process's argument vector through `/proc`, the exposure
+`REQ-SEC-089` keeps keys away from. A key reaches the CLI generated, or inside the document of
+`REQ-CLI-025`, a file whose mode the operator controls. A preshared key omitted from an update is
+kept under `REQ-API-065`.
 
 ## 3. Adoption
 
@@ -192,6 +228,23 @@ The exception is the point of two commands: `token rotate` prints the token it g
 `peer add` prints a client configuration holding the private key it generated, each exactly once.
 Machine-readable output exists because an operator scripting against a node should not parse a
 table.
+
+> **REQ-CLI-030** — `--output json` MUST print what a read returns in the representation of
+> SPEC-01: a resource, or an array of resources.
+
+> **REQ-CLI-031** — `--output json` MUST print a write's outcome as one object holding the resource
+> under `interface` or `peer`, `restarted`, and whichever of `private_key`, `preshared_key` and
+> `client_configuration` the write generated.
+
+> **REQ-CLI-032** — In its human-readable form, `peer add` with a generated key pair MUST print the
+> client configuration alone on standard output.
+
+> **REQ-CLI-033** — `version` MUST print the version and the commit, as the members `version` and
+> `commit` under `--output json`.
+
+`restarted` carries the statement of `REQ-APL-007`. `REQ-CLI-032` lets the file be redirected
+where it belongs — `wg-agent peer add wg0 --generate-keypair > client.conf` — with every other line
+the command prints, the new peer's public key among them, on standard error.
 
 ## 6. Removed requirements
 

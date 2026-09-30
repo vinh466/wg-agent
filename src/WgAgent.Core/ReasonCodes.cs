@@ -35,6 +35,7 @@ public static class ReasonCodes
     public const string PeerNotFound = "PEER_NOT_FOUND";
     public const string PeerExists = "PEER_EXISTS";
     public const string EndpointRequired = "ENDPOINT_REQUIRED";
+    public const string FieldUnknown = "FIELD_UNKNOWN";
 
     // Warnings, REQ-VAL-002.
     public const string AllowedIpsOverlap = "ALLOWED_IPS_OVERLAP";

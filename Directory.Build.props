@@ -15,6 +15,9 @@
          unit of SPEC-09 keep MemoryDenyWriteExecute=yes. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <IsAotCompatible>true</IsAotCompatible>
+
+    <!-- The version `wg-agent version` prints; the SDK appends the commit (REQ-CLI-033). -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <!-- The agent targets Linux only (CLAUDE.md, glibc linux-x64). Declaring it at

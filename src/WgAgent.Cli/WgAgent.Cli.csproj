@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The wg-agent binary: the configuration file of SPEC-09 section 2 and the subcommands of SPEC-12. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>wg-agent</AssemblyName>
+    <RootNamespace>WgAgent.Cli</RootNamespace>
+    <!-- REQ-CFG-044: one NativeAOT binary for linux-x64 against glibc. -->
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Service/WgAgent.Service.csproj" />
+    <ProjectReference Include="../WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WgAgent.Tests" />
+  </ItemGroup>
+</Project>

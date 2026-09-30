@@ -59,26 +59,44 @@ supply a value: defaults, then the file, then the environment, then a flag. A fl
 an operator reaches for once, to answer a question about the running node, and one that
 silently lost to a file in `/etc` would send them looking for a bug in the agent.
 
+> **REQ-CFG-050** — Every key MUST be settable by the flag `--<path>`, where `<path>` is its
+> `<PATH>` of `REQ-CFG-041` in lowercase with every underscore replaced by a hyphen.
+
+`apply_timeout` is set by `--apply-timeout`, `node.endpoint` by `--node-endpoint`.
+
+> **REQ-CFG-046** — The agent MUST recognize the keys of the table below, each at the default it
+> gives until a layer of `REQ-CFG-042` sets it.
+
+| Key | Default | Value |
+|---|---|---|
+| `node.endpoint` | none | A host, or empty for none — the host clients reach this node at, `REQ-KEY-037` |
+| `listen.address` | `127.0.0.1:9585` | An IPv4 address and a port — `REQ-SEC-084` |
+| `token.file` | `/etc/wg-agent/token` | An absolute path — `REQ-SEC-074`, `REQ-SEC-082` |
+| `state.path` | `/var/lib/wg-agent/state.json` | An absolute path |
+| `apply_timeout` | `10s` | A duration — `REQ-API-022` |
+| `peer_online_threshold` | `180s` | A duration — `REQ-RES-025` |
+| `log.level` | `info` | `debug`, `info`, `warn` or `error` |
+
+> **REQ-CFG-047** — A duration MUST be written as a whole number of seconds greater than zero,
+> followed by `s`.
+
+> **REQ-CFG-048** — The agent MUST refuse to start on a value its key cannot hold, naming the key.
+
+> **REQ-CFG-049** — The agent MUST ignore a line of the configuration file that is blank or begins
+> with `#`, and read every other line as `WG_AGENT_<PATH>=<value>`.
+
 `node.endpoint` is empty by default because no value the agent could choose would be right. The
 host a client reaches a node at depends on NAT and on which of several addresses is routable
 from where the client sits, so `REQ-KEY-038` refuses to guess and asks the caller instead.
 
+A line is read as written: no quoting, and no space around `=`. A line that is not of that form,
+and an environment variable beginning `WG_AGENT_` that names no key, both carry an unrecognized
+key under `REQ-CFG-002`. The file the package installs lists every key, commented out, in this form:
+
 ```sh
-# /etc/default/wg-agent — every key, at its default.
-
-# Host clients reach this node at; the port is each interface's own — REQ-KEY-037.
+# /etc/default/wg-agent
 #WG_AGENT_NODE_ENDPOINT=
-
-# Loopback unless set; any other address belongs on a private network — REQ-SEC-084.
-#WG_AGENT_LISTEN_ADDRESS=127.0.0.1:9585
-
-# One token, mode 0600, owned by root — REQ-SEC-074, REQ-SEC-082.
-#WG_AGENT_TOKEN_FILE=/etc/wg-agent/token
-
-#WG_AGENT_STATE_PATH=/var/lib/wg-agent/state.json
 #WG_AGENT_APPLY_TIMEOUT=10s
-#WG_AGENT_PEER_ONLINE_THRESHOLD=180s
-#WG_AGENT_LOG_LEVEL=info
 ```
 
 ### 2.1. Token file
