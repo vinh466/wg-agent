@@ -8,11 +8,11 @@ The source of truth is `api/openapi.yaml` — see `REQ-API-001` in
 
 ## State
 
-Nothing is generated, and the document itself is not yet written. It is written at the start of
-phase P2 of the [roadmap](../60-planning/roadmap.md), before the server that serves it, and this
-directory then holds its rendering. The `.proto` files of the earlier contract were removed with
-the change that adopted OpenAPI, so the repository never holds a contract `REQ-API-001` does not
-name.
+`api/openapi.yaml` is the contract, written before the server that serves it.
+[api.md](api.md) is its rendering — `REQ-API-060` — produced by `docs/render-api.py`, which is
+re-run after any change to the contract. The `.proto` files of the earlier contract were removed
+with the change that adopted OpenAPI, so the repository never holds a contract `REQ-API-001` does
+not name.
 
 ## What the contract must hold
 

@@ -1,0 +1,559 @@
+# The single source of truth for the API contract — REQ-API-001, ADR-0014.
+# Written before the server that serves it; a contract test compares what the server exposes with
+# this document, and docs/30-api/ is its rendering (REQ-API-060).
+#
+# The surface is the wrapper of ADR-0013: the operations of SPEC-04 section 3 that P2 delivers.
+# Pagination, revisions, batch writes and adoption return from the backlog with their requirements,
+# and an operation added later breaks no client (REQ-API-003).
+openapi: 3.1.0
+info:
+  title: wg-agent
+  version: "1.0"
+  description: >-
+    Manages the WireGuard interfaces of one Linux node, through wg and wg-quick. One bearer token
+    over plain HTTP on the operator's private network — ADR-0015. The hooks post_up and post_down
+    are set through the CLI alone and never cross this API — ADR-0017, REQ-API-084, REQ-API-085.
+
+servers:
+  - url: /v1
+
+security:
+  - bearerToken: []
+
+paths:
+  /interfaces:
+    post:
+      operationId: CreateInterface
+      summary: Create an interface the agent manages.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateInterfaceRequest" }
+      responses:
+        "201":
+          description: The interface, with its status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InterfaceWriteResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    get:
+      operationId: ListInterfaces
+      summary: List the interfaces the agent manages.
+      responses:
+        "200":
+          description: The interfaces desired state describes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InterfaceResource" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+
+  /interfaces/{name}:
+    parameters:
+      - $ref: "#/components/parameters/InterfaceName"
+    get:
+      operationId: GetInterface
+      summary: Show an interface, its spec and its status.
+      responses:
+        "200":
+          description: The interface.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InterfaceResource" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: UpdateInterface
+      summary: Replace the whole spec of an interface (REQ-API-064); its hooks are left as the CLI set them (REQ-API-085).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateInterfaceRequest" }
+      responses:
+        "200":
+          description: The interface, with its status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InterfaceWriteResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: DeleteInterface
+      summary: Delete an interface, its file and its peers.
+      responses:
+        "204":
+          description: Deleted.
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+
+  /interfaces/{name}/peers:
+    parameters:
+      - $ref: "#/components/parameters/InterfaceName"
+    post:
+      operationId: CreatePeer
+      summary: Add a peer — a supplied public key, or a key pair the agent generates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePeerRequest" }
+      responses:
+        "201":
+          description: >-
+            The peer, with its status. When the request generated a key pair, the private key and a
+            client configuration built from it are carried here and nowhere else — REQ-KEY-011,
+            REQ-KEY-042.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatePeerResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    get:
+      operationId: ListPeers
+      summary: List the peers of an interface, each with its status.
+      responses:
+        "200":
+          description: The peers of the interface.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PeerResource" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+
+  /interfaces/{name}/peers/{public_key}:
+    parameters:
+      - $ref: "#/components/parameters/InterfaceName"
+      - $ref: "#/components/parameters/PublicKey"
+    get:
+      operationId: GetPeer
+      summary: Show a peer, its spec and its status.
+      responses:
+        "200":
+          description: The peer.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PeerResource" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: UpdatePeer
+      summary: Replace the whole spec of a peer (REQ-API-064).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePeerRequest" }
+      responses:
+        "200":
+          description: The peer, with its status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PeerWriteResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: DeletePeer
+      summary: Remove a peer from an interface.
+      responses:
+        "204":
+          description: Removed.
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+        "503": { $ref: "#/components/responses/Problem" }
+
+  /version:
+    get:
+      operationId: GetVersion
+      summary: The agent version, the commit, the process start time and its uptime (REQ-API-078).
+      responses:
+        "200":
+          description: Version information.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VersionResponse" }
+        "401": { $ref: "#/components/responses/Problem" }
+
+  /health:
+    get:
+      operationId: GetHealth
+      summary: Whether every startup check has passed (REQ-API-051). Served without a token (REQ-SEC-080).
+      security: []
+      responses:
+        "200":
+          description: The agent is serving.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: "The single shared secret of ADR-0015, as `Authorization: Bearer <token>`."
+
+  parameters:
+    InterfaceName:
+      name: name
+      in: path
+      required: true
+      description: The interface's name (REQ-RES-011).
+      schema:
+        type: string
+        pattern: "^[a-zA-Z][a-zA-Z0-9_-]{0,14}$"
+    PublicKey:
+      name: public_key
+      in: path
+      required: true
+      description: The peer's public key, unpadded base64url in a path (REQ-RES-021).
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{43}$"
+
+  responses:
+    Problem:
+      description: An error, as an RFC 9457 problem document carrying its reason code (REQ-API-082).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    CreateInterfaceRequest:
+      type: object
+      additionalProperties: false
+      required: [name, addresses]
+      description: >-
+        The desired state of a new interface. No post_up or post_down: hooks are the CLI's alone
+        (REQ-API-084, REQ-SEC-040).
+      properties:
+        name:
+          type: string
+          pattern: "^[a-zA-Z][a-zA-Z0-9_-]{0,14}$"
+          description: The interface's name (REQ-RES-011); its identity, immutable after creation.
+        private_key:
+          type: string
+          description: Standard base64 of 32 bytes; generated when omitted (REQ-KEY-001). Write-only (REQ-RES-013).
+        listen_port: { type: integer, format: int64, minimum: 1, maximum: 65535, default: 51820 }
+        addresses:
+          type: array
+          items: { type: string }
+          description: The interface's addresses, as CIDRs (IPv4 only).
+        mtu: { type: integer, format: int64, minimum: 68, maximum: 65535, default: 1420 }
+        enabled: { type: boolean, default: true }
+        labels:
+          type: object
+          additionalProperties: { type: string }
+
+    UpdateInterfaceRequest:
+      type: object
+      additionalProperties: false
+      required: [addresses]
+      description: >-
+        Replaces the whole spec (REQ-API-064). An omitted listen_port, mtu or enabled takes its
+        default (REQ-API-075, REQ-API-076); an omitted private_key keeps the stored one (REQ-API-065).
+      properties:
+        name:
+          type: string
+          description: If given, must equal the path; a differing value is rejected with FIELD_IMMUTABLE (REQ-API-066).
+        private_key: { type: string }
+        listen_port: { type: integer, format: int64, minimum: 1, maximum: 65535 }
+        addresses:
+          type: array
+          items: { type: string }
+        mtu: { type: integer, format: int64, minimum: 68, maximum: 65535 }
+        enabled: { type: boolean }
+        labels:
+          type: object
+          additionalProperties: { type: string }
+
+    InterfaceSpecView:
+      type: object
+      additionalProperties: false
+      description: The readable spec of an interface. No private_key (REQ-RES-013), no hooks (REQ-API-084).
+      properties:
+        listen_port: { type: integer, format: int64 }
+        addresses:
+          type: array
+          items: { type: string }
+        mtu: { type: integer, format: int64 }
+        enabled: { type: boolean }
+        labels:
+          type: object
+          additionalProperties: { type: string }
+
+    InterfaceResource:
+      type: object
+      additionalProperties: false
+      required: [name, status]
+      description: An interface, its identity outside spec and status (REQ-RES-034).
+      properties:
+        name: { type: string }
+        spec: { $ref: "#/components/schemas/InterfaceSpecView" }
+        status: { $ref: "#/components/schemas/InterfaceStatus" }
+
+    InterfaceStatus:
+      type: object
+      additionalProperties: false
+      required: [oper_state, warnings]
+      properties:
+        public_key: { type: [string, "null"] }
+        listen_port: { type: [integer, "null"], format: int64 }
+        created_at: { type: [string, "null"], format: date-time }
+        oper_state: { $ref: "#/components/schemas/OperState" }
+        peer_count: { type: [integer, "null"], format: int32 }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/Warning" }
+
+    InterfaceWriteResult:
+      type: object
+      additionalProperties: false
+      required: [interface, restarted]
+      properties:
+        interface: { $ref: "#/components/schemas/InterfaceResource" }
+        restarted:
+          type: boolean
+          description: Whether the write restarted the unit, interrupting the interface's sessions (REQ-APL-007).
+
+    CreatePeerRequest:
+      type: object
+      additionalProperties: false
+      description: >-
+        A peer with a supplied public key, or a key pair the agent generates. The client
+        configuration fields shape only the file a generated peer returns.
+      properties:
+        public_key:
+          type: string
+          description: Standard base64 of 32 bytes (REQ-RES-027). Omitted when generate_keypair is true.
+        generate_keypair:
+          type: boolean
+          default: false
+          description: Generate the peer's key pair and return its private key and client configuration once.
+        generate_preshared_key:
+          type: boolean
+          default: false
+        preshared_key:
+          type: string
+          description: Standard base64 of 32 bytes. Write-only (REQ-RES-022).
+        allowed_ips:
+          type: array
+          items: { type: string }
+        endpoint: { type: string }
+        persistent_keepalive: { type: integer, format: int64, minimum: 0, maximum: 65535, default: 0 }
+        labels:
+          type: object
+          additionalProperties: { type: string }
+        client_allowed_ips:
+          type: array
+          items: { type: string }
+          description: The AllowedIPs of the returned client configuration (REQ-KEY-044).
+        client_persistent_keepalive:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 65535
+          description: The client configuration's keepalive; 25 when omitted, omitted at 0 (REQ-KEY-046).
+        dns:
+          type: array
+          items: { type: string }
+          description: DNS servers written into the client configuration only (REQ-KEY-034).
+        node_endpoint:
+          type: string
+          description: The host clients reach this node at; the configured node.endpoint when omitted (REQ-KEY-037).
+
+    UpdatePeerRequest:
+      type: object
+      additionalProperties: false
+      required: [allowed_ips]
+      description: Replaces the whole spec (REQ-API-064). An omitted preshared_key keeps the stored one (REQ-API-065).
+      properties:
+        public_key:
+          type: string
+          description: If given, must equal the path; a differing value is rejected with FIELD_IMMUTABLE (REQ-API-066).
+        preshared_key: { type: string }
+        allowed_ips:
+          type: array
+          items: { type: string }
+        endpoint: { type: string }
+        persistent_keepalive: { type: integer, format: int64, minimum: 0, maximum: 65535 }
+        labels:
+          type: object
+          additionalProperties: { type: string }
+
+    PeerSpecView:
+      type: object
+      additionalProperties: false
+      description: The readable spec of a peer. No preshared_key (REQ-RES-022).
+      properties:
+        allowed_ips:
+          type: array
+          items: { type: string }
+        endpoint: { type: string }
+        persistent_keepalive: { type: integer, format: int64 }
+        labels:
+          type: object
+          additionalProperties: { type: string }
+
+    PeerResource:
+      type: object
+      additionalProperties: false
+      required: [interface_name, public_key, spec, status]
+      description: A peer, identified by its interface and public key (REQ-RES-020).
+      properties:
+        interface_name: { type: string }
+        public_key: { type: string }
+        spec: { $ref: "#/components/schemas/PeerSpecView" }
+        status: { $ref: "#/components/schemas/PeerStatus" }
+
+    PeerStatus:
+      type: object
+      additionalProperties: false
+      required: [online, warnings]
+      properties:
+        last_handshake_at: { type: [string, "null"], format: date-time }
+        handshake_age_seconds: { type: [integer, "null"], format: int64 }
+        online: { type: boolean }
+        rx_bytes: { type: [integer, "null"], format: int64 }
+        tx_bytes: { type: [integer, "null"], format: int64 }
+        resolved_endpoint: { type: [string, "null"] }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/Warning" }
+
+    PeerWriteResult:
+      type: object
+      additionalProperties: false
+      required: [peer, restarted]
+      properties:
+        peer: { $ref: "#/components/schemas/PeerResource" }
+        restarted: { type: boolean }
+
+    CreatePeerResult:
+      type: object
+      additionalProperties: false
+      required: [peer, restarted]
+      properties:
+        peer: { $ref: "#/components/schemas/PeerResource" }
+        restarted: { type: boolean }
+        private_key:
+          type: string
+          description: The generated private key, returned once (REQ-KEY-011). Absent for a supplied key.
+        preshared_key:
+          type: string
+          description: The generated preshared key, returned once (REQ-KEY-021). Absent when none was generated.
+        client_configuration:
+          type: string
+          description: A wg-quick .conf for the client, built from the generated key (REQ-KEY-042).
+
+    Warning:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      description: One validation finding of warning severity (REQ-RES-033).
+      properties:
+        code: { $ref: "#/components/schemas/ReasonCode" }
+        message: { type: string }
+
+    OperState:
+      type: string
+      enum: [UP, DOWN, ABSENT]
+      description: REQ-RES-035.
+
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required: [version, commit, started_at, uptime_seconds]
+      properties:
+        version: { type: string }
+        commit: { type: string }
+        started_at: { type: string, format: date-time }
+        uptime_seconds: { type: integer, format: int64 }
+
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    Problem:
+      type: object
+      required: [reason]
+      description: >-
+        An RFC 9457 problem document. Clients branch on `reason`, never on the message
+        (REQ-API-082, REQ-API-041).
+      properties:
+        type: { type: string, default: "about:blank" }
+        title: { type: string }
+        status: { type: integer, format: int32 }
+        detail: { type: string }
+        reason: { $ref: "#/components/schemas/ReasonCode" }
+
+    ReasonCode:
+      type: string
+      description: The closed set of reason codes this build produces (SPEC-04 section 7.1).
+      enum:
+        - INTERFACE_NAME_INVALID
+        - INTERFACE_NOT_MANAGED
+        - INTERFACE_EXISTS
+        - LISTEN_PORT_IN_USE
+        - ADDRESS_CONFLICT
+        - PEER_NOT_FOUND
+        - PEER_EXISTS
+        - PUBLIC_KEY_INVALID
+        - ALLOWED_IPS_DUPLICATE
+        - ALLOWED_IPS_OVERLAP
+        - ALLOWED_IPS_OUT_OF_SUBNET
+        - TOKEN_INVALID
+        - IPV6_NOT_SUPPORTED
+        - APPLY_FAILED
+        - FIELD_IMMUTABLE
+        - FIELD_UNKNOWN
+        - ADDRESSES_REQUIRED
+        - ALLOWED_IPS_REQUIRED
+        - ENDPOINT_REQUIRED
+        - MTU_OUT_OF_RANGE
+        - ENDPOINT_NOT_IP
+        - LISTEN_PORT_INVALID
+        - KEEPALIVE_INVALID
+        - MTU_INVALID
+        - KEY_INVALID
+        - PEER_IS_INTERFACE
+        - ALLOWED_IPS_NOT_CANONICAL
+        - ENDPOINT_INVALID
+        - CLIENT_ADDRESS_MISSING
+        - ALLOWED_IPS_DEFAULT_ROUTE
+        - HOOK_INVALID
+        - SUBNET_FULL
+        - CIDR_INVALID
+        - STORE_BUSY
