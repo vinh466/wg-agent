@@ -3,6 +3,9 @@
        privilege, and the only code that starts a child process (REQ-SEC-087). -->
   <PropertyGroup>
     <RootNamespace>WgAgent.Platform.Linux</RootNamespace>
+    <!-- The source-generated LibraryImport of the token file's ownership check (REQ-SEC-082)
+         requires this; it stays scoped to this adapter, which is the only libc caller. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../WgAgent.Platform/WgAgent.Platform.csproj" />

@@ -29,6 +29,12 @@ public sealed record PeerOutcome
     public string? ClientConfiguration { get; init; }
 }
 
+/// <summary>The token `token rotate` generated, its one printing (REQ-CLI-011).</summary>
+public sealed record TokenInfo
+{
+    [JsonPropertyName("token")] public required string Token { get; init; }
+}
+
 /// <summary>REQ-CLI-033</summary>
 public sealed record VersionInfo
 {
@@ -53,6 +59,7 @@ public sealed record PeerDocument
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(InterfaceOutcome))]
 [JsonSerializable(typeof(PeerOutcome))]
+[JsonSerializable(typeof(TokenInfo))]
 [JsonSerializable(typeof(VersionInfo))]
 [JsonSerializable(typeof(InterfaceDocument))]
 public sealed partial class CliJsonContext : JsonSerializerContext;

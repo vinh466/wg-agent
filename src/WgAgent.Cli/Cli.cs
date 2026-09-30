@@ -53,6 +53,7 @@ public static class Cli
         global.AddTo(root);
         root.Subcommands.Add(InterfaceCommands.Build(context, global));
         root.Subcommands.Add(PeerCommands.Build(context, global));
+        root.Subcommands.Add(TokenCommands.Build(context, global));
         root.Subcommands.Add(VersionCommand.Build(context, global));
         var parse = root.Parse(args, new ParserConfiguration { ResponseFileTokenReplacer = null });
         return parse.Invoke(new InvocationConfiguration { Output = context.Out, Error = context.Error });
@@ -119,9 +120,11 @@ internal sealed class GlobalOptions
     }
 }
 
-/// <summary>One run of a subcommand: its parse, its configuration, and the service built from it.</summary>
+/// <summary>One run of a subcommand: its parse, its configuration, the host ports and the service.</summary>
 internal sealed class Invocation(ParseResult parse, CliContext context, GlobalOptions global)
 {
+    private AgentConfiguration? _configuration;
+    private HostPorts? _ports;
     private AgentService? _service;
 
     public ParseResult Parse => parse;
@@ -129,21 +132,27 @@ internal sealed class Invocation(ParseResult parse, CliContext context, GlobalOp
     public TextWriter Error => context.Error;
     public bool Json => parse.GetValue(global.Output) == "json";
 
+    public AgentConfiguration Config => _configuration ??= LoadConfiguration();
+    public HostPorts Ports => _ports ??= context.Host.Ports(Config);
     public AgentService Service => _service ??= Build();
 
-    private AgentService Build()
+    private AgentConfiguration LoadConfiguration()
     {
         var flags = global.Keys
             .Where(key => Flags.Given(parse, key.Value))
             .ToDictionary(key => key.Key, key => parse.GetValue(key.Value) ?? "");
-        var configuration = ConfigurationLoader.Load(parse.GetValue(global.Config), context.Environment, flags);
+        return ConfigurationLoader.Load(parse.GetValue(global.Config), context.Environment, flags);
+    }
+
+    private AgentService Build()
+    {
         var options = new AgentOptions
         {
-            ApplyTimeout = configuration.ApplyTimeout,
-            PeerOnlineThreshold = configuration.PeerOnlineThreshold,
-            NodeEndpoint = configuration.NodeEndpoint,
+            ApplyTimeout = Config.ApplyTimeout,
+            PeerOnlineThreshold = Config.PeerOnlineThreshold,
+            NodeEndpoint = Config.NodeEndpoint,
         };
-        return new AgentService(new StateStore(configuration.StatePath), context.Host.Ports(configuration), options, context.Clock);
+        return new AgentService(new StateStore(Config.StatePath), Ports, options, context.Clock);
     }
 
     /// <summary>REQ-APL-007, on standard error so it never mixes with a file on standard output.</summary>

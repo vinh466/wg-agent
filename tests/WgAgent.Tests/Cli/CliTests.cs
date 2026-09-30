@@ -369,4 +369,48 @@ public sealed class CliTests : IDisposable
         Assert.True(File.Exists(StorePath));
         Assert.False(File.Exists(Path.Combine(_dir, "from-environment.json")));
     }
+
+    // ---- Section 4: token issuance
+
+    private string TokenPath => Path.Combine(_dir, "token");
+
+    [Fact]
+    public void TokenRotate_PrintsTheNewTokenOnce_REQ_CLI_011()
+    {
+        var rotated = Ok("token", "rotate", "--token-file", TokenPath);
+
+        var printed = rotated.Out.TrimEnd('\n');
+        Assert.DoesNotContain("\n", printed);                       // one line, printed once
+        Assert.Equal(printed, File.ReadAllText(TokenPath).Trim());   // the value that was written
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(TokenPath));
+    }
+
+    [Fact]
+    public void TokenRotate_DrawsAtLeast256Bits_REQ_CLI_010()
+    {
+        var token = Ok("token", "rotate", "--token-file", TokenPath).Out.Trim();
+        Assert.Equal(44, token.Length);                              // 32 bytes of base64 = 256 bits
+        Assert.Equal(32, Convert.FromBase64String(token).Length);
+
+        var again = Ok("token", "rotate", "--token-file", TokenPath).Out.Trim();
+        Assert.NotEqual(token, again);                              // a fresh draw each time
+    }
+
+    [Fact]
+    public void NoCommand_PrintsAnExistingToken_REQ_CLI_012()
+    {
+        Ok("token", "rotate", "--token-file", TokenPath);
+        Assert.Equal(["rotate"], Subcommands("token"));            // rotate alone; no get, show or print
+        Assert.NotEqual(0, Run("token", "get").Code);
+        Assert.NotEqual(0, Run("token", "show").Code);
+    }
+
+    private IEnumerable<string> Subcommands(string group)
+    {
+        var help = Ok(group, "--help").Out;
+        var start = help.IndexOf("Commands:", StringComparison.Ordinal);
+        return help[start..].Split('\n').Skip(1)
+            .Select(line => line.Trim().Split(' ')[0])
+            .Where(word => word.Length > 0);
+    }
 }
