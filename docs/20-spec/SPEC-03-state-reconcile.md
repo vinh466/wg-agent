@@ -67,9 +67,16 @@ other, and the kernel releases it when a holder dies — a socket or a pid file 
 crash answers the question wrongly. The file is not the store: the store is replaced by rename,
 and a lock held on it would sit on an inode the next rename discards.
 
-Implementation: a single file written atomically — rendered to a temporary path, synced, and
-renamed over the original, then the directory synced — which meets `REQ-RCN-001` to
-`REQ-RCN-005` without a database engine.
+> **REQ-RCN-075** — A writer that cannot take the lock of `REQ-RCN-042` within `apply_timeout`
+> MUST give up with `STORE_BUSY`.
+
+A CLI command meeting a write of the running agent waits for it rather than failing, because the
+other write is short; a lock held longer than any write takes means something is stuck, and the
+caller hears so instead of hanging.
+
+Implementation: a single file written atomically — rendered to a temporary path in the same
+directory, synced, and renamed over the original — which meets `REQ-RCN-001` to `REQ-RCN-005`
+without a database engine. The rename is what makes a write all or nothing.
 
 ## 3. Field ownership
 

@@ -27,6 +27,9 @@ public static class ReasonCodes
     public const string ClientAddressMissing = "CLIENT_ADDRESS_MISSING";
     public const string SubnetFull = "SUBNET_FULL";
     public const string HookInvalid = "HOOK_INVALID";
+    public const string StoreCorrupt = "STORE_CORRUPT";
+    public const string StoreSchemaTooNew = "STORE_SCHEMA_TOO_NEW";
+    public const string StoreBusy = "STORE_BUSY";
 
     // Warnings, REQ-VAL-002.
     public const string AllowedIpsOverlap = "ALLOWED_IPS_OVERLAP";

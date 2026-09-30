@@ -125,9 +125,8 @@ mask, so the verb is absent instead.
 stop the interface. The fields `REQ-API-076` reaches are `listen_port`, `mtu` and `enabled`;
 `manage_routes` joins them when it arrives.
 
-Section 5.1 above names the fields whose zero value carries meaning. Those are a different set:
-their default already is the zero value, so they need no presence marker. The two lists are easy
-to confuse and the distinction is what makes both correct.
+The fields section 5.1 names are a different set: their default is their zero value, so they need
+no presence marker.
 
 > **REQ-API-065** — A write-only field omitted from an update MUST retain its stored value.
 
@@ -237,9 +236,8 @@ somebody else added.
 > **REQ-API-083** — An error response MUST carry the HTTP status the table below assigns to its
 > reason code.
 
-Clients distinguish errors by reason code rather than by parsing message strings. The body is
-the problem document of RFC 9457, so a generic HTTP client reads its `status`, `title` and
-`detail` without knowing the codes.
+Clients branch on the reason code, never on the message. The body is the problem document of
+RFC 9457, which a generic HTTP client reads without knowing the codes.
 
 | HTTP | Reason codes |
 |---|---|
@@ -249,6 +247,7 @@ the problem document of RFC 9457, so a generic HTTP client reads its `status`, `
 | 409 | `INTERFACE_EXISTS`, `PEER_EXISTS`, `SUBNET_FULL`, `LISTEN_PORT_IN_USE`, `ADDRESS_CONFLICT`, `INTERFACE_NOT_FOREIGN`, `INTERFACE_NOT_ADOPTED`, `ADOPTION_BLOCKED` |
 | 412 | `REVISION_MISMATCH` |
 | 500 | `APPLY_FAILED`, `RECONCILE_FAILED` |
+| 503 | `STORE_BUSY` |
 
 The startup codes — `MISSING_CAP_NET_ADMIN`, `STORE_CORRUPT`, `STORE_SCHEMA_TOO_NEW`,
 `NON_LOOPBACK_BIND`, `SYSCTL_WRITE_DENIED`, `NFTABLES_UNAVAILABLE` — end the process before it
@@ -275,6 +274,7 @@ LISTEN_PORT_INVALID         KEEPALIVE_INVALID         MTU_INVALID
 KEY_INVALID                 PEER_IS_INTERFACE         ALLOWED_IPS_NOT_CANONICAL
 ENDPOINT_INVALID            CLIENT_ADDRESS_MISSING    ALLOWED_IPS_DEFAULT_ROUTE
 HOOK_INVALID                SUBNET_FULL               CIDR_INVALID
+STORE_BUSY
 ```
 
 `TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
@@ -297,6 +297,7 @@ performs. The rest are named where the behaviour is defined:
 | `PEER_EXISTS` | `REQ-API-071` |
 | `FIELD_IMMUTABLE` | `REQ-API-066` |
 | `APPLY_FAILED` | `REQ-APL-008` |
+| `STORE_BUSY` | `REQ-RCN-075` |
 | `REVISION_MISMATCH` | `REQ-API-031` |
 | `RECONCILE_FAILED` | `REQ-RCN-040` |
 | `TOKEN_INVALID` | `REQ-SEC-078`, and check 3 of `REQ-API-050` |
