@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-30
 depends_on: [SPEC-01, SPEC-02]
-adrs: [ADR-0005, ADR-0006, ADR-0011, ADR-0013]
+adrs: [ADR-0005, ADR-0006, ADR-0011, ADR-0013, ADR-0017]
 milestone: P1
 ---
 
@@ -93,7 +93,7 @@ can reach validation carrying one, and `REQ-KEY-031` would have no interface add
 substitute when generating a client configuration.
 
 > **REQ-VAL-017** — The agent MUST reject a `PeerSpec` whose `allowed_ips` list is empty with
-> `ALLOWED_IPS_REQUIRED`.
+> `ALLOWED_IPS_REQUIRED`, unless `REQ-KEY-047` assigns one.
 
 `allowed_ips` is a required field of `PeerSpec`, and the kernel permits a peer to carry none.
 Such a peer receives no traffic, so storing it would describe an interface the operator did not
@@ -109,8 +109,8 @@ in [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md).
 > **REQ-VAL-036** — The agent MUST reject a `listen_port` outside 1 to 65535 with
 > `LISTEN_PORT_INVALID`.
 
-> **REQ-VAL-037** — The agent MUST reject a `persistent_keepalive` above 65535 with
-> `KEEPALIVE_INVALID`.
+> **REQ-VAL-037** — The agent MUST reject a `persistent_keepalive` or `client_persistent_keepalive`
+> above 65535 with `KEEPALIVE_INVALID`.
 
 Both fields are 16-bit in WireGuard and 32-bit on the wire. A port of `0` asks the kernel to
 choose one, which [SPEC-01](SPEC-01-resource-model.md) excludes because the choice changes at
@@ -149,6 +149,15 @@ node itself: a firewall mark, a routing table of its own, and a rule sending eve
 through that peer. The node's own traffic — the replies of an SSH session included — would leave
 through the tunnel. `manage_routes`, delivered later with backlog B-12, is what lets an operator
 render `Table = off` and route such a peer by hand; until then the entry is refused.
+
+> **REQ-VAL-045** — The agent MUST reject a `post_up` or `post_down` command containing a line
+> break with `HOOK_INVALID`.
+
+A line break would end the command and begin a line of the file's own, so a hook could add keys —
+another `PostUp`, a `PrivateKey` — that `REQ-APL-003` exists to exclude.
+
+> **REQ-VAL-046** — The agent MUST reject a peer created with `generate_keypair` and without
+> `allowed_ips` when the interface's first subnet has no free host address, with `SUBNET_FULL`.
 
 > **REQ-VAL-043** — The agent MUST reject a peer created with `generate_keypair` none of whose
 > `allowed_ips` entries lies within the interface's subnets, with `CLIENT_ADDRESS_MISSING`.
@@ -225,6 +234,8 @@ Syntactically valid, practically broken.
 | Malformed `endpoint` | REQ-VAL-042 | Error |
 | Generated peer with no address in the subnets | REQ-VAL-043 | Error |
 | Default route in `allowed_ips` | REQ-VAL-044 | Error |
+| Line break in a hook | REQ-VAL-045 | Error |
+| No free address for a generated peer | REQ-VAL-046 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |
 | One-sided `inter_interface` | REQ-VAL-023 | Warning |

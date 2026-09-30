@@ -12,7 +12,7 @@ order, not about correctness. Phase P4 is chosen from this file once P1 to P3 ru
 
 [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) narrowed the near-term product to a
 wrapper over `wg` and `wg-quick` that replaces an operator's manual work. Against that target this
-file defers **168 of the 322 live requirements**, leaving 154 in phases P1 to P3. Counting them
+file defers **168 of the 330 live requirements**, leaving 162 in phases P1 to P3. Counting them
 is what keeps the plan honest: a phase that looks small only because nobody counted is the
 failure this file exists to prevent. Counts are as of the front-matter date.
 
@@ -100,8 +100,9 @@ to `REQ-VAL-023`, `REQ-VAL-034` and `REQ-VAL-035`, and the sysctl carve-out, `RE
 **Returns when:** peers of one interface must be isolated from each other, or the agent must
 manage egress and NAT rather than the host.
 
-Until then forwarding and NAT are the host's, configured once for every interface — section 5 of
-[SPEC-13](../20-spec/SPEC-13-applying-changes.md).
+Until then forwarding and NAT are the host's, or an interface's own `PostUp` and `PostDown` set
+through the CLI — section 5 of [SPEC-13](../20-spec/SPEC-13-applying-changes.md) and
+[ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md).
 
 **On return:** the mechanism is open. libnftables with an owned, persistent table is F-01 and
 D-16 of the [audit](spec-audit.md); it needs `NFT_TABLE_F_PERSIST`, which Debian 13 carries and
@@ -184,9 +185,12 @@ implemented as it stands. The audit's D-04, D-05 and D-13 are its questions.
 identifier), `REQ-API-067`, `REQ-API-068`, `REQ-DIA-040` to `REQ-DIA-051` (the readiness report),
 `REQ-CLI-004` to `REQ-CLI-007` (`doctor` and `adopt`). Thirty-six requirements.
 
-**Returns when:** an interface the operator configured by hand must come under management.
+**Returns when:** interfaces configured by hand must come under management without being copied
+into a document first.
 
-The agent manages only what it created, by the operator's decision of 2026-09-29.
+The agent manages only what it created, by the operator's decision of 2026-09-29. An interface
+kept by hand moves once, through the JSON document of `REQ-CLI-025`, which the operator fills from
+the old file; for an internal tool that one-time move is all the migration needed.
 
 **On return:** under ADR-0013 adopting means taking over a file in `/etc/wireguard/` that
 `REQ-APL-002` forbids the agent to read; adoption is the explicit exception, and its requirements

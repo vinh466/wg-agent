@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-09-30
 updated: 2026-09-30
 depends_on: [SPEC-01, SPEC-03]
-adrs: [ADR-0007, ADR-0013]
+adrs: [ADR-0007, ADR-0013, ADR-0017]
 milestone: P1
 ---
 
@@ -48,14 +48,16 @@ old one — is what lets `wg-quick` never read half a file, and what leaves the 
 intact for `REQ-APL-008` to restore.
 
 > **REQ-APL-003** — A configuration file the agent renders MUST carry only the keys
-> `PrivateKey`, `ListenPort`, `Address` and `MTU` under `[Interface]`, and `PublicKey`,
-> `PresharedKey`, `AllowedIPs`, `Endpoint` and `PersistentKeepalive` under `[Peer]`.
+> `PrivateKey`, `ListenPort`, `Address`, `MTU`, `PostUp` and `PostDown` under `[Interface]`, and
+> `PublicKey`, `PresharedKey`, `AllowedIPs`, `Endpoint` and `PersistentKeepalive` under `[Peer]`.
 
 The closed list is what keeps [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) true of a file
-the agent writes. `PreUp`, `PostUp`, `PreDown` and `PostDown` run shell as root when `wg-quick`
-brings the interface up; `SaveConfig` would let `wg-quick` rewrite a file the agent owns; `DNS`
-and `Table` belong to client concerns and to fields deferred with
-[SPEC-02](SPEC-02-forward-policy.md). Labels stay in the store.
+the agent writes. `PostUp` and `PostDown` carry only the commands the operator set through the CLI
+(`REQ-CLI-024`), which no API caller can read or change —
+[ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md). `PreUp` and `PreDown` stay
+out; `SaveConfig` would let `wg-quick` rewrite a file the agent owns; `DNS` and `Table` belong to
+client concerns and to fields deferred with [SPEC-02](SPEC-02-forward-policy.md). Labels stay in
+the store.
 
 Every interface file carries `ListenPort`, taken from the spec or from the default of
 [SPEC-01](SPEC-01-resource-model.md): a file without it lets the kernel choose a new port each
@@ -115,9 +117,9 @@ Continuous reconciliation is specified in [SPEC-03](SPEC-03-state-reconcile.md) 
 and delivered later.
 
 Forwarding between peers and NAT towards other networks are properties of the host. The agent
-sets neither, because a rendered file carries no hook (`REQ-APL-003`) and
-[SPEC-02](SPEC-02-forward-policy.md) is delivered later; the operator configures them on the
-host once, for every interface.
+manages neither until [SPEC-02](SPEC-02-forward-policy.md) is delivered. The operator sets them
+once on the host, or for one interface through its `post_up` and `post_down` commands — the way a
+hand-kept `wg-quick` file does it.
 
 ## 6. Open questions
 

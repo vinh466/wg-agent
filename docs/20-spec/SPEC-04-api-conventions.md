@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-30
 depends_on: [SPEC-01]
-adrs: [ADR-0011, ADR-0013, ADR-0014, ADR-0015]
+adrs: [ADR-0011, ADR-0013, ADR-0014, ADR-0015, ADR-0017]
 milestone: P2
 ---
 
@@ -142,6 +142,17 @@ regenerate a key the caller never had the chance to send back. `REQ-API-066` cov
 `interface_name` and `public_key`, rejecting a mismatch rather than silently creating a second
 resource.
 
+> **REQ-API-084** — An API response MUST NOT carry an interface's `post_up` or `post_down`.
+
+> **REQ-API-085** — An API write MUST leave an interface's `post_up` and `post_down` as the CLI last
+> set them.
+
+The two hook lists run as root, and the API's token crosses the operator's private network in
+clear, so under [ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md) they belong
+to the CLI alone. `REQ-API-085` is what keeps `REQ-API-064` from erasing them: a whole-spec
+replacement arriving over the API carries no hooks, and replacing them with none would silently
+undo what the operator set on the node.
+
 > **REQ-API-069** — `UpdateInterface` MUST reject an interface that desired state does not
 > describe with `INTERFACE_NOT_MANAGED`.
 
@@ -233,10 +244,10 @@ the problem document of RFC 9457, so a generic HTTP client reads its `status`, `
 
 | HTTP | Reason codes |
 |---|---|
-| 400 | `INTERFACE_NAME_INVALID`, `PUBLIC_KEY_INVALID`, `KEY_INVALID`, `ADDRESSES_REQUIRED`, `ALLOWED_IPS_REQUIRED`, `ALLOWED_IPS_DUPLICATE`, `ALLOWED_IPS_NOT_CANONICAL`, `IPV6_NOT_SUPPORTED`, `LISTEN_PORT_INVALID`, `KEEPALIVE_INVALID`, `MTU_INVALID`, `ENDPOINT_INVALID`, `ENDPOINT_REQUIRED`, `PEER_IS_INTERFACE`, `CLIENT_ADDRESS_MISSING`, `ALLOWED_IPS_DEFAULT_ROUTE`, `FIELD_IMMUTABLE`, `FORWARD_POLICY_NEEDS_UPLINK`, `PEER_INTERFACE_NOT_FOUND`, `ADOPTION_FIELD_REQUIRED` |
+| 400 | `INTERFACE_NAME_INVALID`, `PUBLIC_KEY_INVALID`, `KEY_INVALID`, `ADDRESSES_REQUIRED`, `ALLOWED_IPS_REQUIRED`, `ALLOWED_IPS_DUPLICATE`, `ALLOWED_IPS_NOT_CANONICAL`, `IPV6_NOT_SUPPORTED`, `LISTEN_PORT_INVALID`, `KEEPALIVE_INVALID`, `MTU_INVALID`, `ENDPOINT_INVALID`, `ENDPOINT_REQUIRED`, `PEER_IS_INTERFACE`, `CLIENT_ADDRESS_MISSING`, `ALLOWED_IPS_DEFAULT_ROUTE`, `HOOK_INVALID`, `FIELD_IMMUTABLE`, `FORWARD_POLICY_NEEDS_UPLINK`, `PEER_INTERFACE_NOT_FOUND`, `ADOPTION_FIELD_REQUIRED` |
 | 401 | `TOKEN_INVALID` |
 | 404 | `INTERFACE_NOT_FOUND`, `INTERFACE_NOT_MANAGED`, `PEER_NOT_FOUND` |
-| 409 | `INTERFACE_EXISTS`, `PEER_EXISTS`, `LISTEN_PORT_IN_USE`, `ADDRESS_CONFLICT`, `INTERFACE_NOT_FOREIGN`, `INTERFACE_NOT_ADOPTED`, `ADOPTION_BLOCKED` |
+| 409 | `INTERFACE_EXISTS`, `PEER_EXISTS`, `SUBNET_FULL`, `LISTEN_PORT_IN_USE`, `ADDRESS_CONFLICT`, `INTERFACE_NOT_FOREIGN`, `INTERFACE_NOT_ADOPTED`, `ADOPTION_BLOCKED` |
 | 412 | `REVISION_MISMATCH` |
 | 500 | `APPLY_FAILED`, `RECONCILE_FAILED` |
 
@@ -264,6 +275,7 @@ INTER_INTERFACE_ONE_SIDED   EXTERNAL_WITHOUT_NAT      ALLOWED_PEER_INTERFACES_IG
 LISTEN_PORT_INVALID         KEEPALIVE_INVALID         MTU_INVALID
 KEY_INVALID                 PEER_IS_INTERFACE         ALLOWED_IPS_NOT_CANONICAL
 ENDPOINT_INVALID            CLIENT_ADDRESS_MISSING    ALLOWED_IPS_DEFAULT_ROUTE
+HOOK_INVALID                SUBNET_FULL
 ```
 
 `TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
@@ -273,7 +285,7 @@ WireGuard in tree, the agent loads no module itself, and the startup check that 
 gone.
 
 Every value has a producing requirement, in both directions: no code is unreachable, and no rule
-that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-044` each name their own code, error
+that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-046` each name their own code, error
 and warning alike, and the startup table of `REQ-API-050` names the codes for the checks it
 performs. The rest are named where the behaviour is defined:
 

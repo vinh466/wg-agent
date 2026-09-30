@@ -29,6 +29,8 @@ Read [docs/README.md](docs/README.md) before touching anything under `docs/`.
 7. **Only `wg` and `systemctl` as child processes** (`REQ-SEC-087` to `REQ-SEC-089`) —
    fixed argument vectors, never through a shell, keys only on standard input. No other program
    — not `ip`, `sysctl`, `nft` or `wg-quick` — runs from a production path; test helpers may.
+   The operator's `PostUp` and `PostDown`, set through the CLI alone, run in the `wg-quick@`
+   unit, never in the agent — [ADR-0017](docs/10-decisions/ADR-0017-operator-hooks-through-the-cli.md).
 
 ---
 
@@ -154,7 +156,8 @@ C# on **.NET 10**, published with NativeAOT for `linux-x64` against glibc —
 while .NET 9 reaches end of support on 10 November 2026.
 
 WireGuard is driven through `wg` and `wg-quick` —
-[ADR-0013](docs/10-decisions/ADR-0013-drive-wg-and-wg-quick.md). The build targets are
+[ADR-0017](docs/10-decisions/ADR-0017-operator-hooks-through-the-cli.md), which carries
+ADR-0013 forward. The build targets are
 Debian 13 and later and Ubuntu 24.04 LTS and later.
 
 An earlier implementation in Go, and a partial port of it to C#, were removed so the

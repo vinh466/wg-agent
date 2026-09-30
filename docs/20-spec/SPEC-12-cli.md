@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-05
 updated: 2026-09-30
 depends_on: [SPEC-04, SPEC-05, SPEC-09]
-adrs: [ADR-0010, ADR-0011, ADR-0013, ADR-0015]
+adrs: [ADR-0010, ADR-0011, ADR-0013, ADR-0015, ADR-0017]
 milestone: P1–P2
 ---
 
@@ -33,7 +33,7 @@ interfaces, how an existing interface is adopted and released, and how the token
 | Command | Does |
 |---|---|
 | `serve` | Run the agent and its API; the systemd unit invokes this |
-| `interface create` | CreateInterface |
+| `interface create` | CreateInterface — or, from a JSON document, the interface and its peers together |
 | `interface list` | ListInterfaces |
 | `interface get` | GetInterface |
 | `interface update` | UpdateInterface |
@@ -57,6 +57,19 @@ refuses to start: an operator replacing manual `wg-quick` work needs no daemon t
 `REQ-RCN-042` keeps the direct write safe beside a running agent — both take the one lock, so they
 never write at once. `REQ-CLI-023` is what keeps the two paths one product: the CLI is the API
 without the network, over the same code, and acting directly it never handles the token.
+
+> **REQ-CLI-024** — `interface create` and `interface update` MUST accept the interface's
+> `post_up` and `post_down` commands.
+
+> **REQ-CLI-025** — `interface create` MUST accept a JSON document holding the interface's spec and
+> its peers, and create them all in one write.
+
+`REQ-CLI-024` is the one path by which hooks reach an interface, under
+[ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md). `REQ-CLI-025` is how an
+interface kept by hand moves under the agent, once: the operator copies the private key, the
+addresses, the port, the hooks and each peer's keys and allowed IPs from the old file into the
+document — the API's JSON representation, with the hooks beside it — and one command recreates the
+interface as it was. One write means a mistake anywhere in the document leaves nothing behind.
 
 The subcommands of section 3 — `doctor`, `adopt` and `release` — and `export`, `import` and
 `overview` arrive with the modules that own their behavior; when they do, they join the table of

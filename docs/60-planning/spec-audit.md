@@ -539,3 +539,27 @@ return only the interfaces the agent created.
   with the same private key, addresses and port, and add each peer with its public and preshared
   keys. Clients see the same key, address and port. The P3 guide can document it; a CLI helper
   reading the moved file is the next step up; adoption the one after.
+
+### Answers, second round, 2026-09-30
+
+- **R-06** — hooks through the CLI alone, alternative D of
+  [ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md), which carries ADR-0013
+  forward. `post_up` and `post_down` are interface fields the CLI sets (`REQ-CLI-024`); the API
+  neither returns nor changes them (`REQ-API-084`, `REQ-API-085`); a line break is refused
+  (`REQ-VAL-045`); `REQ-APL-003` admits the two keys.
+- **R-14** — the client configuration carries `PersistentKeepalive`, 25 unless the request says
+  otherwise (`REQ-KEY-046`).
+- **R-15** — a generated peer asked for no address gets the lowest free host address of the
+  interface's first subnet (`REQ-KEY-047`, `REQ-VAL-046`).
+- **R-16** — `interface create` reads a JSON document holding the interface and its peers, and
+  creates them in one write (`REQ-CLI-025`); the operator fills it once from each hand-kept file.
+  No further migration is wanted: by the operator's statement it is an internal tool.
+
+### Third round
+
+- **R-17 — Trimming for an internal tool.** Several parts of the plan serve parties other than the
+  operator: the positioning of product.md towards Terraform providers, Kubernetes operators and
+  VPN platforms; the install script and release pipeline of B-03; published clients and the CI
+  compatibility gate of B-05; roles and several principals of B-08; the contract test of P2. Each
+  could be marked not planned rather than deferred, which removes it from every future count;
+  the contract test is the one worth keeping, since the operator's own orchestrator calls the API.

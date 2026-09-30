@@ -27,7 +27,7 @@ phase P4 is chosen from it once P1 to P3 are in use.
 | **P3 — Packaging and operation** | The `.deb` with its confined unit, the token generated at install, the conffile and maintainer scripts; structured logs; a test tier under each distribution's own systemd; the operator guide | SPEC-09 sections 3 to 5; SPEC-05 section 6; SPEC-08 section 3 | Installed on Debian 13 and Ubuntu 24.04, the agent's interfaces survive a reboot and the package's removal; the unit's confinement holds under each distribution's systemd |
 | **P4 — From use** | Chosen from the backlog after P1 to P3 run on a real node | — | — |
 
-P1 carries 98 requirements, P2 40 and P3 16: 154 of the 322 live ones. The other 168 are in the
+P1 carries 104 requirements, P2 42 and P3 16: 162 of the 330 live ones. The other 168 are in the
 backlog, entry by entry.
 
 Inside a phase the order is the module workflow of `CLAUDE.md`: read the module, resolve doubt as
@@ -40,8 +40,8 @@ first integration test needs.
 | Item | State |
 |---|---|
 | Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
-| Decisions | ADR-0001 to ADR-0016 accepted, except those superseded: ADR-0002 and ADR-0012 by their successors, ADR-0003 by ADR-0014, ADR-0009 by ADR-0015 |
-| Specification | 322 live requirements — 154 in P1 to P3, 168 deferred; 39 struck |
+| Decisions | ADR-0001 to ADR-0017 accepted, except those superseded: ADR-0002, ADR-0012 and ADR-0013 by their successors, ADR-0003 by ADR-0014, ADR-0009 by ADR-0015 |
+| Specification | 330 live requirements — 162 in P1 to P3, 168 deferred; 39 struck |
 | SPEC-13 | Accepted 2026-09-30 |
 | SPEC-10 | `Draft` — its three open decisions wait with B-02 |
 | API contract | `api/openapi.yaml` is written at the start of P2; the `.proto` files are removed |
@@ -64,8 +64,8 @@ remains in the history of this file.
 
 ## Next actions
 
-1. Settle the second round of review points — R-06 and R-14 to R-16 in section 8 of the
-   [audit](spec-audit.md)
+1. Settle R-17 in section 8 of the [audit](spec-audit.md) — how far to trim what an internal tool
+   does not need
 2. Build tooling for .NET: a task runner, the container tier of the
    [test guide](../50-guides/running-tests.md), and `check-traceability.sh` reading the backlog
    so deferred requirements are not reported untested (R-12)

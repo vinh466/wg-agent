@@ -1,12 +1,12 @@
 ---
 id: ADR-0013
 title: Drive WireGuard through wg and wg-quick in v1
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-09-29
 updated: 2026-09-29
 supersedes: [ADR-0012]
-superseded_by: null
+superseded_by: ADR-0017
 affects: [SPEC-01, SPEC-02, SPEC-03, SPEC-05, SPEC-06, SPEC-09, SPEC-12]
 ---
 

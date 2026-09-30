@@ -1,7 +1,8 @@
 # Architecture
 
 The first release is a wrapper over `wg` and `wg-quick` —
-[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md). This page describes that
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md), carried forward by
+[ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md). This page describes that
 wrapper; the control plane the backlog describes grows from it.
 
 ## Layers
@@ -113,6 +114,7 @@ sequenceDiagram
 | Operation | Mechanism |
 |---|---|
 | Create an interface | Write `/etc/wireguard/<name>.conf`; `systemctl enable --now wg-quick@<name>` |
+| Create an interface and its peers from a JSON document — CLI | The same, with every peer in the one file, in one write (`REQ-CLI-025`) |
 | Delete an interface | `systemctl disable --now wg-quick@<name>`; remove the file |
 | `enabled` false or true | `systemctl disable --now` or `enable --now` |
 | Add, change or remove a peer | Rewrite the file; `wg syncconf <name> /dev/stdin` |
@@ -124,7 +126,9 @@ sequenceDiagram
 
 **Invariant:** `wg` and `systemctl` are the only child processes, started with fixed argument
 vectors and never through a shell — `REQ-SEC-087` to `REQ-SEC-089`. `wg-quick` itself runs in its
-systemd unit, outside the agent's sandbox. No rendered file carries a hook (`REQ-APL-003`).
+systemd unit, outside the agent's sandbox. The only hooks a rendered file carries are the
+operator's `PostUp` and `PostDown`, set through the CLI, which the API can neither read nor change
+(`REQ-APL-003`, ADR-0017); they too run in the unit.
 
 ## Managed dependencies
 

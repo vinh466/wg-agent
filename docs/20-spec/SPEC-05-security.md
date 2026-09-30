@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-30
 depends_on: [SPEC-04]
-adrs: [ADR-0007, ADR-0013, ADR-0015]
+adrs: [ADR-0007, ADR-0013, ADR-0015, ADR-0017]
 milestone: P1–P3
 ---
 
@@ -158,6 +158,12 @@ the agent renders, so no caller reaches a shell through `wg-quick` either.
 Full reasoning for the hook rule is in [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md): an
 API that accepts a shell string and runs it as root is a remote code execution endpoint, and no
 level of authentication changes that.
+
+The operator's own `PostUp` and `PostDown` commands are the one exception, and they stay outside
+the API: [ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md) lets the CLI set
+them, and `REQ-API-084` and `REQ-API-085` keep the API from reading or changing them. Whoever
+runs the CLI is root on the node already, so the exception grants nothing new, and the hooks run
+in the `wg-quick@` unit rather than in the agent.
 
 ## 8. Sensitive data
 

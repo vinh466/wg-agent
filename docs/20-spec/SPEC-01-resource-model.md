@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-30
 depends_on: []
-adrs: [ADR-0001, ADR-0005, ADR-0011, ADR-0013]
+adrs: [ADR-0001, ADR-0005, ADR-0011, ADR-0013, ADR-0017]
 milestone: P1
 ---
 
@@ -90,9 +90,11 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 | `nat` | `NatSpec` | No | disabled | Delivered later, B-04 |
 | `enabled` | bool | No | `true` | `false` stops and disables the interface's unit; the configuration stays |
 | `labels` | map<string,string> | No | `{}` | Free-form metadata |
+| `post_up` | []string | No | `[]` | Commands `wg-quick` runs as root after bringing the interface up. Set through the CLI alone — `REQ-CLI-024`, `REQ-API-084` |
+| `post_down` | []string | No | `[]` | Commands `wg-quick` runs as root after taking the interface down. Set through the CLI alone |
 
 An interface's **subnets** are the networks its `addresses` belong to: `10.8.0.1/24` gives
-`10.8.0.0/24`. Validation, client configuration and [SPEC-13](SPEC-13-applying-changes.md) all
+`10.8.0.0/24`. Its **first subnet** is the one of its first address. Validation, client configuration and [SPEC-13](SPEC-13-applying-changes.md) all
 test a peer's allowed IPs against them.
 
 `listen_port` defaults to the port WireGuard documents rather than to `0`. A port the kernel

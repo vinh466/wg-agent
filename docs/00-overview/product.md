@@ -15,7 +15,9 @@ to the platform layer above it.
 `wg` and `wg-quick` that replaces an operator's manual work on a node —
 [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) — reached from a CLI on the node
 and a REST API over the operator's private network. The platform-facing properties below grow
-from it through the [backlog](../60-planning/backlog.md).
+from it through the [backlog](../60-planning/backlog.md). By the operator's statement of
+2026-09-30 it is an internal tool: breadth of support for other parties is not a goal of the first
+release.
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -56,7 +58,11 @@ string.
 - Peers: create, update, delete, list — a supplied public key, or a key pair the agent generates
 - Routes for allowed IPs, installed by `wg-quick`
 - Keys generated through `wg`; an interface key supplied or generated
-- A client `.conf` returned when a peer is created with a generated key pair
+- A client `.conf` returned when a peer is created with a generated key pair, and the next free
+  address of the interface's subnet given to such a peer when asked for none
+- `PostUp` and `PostDown` commands, set through the CLI alone
+- An interface and its peers created from one JSON document — how an interface kept by hand moves
+  under the agent, once
 - Runtime state read from `wg show`
 - Durable desired state, with interfaces restored at boot by their `wg-quick@` units
 - A CLI on the node and a REST API behind one token
@@ -85,10 +91,10 @@ reuse.
 | Billing, quota | Platform |
 | UI, dashboard | Platform |
 | RBAC, IAM, business ACL | Platform |
-| IPAM — allocating peer addresses | Platform. The agent only **validates** |
+| IPAM — allocating peer addresses | Platform. The agent **validates**, and gives a generated peer the next free address of its interface's subnet — `REQ-KEY-047` |
 | Multi-node orchestration, mesh topology | Platform |
 | Business database | Platform |
-| `PostUp` / `PostDown` shell hooks | Never — [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md) |
+| `PostUp` / `PostDown` through the API | Never — [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md); the operator sets them through the CLI — [ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md) |
 | Owning the host firewall | Never — [ADR-0008](../10-decisions/ADR-0008-no-host-firewall-ownership.md) |
 | Policy routing for full-tunnel clients | Client-side concern |
 | Host DNS management | Client-side concern |
