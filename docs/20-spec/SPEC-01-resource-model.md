@@ -3,13 +3,13 @@ id: SPEC-01
 title: Resource model
 prefix: RES
 status: Accepted
-version: 1.9
+version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-30
 depends_on: []
-adrs: [ADR-0001, ADR-0005, ADR-0011]
-milestone: M0
+adrs: [ADR-0001, ADR-0005, ADR-0011, ADR-0013]
+milestone: P1
 ---
 
 # SPEC-01: Resource model
@@ -80,18 +80,23 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `private_key` | string (base64) | No | generated | Never readable afterwards |
-| `listen_port` | uint32 | No | `0` | `0` lets the kernel choose |
-| `addresses` | []string (CIDR) | Yes | — | IPv4 only |
+| `listen_port` | uint32 | No | `51820` | 1 to 65535, per `REQ-VAL-036` |
+| `addresses` | []string (CIDR) | Yes | — | IPv4 only; host bits kept, as in `10.8.0.1/24` |
 | `mtu` | uint32 | No | `1420` | |
-| `fwmark` | uint32 | No | `0` | `0` disables |
-| `manage_routes` | bool | No | `true` | `false` matches `Table=off` in wg-quick |
-| `forward_policy` | `ForwardPolicySpec` | No | see [SPEC-02](SPEC-02-forward-policy.md) | |
-| `nat` | `NatSpec` | No | disabled | |
-| `enabled` | bool | No | `true` | `false` keeps the link present but DOWN |
+| `fwmark` | uint32 | No | `0` | `0` disables. Delivered later, backlog B-12 |
+| `manage_routes` | bool | No | `true` | `false` matches `Table=off` in wg-quick. Delivered later, B-12 |
+| `forward_policy` | `ForwardPolicySpec` | No | see [SPEC-02](SPEC-02-forward-policy.md) | Delivered later, B-04 |
+| `nat` | `NatSpec` | No | disabled | Delivered later, B-04 |
+| `enabled` | bool | No | `true` | `false` stops and disables the interface's unit; the configuration stays |
 | `labels` | map<string,string> | No | `{}` | Free-form metadata |
 
-> **REQ-RES-012** — When `private_key` is omitted at creation, the agent MUST generate a
-> new key.
+An interface's **subnets** are the networks its `addresses` belong to: `10.8.0.1/24` gives
+`10.8.0.0/24`. Validation, client configuration and [SPEC-13](SPEC-13-applying-changes.md) all
+test a peer's allowed IPs against them.
+
+`listen_port` defaults to the port WireGuard documents rather than to `0`. A port the kernel
+chooses changes every time `wg-quick` brings the interface up, and a client configuration
+naming it would stop connecting after the next restart.
 
 > **REQ-RES-013** — The agent MUST NOT include `private_key` in any response.
 
@@ -105,16 +110,16 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 |---|---|
 | `public_key` | Derived from the private key |
 | `listen_port` | The port the kernel has bound |
-| `instance_id` | UUID assigned when the agent begins managing the link |
-| `created_at` | When the agent began managing the link |
-| `revision` | Opaque, changes when the spec changes — see `REQ-RES-031` |
-| `oper_state` | `UP` \| `DOWN` \| `ABSENT` |
-| `ownership` | `MANAGED` \| `FOREIGN` \| `ORPHANED` — see `REQ-RES-017` |
+| `instance_id` | UUID assigned when the agent begins managing the link. Delivered later, B-12 |
+| `created_at` | When the agent created the interface |
+| `revision` | Opaque, changes when the spec changes — see `REQ-RES-031`. Delivered later, B-05 |
+| `oper_state` | `UP` \| `DOWN` \| `ABSENT` — see `REQ-RES-035` |
+| `ownership` | `MANAGED` \| `FOREIGN` \| `ORPHANED` — see `REQ-RES-017`. Delivered later, B-10 |
 | `peer_count` | Peer count in the kernel |
-| `condition` | `READY` \| `PROGRESSING` \| `DEGRADED`, with `reason` and `message` |
+| `condition` | `READY` \| `PROGRESSING` \| `DEGRADED`, with `reason` and `message`. Delivered later, B-09 |
 | `warnings` | Validation findings, per `REQ-VAL-002` |
-| `masquerade_out_interface` | The uplink derived under `REQ-FWD-031`, empty when NAT is off |
-| `last_reconcile_at` | Timestamp |
+| `masquerade_out_interface` | The uplink derived under `REQ-FWD-031`, empty when NAT is off. Delivered later, B-04 |
+| `last_reconcile_at` | Timestamp. Delivered later, B-09 |
 
 > **REQ-RES-015** — The agent MUST generate a fresh `instance_id` on every successful link
 > creation.
@@ -176,15 +181,17 @@ kernel, because `REQ-API-020` applies a write before responding and `REQ-API-030
 `revision` only when the spec changes. A separate `observed_generation` would restate that
 with a second identifier and no additional information.
 
-> **REQ-RES-016** — `status.listen_port` MUST report the port the kernel has bound,
-> including when `spec.listen_port` is `0`.
+> **REQ-RES-016** — `status.listen_port` MUST report the port the kernel has bound.
 
-> **REQ-RES-019** — The agent MUST derive `oper_state` from the link's administrative flag
-> rather than from the operational state the kernel reports.
+> **REQ-RES-035** — The agent MUST report `oper_state` as `UP` when the interface's unit is active
+> and its device exists, `DOWN` when the unit is inactive, and `ABSENT` when the unit is active
+> but the device does not exist.
 
-A WireGuard link reports its operational state as unknown even while it is administratively up,
-because it has no carrier to report on. Reading that value would never yield `UP`, so the
-administrative flag is the only source that answers the question `oper_state` asks.
+Under [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) the unit is what brings an
+interface up and down, so its state is the intent, and the device is what the kernel holds. An
+active unit without its device is an interface somebody removed by hand — the case `ABSENT`
+names. The link's own operational state is no help: a WireGuard link reports it as unknown even
+while up, because it has no carrier to report on.
 
 ## 4. Peer
 
@@ -218,7 +225,10 @@ resource under `REQ-RES-020` and `REQ-RES-034`.
 | `persistent_keepalive` | uint32 | No | `0` | Seconds. `0` disables |
 | `labels` | map<string,string> | No | `{}` | |
 
-> **REQ-RES-022** — The agent MUST NOT include `preshared_key` in any response.
+> **REQ-RES-022** — The agent MUST NOT return a stored `preshared_key` in any response.
+
+The qualifier leaves room for one case: a preshared key generated by the request itself is
+returned once, under `REQ-KEY-021`, because the client needs it and nothing else can supply it.
 
 ### 4.3. PeerStatus
 
@@ -229,9 +239,8 @@ resource under `REQ-RES-020` and `REQ-RES-034`.
 | `online` | Normalized heuristic — see `REQ-RES-025` |
 | `rx_bytes` / `tx_bytes` | Cumulative counters, reset when the link is recreated |
 | `resolved_endpoint` | The endpoint held by the kernel |
-| `protocol_version` | From the kernel |
-| `revision` | Opaque, changes when the spec changes — see `REQ-RES-031` |
-| `condition` | `READY` \| `PROGRESSING` \| `DEGRADED`, with `reason` and `message` |
+| `revision` | Opaque, changes when the spec changes — see `REQ-RES-031`. Delivered later, B-05 |
+| `condition` | `READY` \| `PROGRESSING` \| `DEGRADED`, with `reason` and `message`. Delivered later, B-09 |
 | `warnings` | Validation findings, per `REQ-VAL-002` |
 
 A peer carries the same three fields as an interface. `REQ-VAL-030`, `REQ-VAL-031` and
@@ -252,9 +261,10 @@ for the traffic counters, which must never be accumulated in the agent.
 > `last_handshake_at != null AND (now - last_handshake_at) < peer_online_threshold`,
 > defaulting to 180 seconds.
 
-The 180-second threshold is three times `rekey-after-time` (120 s), tolerating one missed
-handshake cycle. Raw `handshake_age_seconds` is always exposed alongside so the platform
-can apply its own rule.
+The 180-second default is WireGuard's `reject-after-time`: past it, the keys of the last session
+are refused. A peer that sends nothing and has no persistent keepalive completes no handshake
+either, so it reads offline while healthy. Raw `handshake_age_seconds` is always exposed
+alongside so the platform can apply its own rule.
 
 ## 5. Counter reset detection
 
@@ -267,3 +277,13 @@ reboot, or when reconcile rebuilds a deleted interface — resets them to zero.
 
 The agent does not compute the delta because traffic accounting is business data owned by
 the platform.
+
+## 6. Removed requirements
+
+~~**REQ-RES-012**~~ — Generation of a private key omitted at creation. Removed in v2.0 as a
+duplicate: `REQ-KEY-001` states the same rule in [SPEC-06](SPEC-06-key-management.md), which owns
+key generation, and adds the requirement on the source.
+
+~~**REQ-RES-019**~~ — `oper_state` from the link's administrative flag. Removed in v2.0 by
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md): the unit carries the intent, and
+`REQ-RES-035` reads it.

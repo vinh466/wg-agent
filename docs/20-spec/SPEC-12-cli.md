@@ -3,67 +3,64 @@ id: SPEC-12
 title: Command line surface
 prefix: CLI
 status: Accepted
-version: 1.5
+version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-05
-updated: 2026-09-06
-depends_on: [SPEC-05, SPEC-09, SPEC-10]
-adrs: [ADR-0009, ADR-0010, ADR-0011]
-milestone: M2
+updated: 2026-09-30
+depends_on: [SPEC-04, SPEC-05, SPEC-09]
+adrs: [ADR-0010, ADR-0011, ADR-0013, ADR-0015]
+milestone: P1–P2
 ---
 
 # SPEC-12: Command line surface
 
 ## 1. Scope
 
-The subcommands of the `wg-agent` binary: what each one does, which of them need a running
-agent, how an existing interface is adopted and released, and how tokens are issued.
+The subcommands of the `wg-agent` binary: what each one does, how it reaches the store and the
+interfaces, how an existing interface is adopted and released, and how the token is issued.
 
 **Not in this module:**
 - Configuration keys and the install script → [SPEC-09](SPEC-09-config-deployment.md)
-- Token semantics and roles → [SPEC-05](SPEC-05-security.md)
+- Token semantics → [SPEC-05](SPEC-05-security.md)
+- What each operation does → [SPEC-04](SPEC-04-api-conventions.md) and
+  [SPEC-13](SPEC-13-applying-changes.md)
 - Export and import behavior → [SPEC-10](SPEC-10-lifecycle.md)
 
 ## 2. Subcommands
 
 > **REQ-CLI-001** — The binary MUST provide the subcommands listed below.
 
-| Command | Needs a running agent | Purpose |
-|---|---|---|
-| `serve` | — | Run the agent; the systemd unit invokes this |
-| `token add` | No | Issue a token with a role and a label |
-| `token list` | No | List labels and roles, never token values |
-| `token revoke` | No | Remove a token by label |
-| `token regen` | No | Replace the value of an existing token, keeping label and role |
-| `export` | No | Export desired state per `REQ-LIF-020` |
-| `import` | No | Import desired state per `REQ-LIF-051` |
-| `doctor` | No | Print the adoption readiness report from `REQ-DIA-040` |
-| `adopt` | No — must be stopped | Bring an existing interface under management per `REQ-RCN-060` |
-| `release` | No — must be stopped | Stop managing an interface, leaving its link running, per `REQ-RCN-069` |
-| `overview` | Yes | Print the node overview from `REQ-DIA-020` |
-| `version` | No | Print version, commit and Go version |
+| Command | Does |
+|---|---|
+| `serve` | Run the agent and its API; the systemd unit invokes this |
+| `interface create` | CreateInterface |
+| `interface list` | ListInterfaces |
+| `interface get` | GetInterface |
+| `interface update` | UpdateInterface |
+| `interface delete` | DeleteInterface |
+| `peer add` | CreatePeer — with a generated key pair, prints the client configuration |
+| `peer list` | ListPeers |
+| `peer get` | GetPeer |
+| `peer update` | UpdatePeer |
+| `peer remove` | DeletePeer |
+| `token rotate` | Replace the token and print the new one |
+| `version` | Print the version and the commit |
 
-> **REQ-CLI-002** — The `token`, `export`, `import`, `adopt` and `release` subcommands MUST
-> operate on files directly rather than through the API.
+> **REQ-CLI-002** — Every subcommand other than `serve` MUST act on the store and the
+> interfaces directly rather than through the API.
 
-Operating on files is what lets an operator issue the first token before the agent has ever
-started, and recover a node whose agent refuses to start.
+> **REQ-CLI-023** — A subcommand MUST have the effect of the operation it names, with the same
+> validation.
 
-Adoption belongs in that set for the same reason. It is the operation an operator performs
-*before* the agent manages anything on the node, so requiring a running agent to reach it
-inverts the order: the interface exists, the store does not, and there is nothing yet for a
-listener to serve. `REQ-RCN-007` is what keeps the direct write safe — the command acquires the
-store lock and fails while the agent holds it, so the two never write at once.
+Acting directly is what makes the CLI useful before the API exists and on a node whose agent
+refuses to start: an operator replacing manual `wg-quick` work needs no daemon to add a peer.
+`REQ-RCN-042` keeps the direct write safe beside a running agent — both take the one lock, so they
+never write at once. `REQ-CLI-023` is what keeps the two paths one product: the CLI is the API
+without the network, over the same code, and acting directly it never handles the token.
 
-The `AdoptInterface` and `ReleaseInterface` RPCs of [SPEC-04](SPEC-04-api-conventions.md) are
-unaffected. A platform still adopts over the API once the agent runs; the CLI adds the path that
-works before it does.
-
-`export` and `import` arrive with [SPEC-10](SPEC-10-lifecycle.md), which owns their behavior
-and sits a milestone later than the rest of this module. The commands the install script and
-the MVP depend on are `serve`, `token`, `overview` and `version`.
-
-> **REQ-CLI-003** — A subcommand needing a running agent MUST connect over the unix socket.
+The subcommands of section 3 — `doctor`, `adopt` and `release` — and `export`, `import` and
+`overview` arrive with the modules that own their behavior; when they do, they join the table of
+`REQ-CLI-001`. The [backlog](../60-planning/backlog.md) holds them.
 
 > **REQ-CLI-008** — `serve` MUST accept a flag that runs one reconcile pass and exits.
 
@@ -78,11 +75,8 @@ running agent will do rather than a separate code path.
 
 `REQ-CLI-009` exists because a pass that printed nothing would leave the operator guessing. The
 four fields are the ones that answer whether the migration worked: `REQ-RES-017` ownership says
-the interface is managed, `REQ-RES-019` operational state says it is up, and `REQ-RES-032`
+the interface is managed, `REQ-RES-035` operational state says it is up, and `REQ-RES-032`
 condition says whether reconciliation succeeded.
-
-The unix socket grants `admin` under `REQ-SEC-077`, so the CLI never handles a token to read
-the agent's own state.
 
 ## 3. Adoption
 
@@ -164,14 +158,11 @@ disappears with it, an endpoint no longer in desired state.
 > **REQ-CLI-014** — A command writing the token file MUST replace it atomically, leaving the
 > previous contents intact on failure.
 
-> **REQ-CLI-015** — `token regen` MUST keep the label and role of the entry it replaces.
-
-> **REQ-CLI-016** — A command modifying the token file MUST signal the running agent to
-> reload it, per `REQ-SEC-081`.
-
 `REQ-CLI-011` and `REQ-CLI-012` together make the token file the only copy, which is what
-makes mode `0600` under `REQ-CLI-013` meaningful. `REQ-CLI-016` is what turns revocation into
-a real control rather than a note to restart the service later.
+makes mode `0600` under `REQ-CLI-013` meaningful. `REQ-SEC-085` is what turns a rotation into a
+real control: the running agent honours the new token, and refuses the old one, from the next
+request, with no signal to deliver. A token drawn from `wg genpsk` meets `REQ-CLI-010`, since
+it is 256 bits from the kernel's generator.
 
 ## 5. Output
 
@@ -182,11 +173,27 @@ a real control rather than a note to restart the service later.
 > reason to stderr.
 
 > **REQ-CLI-022** — Human-readable output MUST NOT contain a private key, a preshared key or
-> a token value, per `REQ-SEC-050`.
+> a token value other than one the command itself generated.
 
-Machine-readable output exists because the install script parses the result of `token add`,
-and because an operator scripting against a node should not parse a table.
+The exception is the point of two commands: `token rotate` prints the token it generated, and
+`peer add` prints a client configuration holding the private key it generated, each exactly once.
+Machine-readable output exists because an operator scripting against a node should not parse a
+table.
 
-## 6. Open questions
+## 6. Removed requirements
+
+Removed in v2.0 by [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) and
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md):
+
+~~**REQ-CLI-003**~~ — A subcommand needing a running agent connecting over the unix socket.
+There is no socket, and no subcommand needs the agent running.
+
+~~**REQ-CLI-015**~~ — `token regen` keeping the label and role of the entry it replaces. One
+token carries neither.
+
+~~**REQ-CLI-016**~~ — A command modifying the token file signalling the agent. `REQ-SEC-085`
+makes the agent honour a replaced token without a signal.
+
+## 7. Open questions
 
 None.

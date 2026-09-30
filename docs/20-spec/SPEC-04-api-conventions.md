@@ -3,130 +3,112 @@ id: SPEC-04
 title: API conventions, concurrency and the error model
 prefix: API
 status: Accepted
-version: 1.14
+version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-30
 depends_on: [SPEC-01]
-adrs: [ADR-0003, ADR-0009, ADR-0011]
-milestone: M0
+adrs: [ADR-0011, ADR-0013, ADR-0014, ADR-0015]
+milestone: P2
 ---
 
 # SPEC-04: API conventions, concurrency and the error model
 
 ## 1. Scope
 
-Service surface, REST mapping, write semantics, concurrency control, error model.
+The REST surface, write semantics, concurrency control, the error model, startup and shutdown.
+
+Pagination in section 5.2, revisions and batch writes in section 6, and the adoption operations
+of section 7 are delivered after the wrapper of
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md); the
+[roadmap](../60-planning/roadmap.md) and the [backlog](../60-planning/backlog.md) hold the split.
 
 **Not in this module:**
-- Detailed message definitions → `api/proto/wgagent/v1/`, rendered in [30-api](../30-api/)
+- Request and response schemas → `api/openapi.yaml`, rendered in [30-api](../30-api/)
 - Authentication and authorization → [SPEC-05](SPEC-05-security.md)
 - Specific validation rules → [SPEC-07](SPEC-07-validation.md)
+- How a write reaches WireGuard → [SPEC-13](SPEC-13-applying-changes.md)
 
 ## 2. Contract source of truth
 
-> **REQ-API-001** — `api/proto/wgagent/v1/*.proto` MUST be the single source of truth for
-> the API contract.
+> **REQ-API-001** — `api/openapi.yaml` MUST be the single source of truth for the API contract.
 
-> **REQ-API-060** — API documentation and client code MUST be generated from the `.proto`
-> definitions.
+> **REQ-API-060** — API documentation MUST be rendered from `api/openapi.yaml`.
 
-> **REQ-API-002** — REST mapping MUST be declared with `google.api.http` annotations inside
-> the `.proto` rather than in separate configuration.
-
-> **REQ-API-003** — A compatibility-breaking change MUST increment the protobuf package
-> version.
+> **REQ-API-003** — A compatibility-breaking change MUST increment the major version in the path
+> prefix, from `/v1` to `/v2`.
 
 > **REQ-API-061** — CI MUST block compatibility-breaking changes within a package version.
 
+[ADR-0014](../10-decisions/ADR-0014-rest-api-described-by-openapi.md) fixes the format. The
+document is written before the server that serves it, as this specification is, and a contract
+test compares what the server exposes with it.
+
 ## 3. Service surface
 
-| Service | RPCs |
+| Resource | Operations |
 |---|---|
-| `InterfaceService` | Create, Get, List, Update, Delete, RotateKey, Adopt, Release |
-| `PeerService` | Create, Get, List, Update, Delete, BatchUpdate |
-| `RuntimeService` | GetInterfaceStatus, ListPeerStatus |
-| `ConfigService` | GenerateClientConfig, GenerateKeyPair |
-| `DiagnosticsService` | DiagnoseInterface, GetOverview — see [SPEC-11](SPEC-11-diagnostics.md) |
-| `SystemService` | GetHealth, GetVersion, Reconcile |
+| Interface | CreateInterface, GetInterface, ListInterfaces, UpdateInterface, DeleteInterface |
+| Peer | CreatePeer, GetPeer, ListPeers, UpdatePeer, DeletePeer |
+| System | GetHealth, GetVersion |
 
-> **REQ-API-010** — `ListPeerStatus` MUST report the status of every peer on an interface in
-> one call.
+A resource carries its status under `REQ-RES-001`, so reading one needs no separate status
+operation, and `ListPeers` returns every peer of an interface with its status in one call.
 
-A streaming `WatchPeerStatus` was on this surface and is not specified: nothing said what its
-request scoped to, what the stream element carried, or what emitted an event. An RPC absent from
-v1 can be added later without breaking a generated client, while one frozen in the wrong shape
-cannot be changed at all under `REQ-API-061`. It returns with the watch work deferred under
-`B-05` in the [backlog](../60-planning/backlog.md).
+The operations that arrive later — RotateInterfaceKey, AdoptInterface, ReleaseInterface,
+BatchUpdatePeers, GenerateClientConfig, GenerateKeyPair, DiagnoseInterface, GetOverview,
+Reconcile, and a streaming WatchPeerStatus — are described by the requirements the
+[backlog](../60-planning/backlog.md) lists with them. An operation absent from v1 can be added
+without breaking a client, while one frozen in the wrong shape cannot be changed.
 
 ## 4. REST mapping
 
-> **REQ-API-063** — Every RPC in section 3 MUST carry the REST mapping given in the table
-> below.
+> **REQ-API-063** — The API MUST expose each operation of section 3 at the method and path the
+> table below gives.
 
-| Method | Path | RPC |
+| Method | Path | Operation |
 |---|---|---|
 | `POST` | `/v1/interfaces` | CreateInterface |
 | `GET` | `/v1/interfaces` | ListInterfaces |
 | `GET` | `/v1/interfaces/{name}` | GetInterface |
 | `PUT` | `/v1/interfaces/{name}` | UpdateInterface |
 | `DELETE` | `/v1/interfaces/{name}` | DeleteInterface |
-| `POST` | `/v1/interfaces/{name}:rotateKey` | RotateInterfaceKey |
-| `POST` | `/v1/interfaces/{name}:adopt` | AdoptInterface |
-| `POST` | `/v1/interfaces/{name}:release` | ReleaseInterface |
-| `GET` | `/v1/interfaces/{name}/status` | GetInterfaceStatus |
-| `GET` | `/v1/interfaces/{name}:diagnose` | DiagnoseInterface |
 | `POST` | `/v1/interfaces/{name}/peers` | CreatePeer |
 | `GET` | `/v1/interfaces/{name}/peers` | ListPeers |
-| `GET` | `/v1/interfaces/{name}/peers:status` | ListPeerStatus |
 | `GET` | `/v1/interfaces/{name}/peers/{public_key}` | GetPeer |
 | `PUT` | `/v1/interfaces/{name}/peers/{public_key}` | UpdatePeer |
 | `DELETE` | `/v1/interfaces/{name}/peers/{public_key}` | DeletePeer |
-| `POST` | `/v1/interfaces/{name}/peers:batchUpdate` | BatchUpdatePeers |
-| `POST` | `/v1/interfaces/{name}/peers/{public_key}:generateConfig` | GenerateClientConfig |
-| `POST` | `/v1/keys:generate` | GenerateKeyPair |
-| `POST` | `/v1/reconcile` | Reconcile |
 | `GET` | `/v1/version` | GetVersion |
-| `GET` | `/v1/overview` | GetOverview |
 | `GET` | `/v1/health` | GetHealth |
 
 > **REQ-API-080** — A `public_key` request field MUST carry the encoding of `REQ-RES-027`.
 
-> **REQ-API-081** — The REST gateway MUST convert the path segment encoding of `REQ-RES-021`
-> into the field encoding of `REQ-API-080`.
+> **REQ-API-081** — The server MUST convert the path segment encoding of `REQ-RES-021` into the
+> field encoding of `REQ-API-080`.
 
-Four rows bind `{public_key}` into a request field. A gateway that passed the segment through
-unchanged would leave a REST caller sending unpadded base64url where a gRPC caller sends padded
-standard base64, so the same peer would be addressable by two different strings and an equality
-check against the stored value would fail for one of them. Converting at the edge keeps one
-encoding inside the service.
-
-`ListPeerStatus` uses the `:status` custom-method form rather than a `/status` path segment,
-which would otherwise match the `{public_key}` variable in the sibling route. `Reconcile`
-takes its scope from the request body, so a single collection-level path covers both the
-whole-node and single-interface cases in `REQ-RCN-020`.
+Three rows bind `{public_key}` into a request field. A server that passed the segment through
+unchanged would compare unpadded base64url from the path with padded standard base64 from the
+store, so the same peer would be addressable by two different strings and an equality check
+would fail for one of them. Converting at the edge keeps one encoding inside the service.
 
 ## 5. Write semantics
 
-> **REQ-API-020** — A write MUST be applied to the kernel before returning, in the order:
-> validate, store, apply, re-read status, respond.
+> **REQ-API-020** — A write MUST be validated, applied and stored, in that order, before the
+> response returns.
 
-> **REQ-API-021** — When application fails, the agent MUST retain the desired state and
-> return the resource with `condition = DEGRADED` under HTTP `202`.
+> **REQ-API-022** — Applying a change MUST be bounded by `apply_timeout`.
 
-> **REQ-API-022** — Apply duration MUST be bounded by `reconcile.apply_timeout`.
-
-Synchronous application is chosen because Terraform providers need the outcome within the
-call. The reconcile loop is a safety net rather than the primary execution path.
+Synchronous application is chosen because a caller — an operator's script or a platform — needs
+the outcome within the call. Storing last keeps the store from ever describing a configuration
+that failed to apply, which `REQ-APL-008` completes by restoring the previous one.
 
 ### 5.1. Update is whole-spec replacement
 
 A single mutation verb per resource removes the class of defect where a partial update cannot
 distinguish an omitted field from one deliberately set to its zero value. That distinction
-carries meaning throughout this API: `listen_port = 0` asks the kernel to choose,
-`fwmark = 0` disables the mark, `persistent_keepalive = 0` disables keepalive, and
-`enabled = false` holds the link down. A `PATCH` verb over proto3 scalars cannot express those
-four cases without a field mask, so the verb is absent instead.
+carries meaning throughout this API: `persistent_keepalive = 0` disables keepalive and
+`enabled = false` stops the interface. A `PATCH` verb cannot express those cases without a field
+mask, so the verb is absent instead.
 
 > **REQ-API-064** — `UpdateInterface` and `UpdatePeer` MUST replace the whole spec of the
 > target resource with the supplied one.
@@ -137,12 +119,11 @@ four cases without a field mask, so the verb is absent instead.
 > **REQ-API-076** — A field whose default differs from its zero value MUST be encoded so that
 > an absent value is distinguishable from that zero value.
 
-`REQ-API-076` is the one that cannot be deferred. `enabled` and `manage_routes` default to
-`true`, and `mtu` to 1420, so a wire format without explicit presence reads an omitted field as
+`REQ-API-076` is the one that cannot be deferred. `enabled` defaults to `true`, `mtu` to 1420 and
+`listen_port` to 51820, so a wire format without explicit presence reads an omitted field as
 `false` or `0`: with `REQ-API-064` replacing the whole spec, a caller that omits `enabled` would
-take the link down and one that omits `manage_routes` would drop its routes. The three fields
-`REQ-API-076` reaches are `mtu`, `manage_routes` and `enabled`, plus the `manage_routes` of the
-adoption request that `REQ-RCN-066` requires a caller to state.
+stop the interface. The fields `REQ-API-076` reaches are `listen_port`, `mtu` and `enabled`;
+`manage_routes` joins them when it arrives.
 
 Section 5.1 above names the fields whose zero value carries meaning. Those are a different set:
 their default already is the zero value, so they need no presence marker. The two lists are easy
@@ -151,7 +132,7 @@ to confuse and the distinction is what makes both correct.
 > **REQ-API-065** — A write-only field omitted from an update MUST retain its stored value.
 
 > **REQ-API-066** — An update supplying an immutable field whose value differs from the stored
-> resource MUST be rejected with `INVALID_ARGUMENT`.
+> resource MUST be rejected with `FIELD_IMMUTABLE`.
 
 `REQ-API-065` covers `private_key` and `preshared_key`, which no read returns under
 `REQ-RES-013` and `REQ-RES-022`. Without it a read-modify-write cycle would erase or
@@ -236,51 +217,61 @@ somebody else added.
 
 ## 7. Error model
 
-> **REQ-API-040** — Errors MUST be returned as `google.rpc.Status` carrying `ErrorInfo`.
+> **REQ-API-082** — An error response MUST be an `application/problem+json` body whose `reason`
+> member carries the error's reason code.
 
-> **REQ-API-041** — `ErrorInfo.reason` MUST be one of the values enumerated below.
+> **REQ-API-041** — The `reason` member MUST carry one of the values enumerated below.
 
-Clients distinguish errors by reason code rather than by parsing message strings.
+> **REQ-API-083** — An error response MUST carry the HTTP status the table below assigns to its
+> reason code.
 
-| gRPC | HTTP | Case |
-|---|---|---|
-| `INVALID_ARGUMENT` | 400 | Malformed spec |
-| `UNAUTHENTICATED` | 401 | Missing or unrecognized token |
-| `PERMISSION_DENIED` | 403 | Insufficient role |
-| `NOT_FOUND` | 404 | No such resource |
-| `ALREADY_EXISTS` | 409 | Duplicate creation |
-| `FAILED_PRECONDITION` | 412 / 400 | Revision mismatch, module not loaded, port in use |
-| `INTERNAL` | 500 | Unexpected failure |
-| `UNAVAILABLE` | 503 | Kernel temporarily unresponsive |
+Clients distinguish errors by reason code rather than by parsing message strings. The body is
+the problem document of RFC 9457, so a generic HTTP client reads its `status`, `title` and
+`detail` without knowing the codes.
 
-`RESOURCE_EXHAUSTED` is absent because no requirement produces it. Per-principal rate
-limiting is deferred; see the scope table in [product.md](../00-overview/product.md).
+| HTTP | Reason codes |
+|---|---|
+| 400 | `INTERFACE_NAME_INVALID`, `PUBLIC_KEY_INVALID`, `KEY_INVALID`, `ADDRESSES_REQUIRED`, `ALLOWED_IPS_REQUIRED`, `ALLOWED_IPS_DUPLICATE`, `ALLOWED_IPS_NOT_CANONICAL`, `IPV6_NOT_SUPPORTED`, `LISTEN_PORT_INVALID`, `KEEPALIVE_INVALID`, `MTU_INVALID`, `ENDPOINT_INVALID`, `ENDPOINT_REQUIRED`, `PEER_IS_INTERFACE`, `CLIENT_ADDRESS_MISSING`, `FIELD_IMMUTABLE`, `FORWARD_POLICY_NEEDS_UPLINK`, `PEER_INTERFACE_NOT_FOUND`, `ADOPTION_FIELD_REQUIRED` |
+| 401 | `TOKEN_INVALID` |
+| 404 | `INTERFACE_NOT_FOUND`, `INTERFACE_NOT_MANAGED`, `PEER_NOT_FOUND` |
+| 409 | `INTERFACE_EXISTS`, `PEER_EXISTS`, `LISTEN_PORT_IN_USE`, `ADDRESS_CONFLICT`, `INTERFACE_NOT_FOREIGN`, `INTERFACE_NOT_ADOPTED`, `ADOPTION_BLOCKED` |
+| 412 | `REVISION_MISMATCH` |
+| 500 | `APPLY_FAILED`, `RECONCILE_FAILED` |
+
+The startup codes — `MISSING_CAP_NET_ADMIN`, `STORE_CORRUPT`, `STORE_SCHEMA_TOO_NEW`,
+`NON_LOOPBACK_BIND`, `SYSCTL_WRITE_DENIED`, `NFTABLES_UNAVAILABLE` — end the process before it
+serves, so they appear in its log rather than in a response. The warning codes appear in
+`status.warnings` under `REQ-VAL-002`, never as an error.
 
 ### 7.1. Reason codes
 
 ```
-WG_MODULE_NOT_LOADED        KERNEL_TOO_OLD            MISSING_CAP_NET_ADMIN
+MISSING_CAP_NET_ADMIN       STORE_CORRUPT             STORE_SCHEMA_TOO_NEW
 INTERFACE_NAME_INVALID      INTERFACE_NOT_FOUND       INTERFACE_EXISTS
 INTERFACE_NOT_MANAGED       LISTEN_PORT_IN_USE        ADDRESS_CONFLICT
 PEER_NOT_FOUND              PEER_EXISTS               PUBLIC_KEY_INVALID
 ALLOWED_IPS_DUPLICATE       ALLOWED_IPS_OVERLAP       ALLOWED_IPS_OUT_OF_SUBNET
 REVISION_MISMATCH           RECONCILE_FAILED          TOKEN_INVALID
-NON_LOOPBACK_BIND           STORE_SCHEMA_TOO_NEW
-NFTABLES_UNAVAILABLE        STORE_CORRUPT
+NON_LOOPBACK_BIND           NFTABLES_UNAVAILABLE      SYSCTL_WRITE_DENIED
 IPV6_NOT_SUPPORTED          FORWARD_POLICY_NEEDS_UPLINK
-PEER_INTERFACE_NOT_FOUND    SYSCTL_WRITE_DENIED
+PEER_INTERFACE_NOT_FOUND    APPLY_FAILED              FIELD_IMMUTABLE
 ADOPTION_BLOCKED            INTERFACE_NOT_ADOPTED     INTERFACE_NOT_FOREIGN
 ADOPTION_FIELD_REQUIRED     ADDRESSES_REQUIRED        ALLOWED_IPS_REQUIRED
 ENDPOINT_REQUIRED           MTU_OUT_OF_RANGE          ENDPOINT_NOT_IP
-INTER_INTERFACE_ONE_SIDED   EXTERNAL_WITHOUT_NAT
-ALLOWED_PEER_INTERFACES_IGNORED
+INTER_INTERFACE_ONE_SIDED   EXTERNAL_WITHOUT_NAT      ALLOWED_PEER_INTERFACES_IGNORED
+LISTEN_PORT_INVALID         KEEPALIVE_INVALID         MTU_INVALID
+KEY_INVALID                 PEER_IS_INTERFACE         ALLOWED_IPS_NOT_CANONICAL
+ENDPOINT_INVALID            CLIENT_ADDRESS_MISSING
 ```
 
 `TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
 alike, so a second code described a distinction the agent deliberately does not make.
+`WG_MODULE_NOT_LOADED` and `KERNEL_TOO_OLD` were removed in v2.0: every supported kernel carries
+WireGuard in tree, the agent loads no module itself, and the startup check that produced them is
+gone.
 
 Every value has a producing requirement, in both directions: no code is unreachable, and no rule
-that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-035` each name their own code, error
+that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-043` each name their own code, error
 and warning alike, and the startup table of `REQ-API-050` names the codes for the checks it
 performs. The rest are named where the behaviour is defined:
 
@@ -291,9 +282,14 @@ performs. The rest are named where the behaviour is defined:
 | `INTERFACE_NOT_MANAGED` | `REQ-API-069` |
 | `PEER_NOT_FOUND` | `REQ-API-070` |
 | `PEER_EXISTS` | `REQ-API-071` |
+| `FIELD_IMMUTABLE` | `REQ-API-066` |
+| `APPLY_FAILED` | `REQ-APL-008` |
 | `REVISION_MISMATCH` | `REQ-API-031` |
 | `RECONCILE_FAILED` | `REQ-RCN-040` |
-| `TOKEN_INVALID` | `REQ-SEC-078`, and check 8 of `REQ-API-050` |
+| `TOKEN_INVALID` | `REQ-SEC-078`, and check 3 of `REQ-API-050` |
+| `NON_LOOPBACK_BIND` | `REQ-SEC-083` |
+| `SYSCTL_WRITE_DENIED` | `REQ-FWD-025` |
+| `NFTABLES_UNAVAILABLE` | the startup checks SPEC-02 brings with it |
 | `ALLOWED_IPS_OVERLAP` | `REQ-VAL-030` |
 | `ALLOWED_IPS_OUT_OF_SUBNET` | `REQ-VAL-031` |
 | `ENDPOINT_REQUIRED` | `REQ-KEY-038` |
@@ -306,14 +302,6 @@ and `ADOPTION_FIELD_REQUIRED` in `REQ-RCN-066`.
 
 > **REQ-API-067** — An `ADOPTION_BLOCKED` status MUST carry the findings of `REQ-DIA-040` for
 > the named interface.
-
-> **REQ-API-079** — A structured payload accompanying an error MUST travel in
-> `google.rpc.Status.details` rather than in `ErrorInfo`.
-
-`REQ-API-079` exists because `ErrorInfo` cannot hold one. Its only extensible member is a
-`map<string, string>`, and a finding under `REQ-DIA-041` carries six fields of which two are
-lists, so flattening one into string keys would invent an encoding no requirement defines.
-`details` takes a message, which is what a finding is.
 
 > **REQ-API-068** — `AdoptInterface` MUST accept a validate-only mode that returns the spec the
 > request would store without writing it.
@@ -333,59 +321,61 @@ each one a stable `hint_code`.
 
 | # | Check | Reason on failure |
 |---|---|---|
-| 1 | The kernel supports WireGuard, or the module can be loaded | `WG_MODULE_NOT_LOADED`, or `KERNEL_TOO_OLD` when the kernel cannot carry it |
-| 2 | `CAP_NET_ADMIN` is held | `MISSING_CAP_NET_ADMIN` |
-| 3 | The store opens and is writable | `STORE_CORRUPT` |
-| 4 | The store schema is one this build understands (`REQ-RCN-005`) | `STORE_SCHEMA_TOO_NEW` |
-| 5 | Forwarding sysctl is writable | per `REQ-FWD-025` |
-| 6 | When NAT is enabled, or any axis of an interface in desired state is `DENY`, `nf_tables` is available | `NFTABLES_UNAVAILABLE` |
-| 7 | When the HTTP listener is enabled, its bind address is loopback (`REQ-SEC-070`) | `NON_LOOPBACK_BIND` |
-| 8 | When the HTTP listener is enabled, at least one token is configured (`REQ-SEC-072`) | `TOKEN_INVALID` |
-| 9 | When the metrics listener is enabled, its bind address is loopback (`REQ-SEC-083`) | `NON_LOOPBACK_BIND` |
+| 1 | The store opens and is writable | `STORE_CORRUPT` |
+| 2 | The store schema is one this build understands (`REQ-RCN-005`) | `STORE_SCHEMA_TOO_NEW` |
+| 3 | A token is configured (`REQ-SEC-072`) | `TOKEN_INVALID` |
+| 4 | `CAP_NET_ADMIN` is held | `MISSING_CAP_NET_ADMIN` |
 
 A startup failure carries a reason code for the same purpose a request failure does: an
 installer or a unit log should be able to branch on the cause without matching message text.
-Checks 3 and 4 were one line before, and they are separated here because a corrupt store and a
-store from a newer build call for opposite actions — restore one, downgrade nothing. Row 5
-points at `REQ-FWD-025` rather than repeating the code it already names, since sysctl belongs to
-[SPEC-02](SPEC-02-forward-policy.md).
+Checks 1 and 2 are separate because a corrupt store and a store from a newer build call for
+opposite actions — restore one, downgrade nothing. The modules delivered later bring their own
+checks: the forwarding sysctl and `nf_tables` with [SPEC-02](SPEC-02-forward-policy.md), the
+metrics bind address with [SPEC-08](SPEC-08-observability.md).
 
-Check 6 reads desired state, so it runs after checks 3 and 4. It covers a `DENY` axis as well as
-NAT because `REQ-FWD-001` makes two axes `DENY` by default and `REQ-FWD-003` turns each into a
-drop rule: gating the check on NAT alone would let a stock agent start cleanly on a host where
-its own defaults cannot be enforced, which is the failure the system requirements of
-[SPEC-09](SPEC-09-config-deployment.md) section 3 already rule out.
-
-> **REQ-API-051** — `/v1/health` MUST report success only after every startup check passes and
-> the first reconcile pass completes.
+> **REQ-API-051** — `/v1/health` MUST report success only after every startup check passes.
 
 > **REQ-API-078** — `GetVersion` MUST report the agent version, the commit it was built from,
-> the Go version, the process start time and its uptime.
-
-Those are the five values `REQ-DIA-020` already reports in its `agent` row, so the two surfaces
-agree by construction rather than by coincidence.
+> the process start time and its uptime.
 
 A single endpoint covers both liveness and readiness because the agent runs under systemd
 rather than an orchestrator that distinguishes them. Splitting it later adds a path without
-changing this one, so the simpler form carries no cost to reverse. `/v1/health` answers yes or
-no; `GET /v1/overview` under `REQ-DIA-020` is what names the component that failed.
+changing this one, so the simpler form carries no cost to reverse.
 
 ## 9. Shutdown
 
-> **REQ-API-073** — On `SIGTERM` the agent MUST stop accepting new requests, complete the
-> requests in flight, and release the store lock of `REQ-RCN-006` before exiting.
+> **REQ-API-073** — On `SIGTERM` the agent MUST stop accepting new requests and complete the
+> requests in flight before exiting.
 
 > **REQ-API-074** — Shutdown MUST NOT alter the kernel state of any interface it manages.
 
 `REQ-API-074` is the property that makes an upgrade safe, and it is the same one the whole
 design rests on: the data plane runs independently of the agent, so stopping the agent is not
-stopping the tunnel. A shutdown that tore interfaces down would turn every package upgrade into
-an outage.
+stopping the tunnel. Under ADR-0013 the interfaces belong to their `wg-quick@` units, which the
+agent's own shutdown leaves running. A shutdown that tore interfaces down would turn every package
+upgrade into an outage.
 
-Releasing the lock matters because `REQ-CLI-002` lets several subcommands write the store
-directly. An agent that exited without releasing it would leave the operator unable to adopt or
-issue a token until the lock aged out, which for an advisory lock means never.
+## 10. Removed requirements
 
-## 10. Open questions
+Removed in v2.0 by [ADR-0014](../10-decisions/ADR-0014-rest-api-described-by-openapi.md), which
+makes the API REST alone, and [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md),
+which applies a write synchronously:
+
+~~**REQ-API-002**~~ — REST mapping declared with `google.api.http` annotations. No `.proto`
+contract remains; `REQ-API-063` states the mapping.
+
+~~**REQ-API-010**~~ — `ListPeerStatus` reporting every peer in one call. The operation is gone;
+`ListPeers` returns each peer with its status.
+
+~~**REQ-API-021**~~ — A failed application answered by `DEGRADED` under HTTP `202`. A failed
+application is restored and reported under `REQ-APL-008`.
+
+~~**REQ-API-040**~~ — Errors as `google.rpc.Status` carrying `ErrorInfo`. Replaced by
+`REQ-API-082`.
+
+~~**REQ-API-079**~~ — Structured error payloads in `google.rpc.Status.details`. No payload in v1
+needs one; a problem document takes extension members when one does.
+
+## 11. Open questions
 
 None.

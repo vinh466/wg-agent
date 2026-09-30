@@ -3,23 +3,30 @@ id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
 status: Accepted
-version: 1.10
+version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-29
+updated: 2026-09-30
 depends_on: [SPEC-01, SPEC-02]
-adrs: [ADR-0001, ADR-0011]
-milestone: M1
+adrs: [ADR-0001, ADR-0011, ADR-0013]
+milestone: P1
 ---
 
 # SPEC-03: Desired state and reconcile
 
 ## 1. Scope
 
-Durable storage of desired state, the reconcile algorithm, and **field ownership** — which
-fields the agent enforces and which the kernel owns.
+Durable storage of desired state and the lock every writer takes; the reconcile algorithm, and
+**field ownership** — which fields the agent enforces and which the kernel owns.
+
+Under [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) a change reaches WireGuard
+when it is written, through `wg` and `wg-quick`, as [SPEC-13](SPEC-13-applying-changes.md)
+specifies. Continuous reconciliation — sections 3 to 5 and the error handling of section 8 — and
+adoption in section 6.3 are delivered after that; the [roadmap](../60-planning/roadmap.md) and
+the [backlog](../60-planning/backlog.md) hold the split.
 
 **Not in this module:**
+- How a change reaches WireGuard — files, units, synchronisation → [SPEC-13](SPEC-13-applying-changes.md)
 - Backup, restore, upgrade migration → [SPEC-10](SPEC-10-lifecycle.md)
 - Specific nftables rules → [SPEC-02](SPEC-02-forward-policy.md)
 - Drift metrics → [SPEC-08](SPEC-08-observability.md)
@@ -47,24 +54,22 @@ has no such case.
 > **REQ-RCN-005** — On encountering a schema version newer than it understands, the agent
 > MUST refuse to start with a clear message rather than misinterpreting the data.
 
-> **REQ-RCN-006** — The agent MUST hold an exclusive lock on the store for as long as it is
-> serving.
+> **REQ-RCN-042** — The agent MUST serialise every operation that writes the store or an
+> interface's configuration behind one exclusive lock, held on a file that is never renamed.
 
-> **REQ-RCN-007** — A process writing the store without the agent MUST acquire that lock and
-> fail while another process holds it.
+The CLI writes beside a running agent (`REQ-CLI-002`), so without the lock two writers interleave
+and one renders a configuration from a store the other has already changed. One lock for the
+node, rather than one per interface, keeps the rule obvious at the scale of a single node.
 
-The lock is what makes a write outside the agent safe. `REQ-CLI-002` lets several subcommands
-reach the store directly, which is the only way to act on a node before the agent has ever
-started; without a lock, one of them running beside a live agent would write behind its back
-and lose whichever change reconcile wrote next.
-
-An advisory lock on the store file is preferred to asking whether the agent is running. It
+An advisory lock on a file of its own is preferred to asking whether the agent is running. It
 guards the resource rather than a proxy for it, so it also serialises two commands against each
 other, and the kernel releases it when a holder dies — a socket or a pid file left behind by a
-crash answers the question wrongly.
+crash answers the question wrongly. The file is not the store: the store is replaced by rename,
+and a lock held on it would sit on an inode the next rename discards.
 
-Implementation: a single file written atomically — rendered to a temporary path and renamed over
-the original — which meets REQ-RCN-001 to REQ-RCN-005 without a database engine.
+Implementation: a single file written atomically — rendered to a temporary path, synced, and
+renamed over the original, then the directory synced — which meets `REQ-RCN-001` to
+`REQ-RCN-005` without a database engine.
 
 ## 3. Field ownership
 
@@ -176,17 +181,6 @@ routing is reachable only from the `true` arm, which is `REQ-RCN-024` drawn rath
 > **REQ-RCN-036** — Each full reconcile pass MUST classify every WireGuard link absent from
 > desired state as `FOREIGN` or `ORPHANED`, per section 6.
 
-> **REQ-RCN-023** — The agent MUST use incremental peer updates rather than whole-list
-> replacement, except during `BatchUpdatePeers` with `replace_all = true`.
-
-Rationale: whole-list replacement clears every peer before adding the list back, so a peer
-re-added without an endpoint loses the one the kernel learned. Desired state holds no endpoint
-to supply, because `REQ-RCN-063` keeps one out of the store, so a reconcile pass using
-replacement would erase every learned endpoint on the periodic interval of `REQ-RCN-020` —
-the repeated disconnection of roaming clients that `REQ-RCN-051` exists to prevent. A caller
-issuing `BatchUpdatePeers` with `replace_all` is stating an intent to discard what is there,
-which reconcile is not.
-
 ## 6. Interfaces outside desired state
 
 A WireGuard link on the host that desired state does not describe falls into one of two cases,
@@ -227,22 +221,22 @@ that removes the spec rather than on one named exit.
 
 ### 6.1. Foreign interfaces
 
-> **REQ-RCN-030** — A WireGuard interface that desired state does not describe and that no
-> deletion record names MUST NOT be deleted or modified by the agent.
+> **REQ-RCN-030** — A WireGuard interface that desired state does not describe MUST NOT be
+> deleted or modified by the agent.
 
 > **REQ-RCN-031** — The agent MUST report such an interface in `ListInterfaces` with
 > `status.ownership = FOREIGN`.
 
-Deleting resources created by another party is unacceptable behavior for an agent. Both
-qualifiers are facts the store holds, which is what makes the rule decidable after a restart:
-the agent cannot know whether it created a link, only whether desired state describes it and
-whether a deletion record names it. `REQ-RCN-035` protects an orphan under its own rule, so the
-two cases stay distinct. A link nobody has asked for stays untouchable.
+Deleting resources created by another party is unacceptable behavior for an agent. Desired state
+is a fact the store holds, which is what makes the rule decidable after a restart: the agent
+cannot know whether it created a link, only whether desired state describes it. `REQ-APL-002`
+carries the same rule to the configuration files beside the agent's own, and `REQ-RCN-035`
+protects an orphan under a rule of its own. A link nobody has asked for stays untouchable.
 
 ### 6.2. Deletion and orphans
 
-> **REQ-RCN-032** — `DeleteInterface` MUST remove the link from the kernel and the spec from
-> the store.
+> **REQ-RCN-032** — `DeleteInterface` MUST stop and disable the interface's unit, remove its
+> configuration file, and remove its spec from the store.
 
 > **REQ-RCN-038** — Deleting an interface MUST delete its peers from the store within the same
 > transaction.
@@ -367,6 +361,18 @@ case. The conditions it was reaching for belong elsewhere and are covered: an IP
 rejected by `REQ-VAL-020`, an empty `allowed_ips` list by `REQ-VAL-017`, and storing part of a
 peer is already impossible under the single transaction of `REQ-RCN-065`.
 
+Removed in v2.0 by [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md), which applies a
+change when it is written and lets the CLI act beside a running agent:
+
+~~**REQ-RCN-006**~~ — Exclusive lock held for as long as the agent serves. A lifetime lock would
+block the CLI of `REQ-CLI-002`; `REQ-RCN-042` serialises each writing operation instead.
+
+~~**REQ-RCN-007**~~ — Lock taken by a process writing the store without the agent. Every writer,
+agent or CLI, takes the one lock of `REQ-RCN-042`.
+
+~~**REQ-RCN-023**~~ — Incremental peer updates rather than whole-list replacement.
+`REQ-APL-005` states the observable property, which `wg syncconf` provides.
+
 ## 8. Error handling
 
 > **REQ-RCN-040** — When application fails, the agent MUST retain the stored desired state
@@ -375,10 +381,6 @@ peer is already impossible under the single transaction of `REQ-RCN-065`.
 > **REQ-RCN-041** — The agent MUST retry using exponential backoff with jitter between
 > `backoff_min` and `backoff_max`.
 
-> **REQ-RCN-042** — The agent MUST serialize all operations on a single interface behind a
-> per-interface lock.
-
 ## 9. Open questions
 
-None. The scale targets that set the default `reconcile.interval` are fixed by `REQ-LIF-040`
-in [SPEC-10](SPEC-10-lifecycle.md).
+None.

@@ -3,13 +3,13 @@ id: SPEC-07
 title: Validation
 prefix: VAL
 status: Accepted
-version: 1.10
+version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-30
 depends_on: [SPEC-01, SPEC-02]
-adrs: [ADR-0005, ADR-0006, ADR-0011]
-milestone: M1
+adrs: [ADR-0005, ADR-0006, ADR-0011, ADR-0013]
+milestone: P1
 ---
 
 # SPEC-07: Validation
@@ -55,8 +55,8 @@ two identical prefixes the later-configured peer silently displaces the earlier 
 > **REQ-VAL-014** — The agent MUST reject `addresses` overlapping a WireGuard interface on the
 > host other than the one the spec names, with `ADDRESS_CONFLICT`.
 
-> **REQ-VAL-015** — The agent MUST reject a create request naming a WireGuard link that
-> already exists, unless a deletion record names it, with `INTERFACE_EXISTS`.
+> **REQ-VAL-015** — The agent MUST reject a create request naming a WireGuard link, or a file
+> under `/etc/wireguard/`, that already exists, with `INTERFACE_EXISTS`.
 
 `REQ-VAL-013` and `REQ-VAL-014` reach foreign interfaces as well as managed ones. A port or
 subnet held by a link the agent did not create collides just as firmly, and checking only
@@ -69,16 +69,16 @@ listen port while at most one of them is up; the second bind is refused on the t
 with `Address in use`. A port collision between two existing links is therefore reachable
 exactly when one is down, which is the state adoption would take over and then bring up.
 
-`REQ-VAL-015` is what keeps a name collision from becoming a silent takeover: step 1 of
-`REQ-RCN-022` skips creation when the link is present, and step 4 then removes every peer the
-store does not know. Adoption under
-[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) is the supported path, and
-it is explicit.
+`REQ-VAL-015` is what keeps a name collision from becoming a silent takeover. Under
+[SPEC-13](SPEC-13-applying-changes.md) a create writes `/etc/wireguard/<name>.conf` and starts
+`wg-quick@<name>`: an existing file of that name is the operator's under `REQ-APL-002`, whether or
+not it is running, and an existing link is somebody's live interface. Adoption under
+[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) is the supported path to
+managing either, and it is explicit.
 
-The one exemption covers the agent's own orphan under `REQ-RCN-034`: refusing to recreate a
-link it failed to delete would leave a shell on the node as the only recovery. A repeated create
-of a managed interface is refused like any other, which `REQ-RES-003` permits because the store
-is left unchanged — the same answer `REQ-API-071` gives for a repeated peer create.
+A repeated create of a managed interface is refused like any other, which `REQ-RES-003` permits
+because the store is left unchanged — the same answer `REQ-API-071` gives for a repeated peer
+create.
 
 > **REQ-VAL-016** — The agent MUST reject an `InterfaceSpec` whose `addresses` list is empty
 > with `ADDRESSES_REQUIRED`.
@@ -101,6 +101,47 @@ half-configured.
 
 Silent omission is prohibited, as is accepting the value without configuring it. Reasoning
 in [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md).
+
+> **REQ-VAL-036** — The agent MUST reject a `listen_port` outside 1 to 65535 with
+> `LISTEN_PORT_INVALID`.
+
+> **REQ-VAL-037** — The agent MUST reject a `persistent_keepalive` above 65535 with
+> `KEEPALIVE_INVALID`.
+
+Both fields are 16-bit in WireGuard and 32-bit on the wire. A port of `0` asks the kernel to
+choose one, which [SPEC-01](SPEC-01-resource-model.md) excludes because the choice changes at
+every restart.
+
+> **REQ-VAL-038** — The agent MUST reject an `mtu` outside 68 to 65535 with `MTU_INVALID`.
+
+A WireGuard link accepts an MTU of `0` and of `65536`, and below 68 the kernel deletes every IPv4
+address of the interface, which then do not return when the MTU is raised again. `REQ-VAL-032`
+warns about the unusual values inside the valid range.
+
+> **REQ-VAL-039** — The agent MUST reject a `private_key` or `preshared_key` that is not base64
+> of exactly 32 bytes with `KEY_INVALID`.
+
+> **REQ-VAL-040** — The agent MUST reject a peer whose public key is the interface's own public
+> key with `PEER_IS_INTERFACE`.
+
+WireGuard accepts such a peer without an error and never installs it, so it would be stored and
+rendered, and missing from every status read.
+
+> **REQ-VAL-041** — The agent MUST reject an `allowed_ips` entry with host bits set with
+> `ALLOWED_IPS_NOT_CANONICAL`.
+
+WireGuard masks the host bits away, so `10.0.0.5/24` becomes `10.0.0.0/24` and `REQ-VAL-012` would
+miss it as a duplicate of `10.0.0.0/24`. The caller may have meant `10.0.0.5/32`; refusing asks
+rather than guesses. `addresses` keep their host bits and are not affected.
+
+> **REQ-VAL-042** — The agent MUST reject an `endpoint` that is not a host and a port from 1 to
+> 65535 with `ENDPOINT_INVALID`.
+
+> **REQ-VAL-043** — The agent MUST reject a peer created with `generate_keypair` none of whose
+> `allowed_ips` entries lies within the interface's subnets, with `CLIENT_ADDRESS_MISSING`.
+
+The client configuration takes its `Address` from those entries under `REQ-KEY-043`; without one
+the file would carry none.
 
 > **REQ-VAL-021** — The agent MUST reject `external = ALLOW` combined with
 > `nat.enable_uplink_forwarding = false` with `FORWARD_POLICY_NEEDS_UPLINK`.
@@ -162,6 +203,14 @@ Syntactically valid, practically broken.
 | Empty `addresses` | REQ-VAL-016 | Error |
 | Empty `allowed_ips` | REQ-VAL-017 | Error |
 | IPv6 address | REQ-VAL-020 | Error |
+| Port outside 1 to 65535 | REQ-VAL-036 | Error |
+| Keepalive above 65535 | REQ-VAL-037 | Error |
+| MTU outside 68 to 65535 | REQ-VAL-038 | Error |
+| Malformed private or preshared key | REQ-VAL-039 | Error |
+| Peer carrying the interface's own key | REQ-VAL-040 | Error |
+| Host bits in `allowed_ips` | REQ-VAL-041 | Error |
+| Malformed `endpoint` | REQ-VAL-042 | Error |
+| Generated peer with no address in the subnets | REQ-VAL-043 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |
 | One-sided `inter_interface` | REQ-VAL-023 | Warning |

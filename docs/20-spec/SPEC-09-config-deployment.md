@@ -3,13 +3,13 @@ id: SPEC-09
 title: Configuration, packaging and deployment
 prefix: CFG
 status: Accepted
-version: 1.6
+version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-09-30
 depends_on: [SPEC-05]
-adrs: [ADR-0002, ADR-0009]
-milestone: M2
+adrs: [ADR-0010, ADR-0013, ADR-0015]
+milestone: P1–P3
 ---
 
 # SPEC-09: Configuration, packaging and deployment
@@ -25,8 +25,8 @@ Configuration keys, system requirements, the systemd unit, packaging.
 
 ## 2. Configuration file
 
-> **REQ-CFG-037** — The agent MUST read its configuration from a YAML file whose path
-> defaults to `/etc/wg-agent/config.yaml`.
+> **REQ-CFG-037** — The agent MUST read its configuration from a file of `KEY=VALUE` lines whose
+> path defaults to `/etc/default/wg-agent`.
 
 > **REQ-CFG-039** — A `--config` argument MUST override that path.
 
@@ -39,14 +39,14 @@ Configuration keys, system requirements, the systemd unit, packaging.
 > **REQ-CFG-041** — `<PATH>` MUST be the dotted key path uppercased, with every character
 > outside `A-Z` and `0-9` replaced by an underscore.
 
-`REQ-CFG-041` makes the pattern of `REQ-CFG-001` decidable: `server.http.address` becomes
-`WG_AGENT_SERVER_HTTP_ADDRESS`. Without the transformation two implementations could disagree
-about a variable an operator has already set, which is the kind of difference that surfaces only
-in production.
+`REQ-CFG-041` makes the pattern of `REQ-CFG-001` decidable: `listen.address` becomes
+`WG_AGENT_LISTEN_ADDRESS`. The file uses the same names, so a line copied from the file into the
+environment means the same thing, and one parser serves the agent and the CLI alike. Every key
+is a scalar, which is what lets one line per key carry the whole configuration without a
+structured format.
 
-`REQ-CFG-040` matters because of `REQ-CFG-037`: a node reaching the store through the CLI has
-no configuration file yet, and refusing to start without one would make the first token
-impossible to issue.
+`REQ-CFG-040` matters because the CLI reads the same file: a node reaching the store through the
+CLI before anything is configured still works on defaults.
 
 > **REQ-CFG-002** — The agent MUST refuse to start on encountering an unrecognized
 > configuration key rather than ignoring it silently.
@@ -59,143 +59,89 @@ supply a value: defaults, then the file, then the environment, then a flag. A fl
 an operator reaches for once, to answer a question about the running node, and one that
 silently lost to a file in `/etc` would send them looking for a bug in the agent.
 
-> **REQ-CFG-004** — The systemd unit MUST load `/etc/default/wg-agent` through
-> `EnvironmentFile`.
-
-> **REQ-CFG-005** — Loading `/etc/default/wg-agent` MUST tolerate the file being absent.
-
-`REQ-CFG-004` gives the deployment the shape an operator expects from a Debian service: the
-YAML file holds structure, and `/etc/default/wg-agent` holds the per-host overrides that
-`REQ-CFG-001` already exposes as `WG_AGENT_<PATH>` variables. The port below picks 9585 to sit
-beside the metrics listener on 9586 rather than contend for 8080.
-
 `node.endpoint` is empty by default because no value the agent could choose would be right. The
-address a client reaches a node at depends on NAT and on which of several addresses is routable
+host a client reaches a node at depends on NAT and on which of several addresses is routable
 from where the client sits, so `REQ-KEY-038` refuses to guess and asks the caller instead.
 
-```yaml
-node:
-  endpoint: ""                       # host:port clients reach this node at — REQ-KEY-037
+```sh
+# /etc/default/wg-agent — every key, at its default.
 
-server:
-  unix_socket: /run/wg-agent/wg-agent.sock
-  socket_mode: "0660"
-  socket_group: wg-agent
-  http:
-    enabled: false                   # the install script turns this on — REQ-CFG-031
-    address: "127.0.0.1:9585"        # loopback only — REQ-SEC-070
+# Host clients reach this node at; the port is each interface's own — REQ-KEY-037.
+#WG_AGENT_NODE_ENDPOINT=
 
-security:
-  allow_server_generated_keys: true
-  token_file: /etc/wg-agent/tokens.yaml   # mode 0600 — REQ-SEC-074
+# Loopback unless set; any other address belongs on a private network — REQ-SEC-084.
+#WG_AGENT_LISTEN_ADDRESS=127.0.0.1:9585
 
-state:
-  path: /var/lib/wg-agent/state.db
+# One token, mode 0600, owned by root — REQ-SEC-074, REQ-SEC-082.
+#WG_AGENT_TOKEN_FILE=/etc/wg-agent/token
 
-reconcile:
-  interval: 30s
-  apply_timeout: 10s
-  backoff_min: 1s
-  backoff_max: 60s
-
-runtime:
-  peer_online_threshold: 180s
-
-# Defaults applied to new interfaces when the caller omits them.
-# These values are the flat-LAN-per-group pattern — see SPEC-02.
-defaults:
-  forward_policy:
-    intra_interface: ALLOW
-    inter_interface: DENY
-    external: DENY
-  mtu: 1420
-
-metrics:
-  enabled: true
-  address: "127.0.0.1:9586"        # loopback only — REQ-SEC-083
-  per_peer: true
-
-audit:
-  enabled: true
-  path: /var/log/wg-agent/audit.jsonl
-
-log:
-  level: info
-  format: json
+#WG_AGENT_STATE_PATH=/var/lib/wg-agent/state.json
+#WG_AGENT_APPLY_TIMEOUT=10s
+#WG_AGENT_PEER_ONLINE_THRESHOLD=180s
+#WG_AGENT_LOG_LEVEL=info
 ```
 
 ### 2.1. Token file
 
-> **REQ-CFG-003** — The token file MUST map each token value to exactly one role and one
-> label.
+> **REQ-CFG-003** — The token file MUST hold exactly one token.
 
-```yaml
-tokens:
-  - token: <opaque string>
-    role: admin
-    label: vpn-controller
-  - token: <opaque string>
-    role: reader
-    label: monitoring
-```
-
-`label` supplies the principal recorded in the audit log under
-[SPEC-08](SPEC-08-observability.md). The token value itself is sensitive data under
-`REQ-SEC-076` and never appears in a record.
+The file holds the single shared secret of
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md) on one line. The
+token value is sensitive data under `REQ-SEC-076` and never appears in a record.
 
 ## 3. System requirements
 
-The real constraint is the kernel, not the distribution.
-
 | Requirement | Value |
 |---|---|
-| Kernel | 5.6 or later for in-tree WireGuard, or older with `wireguard-dkms` |
-| Capability | `CAP_NET_ADMIN` |
-| nftables | Required when NAT is enabled or any axis is set to `DENY` |
-| Tested distributions | Debian 11/12/13, Ubuntu 20.04/22.04/24.04 |
+| Distribution | Debian 13 and later, Ubuntu 24.04 LTS and later — stable and LTS releases |
+| Kernel | As the distribution ships it; WireGuard is in tree on every one |
+| Packages | `wireguard-tools`, `systemd` |
+| Account | root, confined by the unit — `REQ-SEC-086` |
 
 ## 4. systemd unit
 
-> **REQ-CFG-010** — The systemd unit MUST run the agent under a dedicated account with
-> `AmbientCapabilities=CAP_NET_ADMIN`.
+> **REQ-CFG-043** — The systemd unit MUST make the filesystem read-only except `/etc/wireguard/`
+> and the agent's state directory.
 
 ```ini
 [Service]
-User=wg-agent
-Group=wg-agent
-AmbientCapabilities=CAP_NET_ADMIN
+ExecStart=/usr/bin/wg-agent serve
 CapabilityBoundingSet=CAP_NET_ADMIN
 NoNewPrivileges=yes
 ProtectSystem=strict
+ReadWritePaths=/etc/wireguard
+StateDirectory=wg-agent
+StateDirectoryMode=0700
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
 ProtectKernelTunables=yes
+ProtectKernelModules=yes
 ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 RestrictNamespaces=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
-EnvironmentFile=-/etc/default/wg-agent
-ReadWritePaths=/var/lib/wg-agent /run/wg-agent /proc/sys/net/ipv4/conf
 ```
+
+The agent starts `wg` itself and asks systemd, over its bus, to start and stop `wg-quick@`
+units; `wg-quick` then runs in its own unit, outside this sandbox. That is why nothing beyond
+`/etc/wireguard/` and the store needs to be writable here, and why `ProtectKernelModules` costs
+nothing — the kernel loads WireGuard for the `wg-quick@` unit, not for the agent.
 
 ### 4.1. The ProtectKernelTunables trade-off
 
-`ProtectKernelTunables=yes` mounts `/proc/sys` read-only, while the agent must write
-`net.ipv4.conf.<iface>.forwarding` per `REQ-FWD-020`. With the default
-`intra_interface = ALLOW`, that write is the ordinary path rather than an exception.
+The agent writes no sysctl until [SPEC-02](SPEC-02-forward-policy.md) is delivered, so the unit
+above sets `ProtectKernelTunables=yes` with no carve-out. The requirements below return with the
+forwarding sysctl of `REQ-FWD-020`; on systemd 255, 257 and 259 the combination they describe was
+measured to work.
 
 > **REQ-CFG-011** — The package SHOULD combine `ProtectKernelTunables=yes` with
 > `ReadWritePaths=/proc/sys/net/ipv4/conf`, opening only the required subtree.
 
 > **REQ-CFG-012** — Where that combination does not work on a given systemd version, the
 > package MAY fall back to `ProtectKernelTunables=no`.
-
-Documentation states plainly that the fallback is a hardening trade-off. Carve-out behavior
-for `/proc/sys` is inconsistent across systemd versions, so the combination is verified rather
-than assumed.
 
 > **REQ-CFG-013** — The test suite MUST verify the `REQ-CFG-011` combination against every
 > systemd version shipped by the distributions in section 3.
@@ -209,26 +155,29 @@ cannot disturb the host.
 
 ## 5. Packaging
 
-> **REQ-CFG-020** — The binary MUST be built statically with `CGO_ENABLED=0` for `amd64` and
-> `arm64`.
+> **REQ-CFG-044** — The binary MUST be published with NativeAOT for `linux-x64` against glibc.
 
-> **REQ-CFG-021** — The `.deb` package MUST include the systemd unit, a `sysusers.d` entry
-> creating the account, a `tmpfiles.d` entry creating the runtime directory, a logrotate
-> configuration for the audit log, and a sample configuration file.
+> **REQ-CFG-021** — The `.deb` package MUST include the systemd unit and the configuration file,
+> and depend on `wireguard-tools` and `libc6 (>= 2.34)`.
 
-> **REQ-CFG-038** — The `.deb` package MUST ship an `/etc/default/wg-agent` file containing
-> only commented examples.
+The glibc floor is the one the NativeAOT binary was measured to need; every supported
+distribution ships a newer one.
 
-> **REQ-CFG-022** — The `postinst` script MUST NOT enable the HTTP listener.
+> **REQ-CFG-038** — The `.deb` package MUST ship `/etc/default/wg-agent` with every key commented
+> out at its default.
 
-The post-installation default is the unix socket alone. Enabling the HTTP listener is an
-explicit operator action, which is what the install script in section 6 performs. Installing
-the package on its own leaves the agent reachable only over the socket.
+> **REQ-CFG-022** — The `postinst` script MUST NOT set a listener address other than loopback.
+
+> **REQ-CFG-045** — The `postinst` script MUST generate the token when the token file is absent.
+
+The agent refuses to start without a token under `REQ-SEC-072`, so the package provides one. An
+operator reads it as root, or replaces it with the command of `REQ-CLI-011`, which prints the
+value it generates. Opening the listener to a private network is the operator's decision under
+ADR-0015, which is why `postinst` leaves the address on loopback.
 
 ### 5.1. Conffiles
 
-> **REQ-CFG-023** — The package MUST declare `/etc/wg-agent/config.yaml` and
-> `/etc/default/wg-agent` as conffiles.
+> **REQ-CFG-023** — The package MUST declare `/etc/default/wg-agent` as a conffile.
 
 > **REQ-CFG-024** — The package MUST NOT declare the token file as a conffile.
 
@@ -249,11 +198,17 @@ be noise, and dpkg comparing its contents would be meaningless.
 
 `REQ-CFG-027` follows the rule the agent applies to itself: `REQ-RCN-030` forbids touching a
 link it did not create and `REQ-RCN-035` forbids removing an orphan on its own. Removing a
-control plane is not a reason to drop live tunnels. `REQ-CFG-028` keeps that from becoming a
-silent leak — an operator learns what remains as it becomes theirs to handle.
+control plane is not a reason to drop live tunnels. Under ADR-0013 the interfaces the agent
+created keep running under their `wg-quick@` units, and their files stay in `/etc/wireguard/` as
+the operator's. `REQ-CFG-028` keeps that from becoming a silent leak — an operator learns what
+remains as it becomes theirs to handle.
 Reasoning in [ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md).
 
 ## 6. Install script
+
+The install script and the release pipeline are delivered later; the
+[backlog](../60-planning/backlog.md) holds them. Their requirements are re-read against
+`REQ-CFG-045` when they return, since the package now generates the token itself.
 
 > **REQ-CFG-029** — The repository MUST publish an install script supporting the `install`,
 > `update` and `uninstall` subcommands.
@@ -290,7 +245,24 @@ displaying it are one action, which is what `REQ-CLI-011` and `REQ-CLI-012` in
 `install` on a node that already has a token reports the address alone and leaves the
 credential untouched, and `wg-agent token regen` is the way to replace a lost one.
 
-A package installed on its own, without the script, has no token and no HTTP listener under
-`REQ-CFG-022`. That agent is reachable over the unix socket, which grants `admin` through
-`REQ-SEC-077`, so it is fully usable — the script adds the loopback API rather than enabling
-basic operation.
+A package installed on its own, without the script, generates its token under `REQ-CFG-045` and
+serves on loopback, so it is fully usable — the script adds the download and the update path
+rather than enabling basic operation.
+
+## 7. Removed requirements
+
+Removed in v2.0 by [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) and the move of
+the configuration into one `KEY=VALUE` file:
+
+~~**REQ-CFG-004**~~ — `/etc/default/wg-agent` loaded through `EnvironmentFile`. The agent reads
+the file itself under `REQ-CFG-037`; loading it through systemd as well would parse one file
+under two sets of rules.
+
+~~**REQ-CFG-005**~~ — Tolerance of an absent `/etc/default/wg-agent` in the unit. `REQ-CFG-040`
+covers the agent's own read.
+
+~~**REQ-CFG-010**~~ — A dedicated account with `AmbientCapabilities=CAP_NET_ADMIN`. The agent
+runs as root under `REQ-SEC-086`, confined by `REQ-CFG-043`.
+
+~~**REQ-CFG-020**~~ — A static build with `CGO_ENABLED=0` for `amd64` and `arm64`. Go build
+flags describe a removed implementation; `REQ-CFG-044` states the build.
