@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The adapters: wg, systemctl and the files under /etc/wireguard/. The only code that needs
+       privilege, and the only code that starts a child process (REQ-SEC-087). -->
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Platform.Linux</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Platform/WgAgent.Platform.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WgAgent.Tests" />
+  </ItemGroup>
+</Project>

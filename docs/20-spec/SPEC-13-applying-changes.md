@@ -82,15 +82,25 @@ cost no packet, and the other peer kept its handshake and its learned endpoint. 
 file carries is written again at each synchronisation, so a peer configured with one returns to
 it — the case of a site-to-site peer, whose address is static.
 
-> **REQ-APL-006** — On an enabled interface, a change to its `addresses` or `mtu`, or the
-> addition, change or removal of a peer holding an `allowed_ips` entry outside the interface's
-> subnets, MUST restart the interface's unit.
+> **REQ-APL-006** — On an enabled interface, a change to its `addresses`, `mtu`, `post_up` or
+> `post_down`, or the addition, change or removal of a peer holding an `allowed_ips` entry outside
+> the interface's subnets, MUST restart the interface's unit.
 
 `wg syncconf` configures WireGuard alone. Addresses, the MTU and the routes for allowed IPs are
 set by `wg-quick` when the interface comes up, and a peer routed outside the interface's subnets
 has a route only after `up`, and keeps it until `down`. A change to `listen_port` or `private_key`
 synchronises without a restart, although a new private key ends every session by its nature. On
 a disabled interface a change rewrites the file alone; the unit applies it when enabled.
+
+The hooks are in the list because they run only at `up` and `down`: a new `post_up` takes effect
+at the next `up`, and the `post_down` that matches the old one must run first.
+
+> **REQ-APL-010** — When a change stops or restarts an interface's unit, the agent MUST stop the
+> unit before it replaces or removes the interface's file.
+
+`wg-quick down` reads the file as it is when it runs. Stopping first is what makes the `post_down`
+that runs the one written beside the `post_up` that ran, so a rule a hook added is the rule its
+counterpart removes. The new file is written, and the unit started, afterwards.
 
 > **REQ-APL-007** — The response to a write that restarted an interface's unit MUST state that
 > the interface's sessions were interrupted.

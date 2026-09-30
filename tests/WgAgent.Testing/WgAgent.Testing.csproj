@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The in-memory platform the unit tier drives instead of the host. -->
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Testing</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/WgAgent.Platform/WgAgent.Platform.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/WgAgent.Core/WgAgent.Core.csproj" />
+    <Project Path="src/WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
     <Project Path="src/WgAgent.Platform/WgAgent.Platform.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/WgAgent.Testing/WgAgent.Testing.csproj" />
     <Project Path="tests/WgAgent.Tests/WgAgent.Tests.csproj" />
   </Folder>
 </Solution>

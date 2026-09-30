@@ -30,6 +30,7 @@ public static class ReasonCodes
     public const string StoreCorrupt = "STORE_CORRUPT";
     public const string StoreSchemaTooNew = "STORE_SCHEMA_TOO_NEW";
     public const string StoreBusy = "STORE_BUSY";
+    public const string ApplyFailed = "APPLY_FAILED";
 
     // Warnings, REQ-VAL-002.
     public const string AllowedIpsOverlap = "ALLOWED_IPS_OVERLAP";
