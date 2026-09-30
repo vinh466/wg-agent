@@ -1,5 +1,9 @@
 # Architecture
 
+The first release is a wrapper over `wg` and `wg-quick` —
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md). This page describes that
+wrapper; the control plane the backlog describes grows from it.
+
 ## Layers
 
 The dependency points inwards. `WgAgent.Platform` declares the ports and references no
@@ -7,137 +11,130 @@ adapter, which is what keeps every layer above it testable without privilege.
 
 ```mermaid
 flowchart TB
-    subgraph transport["Transport"]
-        sock["unix socket<br/>peer credentials"]
-        http["loopback HTTP<br/>bearer token"]
+    subgraph callers["Callers"]
+        cli["CLI on the node<br/>run as root"]
+        http["REST over HTTP<br/>one bearer token"]
     end
 
-    subgraph apilayer["API layer"]
-        au["authenticate · authorize · audit"]
-        rpc["gRPC and JSON transcoding"]
+    subgraph apilayer["API layer — P2"]
+        au["authenticate"]
+        rt["routes · problem documents"]
     end
 
     subgraph corelayer["Core"]
-        svc["service<br/>interface · peer · key · config"]
+        svc["service<br/>interface · peer · key · client configuration"]
         val["validate"]
-        st[("desired state<br/>JSON file · advisory lock")]
-        eng["reconcile engine<br/>diff · apply · retry"]
+        st[("store<br/>JSON file · lock file")]
+        rnd["render<br/>/etc/wireguard/name.conf"]
+        apl["apply<br/>synchronise · restart · restore"]
     end
 
     subgraph portlayer["WgAgent.Platform — ports only, references no adapter"]
-        pdev["IDevice"]
-        plink["ILink"]
-        pevt["ILinkEvents"]
-        phost["IHostFs"]
+        pwg["WireGuard tool"]
+        punit["systemd units"]
+        pfile["configuration files"]
+        phost["host addresses and ports"]
     end
 
     subgraph adapterlayer["WgAgent.Platform.Linux — the only code needing privilege"]
-        gnl["generic netlink<br/>family wireguard"]
-        rtnl["rtnetlink<br/>link · address · route"]
-        proc["procfs<br/>sysctl · unit symlinks"]
+        wg["wg<br/>genkey · pubkey · genpsk · syncconf · show"]
+        sctl["systemctl<br/>enable · disable · start · stop · restart"]
+        fs["files under /etc/wireguard/"]
     end
 
-    kern["Linux kernel<br/>wireguard module · rtnetlink"]
+    sysd["systemd"]
+    wgq["wg-quick@name units"]
+    kern["Linux kernel<br/>wireguard module"]
 
-    sock --> rpc
+    cli --> svc
     http --> au
-    au --> rpc
-    rpc --> svc
+    au --> rt
+    rt --> svc
     svc --> val
     svc --> st
-    svc --> eng
-    eng --> st
-    eng --> pdev
-    eng --> plink
-    eng --> phost
-    pevt -- "link deleted or down" --> eng
-    pdev --> gnl
-    plink --> rtnl
-    pevt --> rtnl
-    phost --> proc
-    gnl --> kern
-    rtnl --> kern
-    proc --> kern
+    svc --> rnd
+    svc --> apl
+    apl --> pwg
+    apl --> punit
+    rnd --> pfile
+    val --> phost
+    pwg --> wg
+    punit --> sctl
+    pfile --> fs
+    sctl --> sysd
+    sysd --> wgq
+    wgq --> kern
+    wg --> kern
 ```
+
+The CLI calls the service in its own process rather than through the API (`REQ-CLI-002`), so it
+works before the daemon runs, and the one lock of `REQ-RCN-042` keeps the two writers apart.
 
 ## The lifecycle of one write
 
-Every write follows the same order. Validation precedes the store so `REQ-VAL-001` cannot
-be bypassed, and reconciliation precedes the response so the status describes the change
-the caller made rather than the state before it.
+Validation precedes everything so `REQ-VAL-001` cannot be bypassed. The store is written last,
+once the change has taken effect, so it never describes a configuration that failed
+(`REQ-API-020`, `REQ-APL-008`).
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant op as Caller
-    participant api as API layer
+    participant svc as service
     participant val as validate
+    participant apl as apply
+    participant wg as wg / systemctl
     participant st as store
-    participant eng as reconcile engine
-    participant nl as netlink adapter
-    participant kern as kernel
 
-    op->>api: create a peer on wg0
-    api->>val: the spec and the interface peer set
+    op->>svc: add a peer to wg0
+    svc->>val: the spec, the interface, the host
     alt a rule of SPEC-07 blocks it
-        val-->>op: reason code, store untouched
-    else warnings only
-        val-->>api: findings for status.warnings
+        val-->>op: reason code, nothing written
     end
-    api->>st: one transaction
-    api->>eng: reconcile wg0
-    eng->>nl: read the device
-    nl->>kern: WG_CMD_GET_DEVICE
-    kern-->>nl: device and peers
-    eng->>eng: diff the agent-owned fields
-    eng->>nl: apply the delta
-    nl->>kern: WG_CMD_SET_DEVICE
-    eng-->>api: status and condition
-    api-->>op: the peer, with its status
+    svc->>svc: take the lock, render wg0.conf
+    svc->>apl: install the file
+    alt peer inside the interface's subnets
+        apl->>wg: wg syncconf wg0, configuration on stdin
+    else addresses, MTU or a site-to-site peer
+        apl->>wg: systemctl restart wg-quick@wg0
+    end
+    alt applying failed
+        apl->>wg: restore the previous file and state
+        apl-->>op: APPLY_FAILED, store unchanged
+    else applied
+        svc->>st: one transaction
+        svc->>wg: wg show wg0 dump
+        svc-->>op: the peer with its status, and its client configuration if generated
+    end
 ```
 
-Reading the kernel before writing is what makes a pass a diff rather than an overwrite.
-`REQ-RCN-012` forbids treating a kernel-owned field as drift, and `REQ-RCN-051` forbids
-overwriting an endpoint the kernel learned. The five events that start a pass are listed
-in [SPEC-03](../20-spec/SPEC-03-state-reconcile.md) under `REQ-RCN-020`; an API write is
-one of them, which is why the sequence above ends inside the engine rather than beside it.
+## Operations and the programs behind them
 
-## Kernel interfaces
+| Operation | Mechanism |
+|---|---|
+| Create an interface | Write `/etc/wireguard/<name>.conf`; `systemctl enable --now wg-quick@<name>` |
+| Delete an interface | `systemctl disable --now wg-quick@<name>`; remove the file |
+| `enabled` false or true | `systemctl disable --now` or `enable --now` |
+| Add, change or remove a peer | Rewrite the file; `wg syncconf <name> /dev/stdin` |
+| Change addresses or MTU, or a site-to-site peer | Rewrite the file; `systemctl restart wg-quick@<name>` |
+| Read status | `wg show <name> dump`; the unit's active state |
+| Generate keys and the token | `wg genkey`, `wg pubkey`, `wg genpsk` — keys only on stdin and stdout |
+| Ports held by other interfaces | `wg show all listen-port` |
+| Addresses held by other interfaces | Read in-process from the host's interface list |
 
-This boundary is the most commonly misunderstood part of the design. The WireGuard module
-exposes **generic netlink only** — it configures a device and its peers, and cannot create
-a network interface. Creating links, assigning addresses, setting the MTU and adding
-routes all belong to **rtnetlink**, a different family on a different socket.
-
-| Operation | Family | Message |
-|---|---|---|
-| Create / delete interface | rtnetlink | `RTM_NEWLINK` with `IFLA_INFO_KIND` of `wireguard`, `RTM_DELLINK` |
-| Up / down, MTU | rtnetlink | `RTM_SETLINK` |
-| Add / remove addresses | rtnetlink | `RTM_NEWADDR`, `RTM_DELADDR`, `RTM_GETADDR` |
-| Routes for `allowed_ips` | rtnetlink | `RTM_NEWROUTE`, `RTM_DELROUTE`, `RTM_GETROUTE` |
-| Link event subscription | rtnetlink | multicast group `RTNLGRP_LINK` |
-| Private key, listen port, fwmark | generic netlink | `WG_CMD_SET_DEVICE` |
-| Add / update / remove peers | generic netlink | `WG_CMD_SET_DEVICE` with `WGDEVICE_A_PEERS` |
-| Read device, peers and counters | generic netlink | `WG_CMD_GET_DEVICE` |
-| Per-interface forwarding | procfs | `/proc/sys/net/ipv4/conf/<iface>/forwarding` |
-| Forward policy, NAT | nfnetlink | deferred under `B-04` |
-
-The family id of `wireguard` is resolved at run time through `CTRL_CMD_GETFAMILY`. The
-kernel assigns it, so it is not a constant.
-
-**Invariant:** no child process in a production path — `REQ-SEC-041`. A node therefore
-needs the kernel module and the agent binary, and neither `wg`, `ip`, `bash` nor
-`iproute2` at run time.
+**Invariant:** `wg` and `systemctl` are the only child processes, started with fixed argument
+vectors and never through a shell — `REQ-SEC-087` to `REQ-SEC-089`. `wg-quick` itself runs in its
+systemd unit, outside the agent's sandbox. No rendered file carries a hook (`REQ-APL-003`).
 
 ## Managed dependencies
 
 | Concern | Choice |
 |---|---|
-| Netlink sockets | Hand-written over `socket(2)` from libc. Everything above the file descriptor is managed |
-| X25519 public-key derivation | `BouncyCastle.Cryptography`. No .NET release through 10 exposes the curve |
-| Key generation | `RandomNumberGenerator`, with Curve25519 clamping applied at generation |
-| Configuration file | A YAML reader decoding strictly, so `REQ-CFG-002` refuses an unrecognized key |
-| gRPC and JSON transcoding | ASP.NET Core, which reads the `google.api.http` annotations the contract already carries |
+| Child processes | `System.Diagnostics.Process`, fixed argument vectors, secrets on stdin |
+| HTTP | ASP.NET Core Minimal APIs with source-generated JSON — no trim or AOT warning when measured |
+| Store and token file | Source-generated `System.Text.Json` |
+| Configuration file | A hand-written reader for `KEY=VALUE` lines, refusing an unrecognised key (`REQ-CFG-002`) |
+| Cryptography | None: keys and the token come from `wg`, which draws on the kernel's generator |
 
 ## Repository layout
 
@@ -145,19 +142,19 @@ The target structure. A project is created when the first module that needs it i
 implemented, so a directory below may not exist yet.
 
 ```
-api/proto/wgagent/v1/         .proto — source of truth for the API contract
+api/openapi.yaml              the API contract — ADR-0014; written at the start of P2
 src/
   WgAgent.Platform/           ports and the types crossing them; references no adapter
-  WgAgent.Platform.Linux/     netlink and procfs adapters; the only privileged code
-  WgAgent.Core/               model, store, validate, reconcile
-  WgAgent.Service/            business logic: interface, peer, key, config, diagnose
-  WgAgent.Api/                gRPC services, transcoding, listeners, authentication
+  WgAgent.Platform.Linux/     wg and systemctl, files under /etc/wireguard/; the only privileged code
+  WgAgent.Core/               model, store, lock, validate, render, apply
+  WgAgent.Service/            operations: interface, peer, key, client configuration
+  WgAgent.Api/                HTTP listener, token, routes, problem documents
   WgAgent.Cli/                entrypoint and subcommands per SPEC-12
 tests/
   WgAgent.Testing/            the in-memory platform, shared by the test projects
   WgAgent.Tests/              unit tier — no privilege
-  WgAgent.IntegrationTests/   real kernel, CAP_NET_ADMIN
-packaging/systemd/            unit, sysusers, tmpfiles
+  WgAgent.IntegrationTests/   wg and wg-quick in a container
+packaging/                    the .deb and its systemd unit — P3
 docs/                         documentation — start at docs/README.md
 ```
 
@@ -165,30 +162,30 @@ docs/                         documentation — start at docs/README.md
 
 | Spec | Primary projects |
 |---|---|
-| [SPEC-01](../20-spec/SPEC-01-resource-model.md) Resource model | `api/proto`, `WgAgent.Core`, `WgAgent.Service` |
-| [SPEC-02](../20-spec/SPEC-02-forward-policy.md) Forward policy | `WgAgent.Platform.Linux` |
-| [SPEC-03](../20-spec/SPEC-03-state-reconcile.md) State and reconcile | `WgAgent.Core` |
-| [SPEC-04](../20-spec/SPEC-04-api-conventions.md) API conventions | `WgAgent.Api` |
-| [SPEC-05](../20-spec/SPEC-05-security.md) Security | `WgAgent.Api` |
-| [SPEC-06](../20-spec/SPEC-06-key-management.md) Key management | `WgAgent.Platform`, `WgAgent.Service` |
+| [SPEC-01](../20-spec/SPEC-01-resource-model.md) Resource model | `WgAgent.Core`, `WgAgent.Service` |
+| [SPEC-03](../20-spec/SPEC-03-state-reconcile.md) Store and lock | `WgAgent.Core` |
+| [SPEC-04](../20-spec/SPEC-04-api-conventions.md) API conventions | `api/openapi.yaml`, `WgAgent.Api` |
+| [SPEC-05](../20-spec/SPEC-05-security.md) Security | `WgAgent.Api`, `WgAgent.Platform.Linux` |
+| [SPEC-06](../20-spec/SPEC-06-key-management.md) Keys and client configuration | `WgAgent.Service`, `WgAgent.Platform.Linux` |
 | [SPEC-07](../20-spec/SPEC-07-validation.md) Validation | `WgAgent.Core` |
-| [SPEC-08](../20-spec/SPEC-08-observability.md) Observability | `WgAgent.Api` |
+| [SPEC-08](../20-spec/SPEC-08-observability.md) Logs | `WgAgent.Api`, `WgAgent.Cli` |
 | [SPEC-09](../20-spec/SPEC-09-config-deployment.md) Configuration and deployment | `WgAgent.Cli`, `packaging/` |
-| [SPEC-10](../20-spec/SPEC-10-lifecycle.md) Lifecycle | `WgAgent.Core`, `WgAgent.Cli` |
-| [SPEC-11](../20-spec/SPEC-11-diagnostics.md) Diagnostics | `WgAgent.Service` |
+| [SPEC-12](../20-spec/SPEC-12-cli.md) CLI | `WgAgent.Cli` |
+| [SPEC-13](../20-spec/SPEC-13-applying-changes.md) Applying a change | `WgAgent.Core`, `WgAgent.Platform.Linux` |
+
+SPEC-02, SPEC-10 and SPEC-11 are in the [backlog](../60-planning/backlog.md) and map to no
+project yet.
 
 ## Test strategy
 
 | Level | Approach |
 |---|---|
-| Unit | The ports of `WgAgent.Platform` are the seam: adapters implement them against the kernel, `WgAgent.Testing` implements them in memory, and nothing above that layer needs privilege |
-| Integration | Real WireGuard inside a dedicated network namespace. A container supplies one, along with a pinned `wg` and `ip` for test setup and the .NET SDK — see [running the tests](../50-guides/running-tests.md) |
-| Privileged | The tier where `/proc/sys` is writable, which is the only place the forwarding sysctl of `REQ-FWD-020` can be verified |
-| Reconcile | Inject drift by hand — delete a link, add a foreign peer, change the MTU — and assert convergence |
-| Roaming | Change a peer endpoint externally and assert reconcile does not overwrite it (`REQ-RCN-051`) |
-| Concurrency | Concurrent writers on one interface; assert the serialization `REQ-RCN-042` requires |
-| Security | Scan every response, log and audit record for leaked secrets (`REQ-SEC-051`) |
-| Compatibility | CI matrix: Debian 11/12/13, Ubuntu 20.04/22.04/24.04 |
+| Unit | The ports of `WgAgent.Platform` are the seam: adapters implement them with `wg`, `systemctl` and files, `WgAgent.Testing` implements them in memory, and nothing above that layer needs privilege |
+| Integration | `wg` and `wg-quick` in a container, with two network namespaces joined by a veth pair so a peer really handshakes — the arrangement that measured `REQ-APL-005` — see [running the tests](../50-guides/running-tests.md) |
+| Concurrency | The CLI and the daemon writing at once; assert the serialisation `REQ-RCN-042` requires |
+| Security | Scan every response and log for leaked secrets (`REQ-SEC-051`), and every child process's argument vector for a key (`REQ-SEC-089`) |
+| Packaging | The `.deb` under each supported distribution's own systemd as PID 1 — P3 |
+| Compatibility | Debian 13 and Ubuntu 24.04, and the later stable and LTS releases |
 
 Every test names the REQ ID it verifies, per the convention in
 [20-spec/README.md](../20-spec/README.md).

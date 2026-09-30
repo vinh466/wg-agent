@@ -26,8 +26,9 @@ Read [docs/README.md](docs/README.md) before touching anything under `docs/`.
 6. **Run `docs/check-docs.sh` before finishing any docs change.** A non-zero exit is a
    blocking failure, not a warning.
 
-7. **No child processes in production paths** (`REQ-SEC-041`) — no `Process.Start`,
-   no shelling out to `wg`, `ip`, `sysctl` or `nft`. Test helpers only.
+7. **Only `wg` and `systemctl` as child processes** (`REQ-SEC-087` to `REQ-SEC-089`) —
+   fixed argument vectors, never through a shell, keys only on standard input. No other program
+   — not `ip`, `sysctl`, `nft` or `wg-quick` — runs from a production path; test helpers may.
 
 ---
 
@@ -82,7 +83,7 @@ how a spec turns into a transcript.
 1. Locate the module      docs/20-spec/README.md → boundary table
 2. Architectural choice?  write an ADR first (docs/10-decisions/)
 3. Add or amend the REQ   next free number in that area, never reuse
-4. Update .proto          if the contract changes; regenerate docs/30-api/
+4. Update the contract    api/openapi.yaml, if the contract changes; regenerate docs/30-api/
 5. Implement + test       test name embeds the REQ ID it verifies
 6. Update concepts/guides only if observable behavior changed
 7. docs/check-docs.sh     must exit 0
@@ -132,9 +133,9 @@ Authoritative layout: [docs/00-overview/architecture.md](docs/00-overview/archit
 
 | Path | Contents |
 |---|---|
-| `api/proto/wgagent/v1/` | Source of truth for the API contract — [ADR-0003](docs/10-decisions/ADR-0003-protobuf-source-of-truth.md) |
+| `api/openapi.yaml` | Source of truth for the API contract — [ADR-0014](docs/10-decisions/ADR-0014-rest-api-described-by-openapi.md); written at the start of P2 |
 | `src/WgAgent.Platform/` | Ports and the types that cross them. References no adapter |
-| `src/WgAgent.Platform.Linux/` | netlink adapters. The only code needing privilege |
+| `src/WgAgent.Platform.Linux/` | Adapters over `wg`, `systemctl` and `/etc/wireguard/`. The only code needing privilege |
 | `src/` (rest) | Implementation |
 | `tests/` | Test projects |
 | `docs/` | All documentation — start at `docs/README.md` |
@@ -149,8 +150,11 @@ privilege, and a project reference is how the compiler enforces it.
 C# on **.NET 10**, published with NativeAOT for `linux-x64` against glibc.
 
 .NET 10 rather than 9 because it is the LTS line, supported to November 2028,
-while .NET 9 reaches end of support on 10 November 2026. Nothing else differs
-for this project: both reach netlink the same way, and neither exposes X25519.
+while .NET 9 reaches end of support on 10 November 2026.
+
+WireGuard is driven through `wg` and `wg-quick` —
+[ADR-0013](docs/10-decisions/ADR-0013-drive-wg-and-wg-quick.md). The build targets are
+Debian 13 and later and Ubuntu 24.04 LTS and later.
 
 An earlier implementation in Go, and a partial port of it to C#, were removed so the
 code is rebuilt from the specification alone — see the module workflow above. Their

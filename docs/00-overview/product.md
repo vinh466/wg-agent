@@ -11,12 +11,18 @@ the kernel to that state and keeping it there.
 The critical boundary: **the agent manages one node.** Orchestration across nodes belongs
 to the platform layer above it.
 
+**The first release is narrower than the product this page describes.** It is a wrapper over
+`wg` and `wg-quick` that replaces an operator's manual work on a node —
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) — reached from a CLI on the node
+and a REST API over the operator's private network. The platform-facing properties below grow
+from it through the [backlog](../60-planning/backlog.md).
+
 ```
 ┌─────────────────────────────────────────────┐
 │  Platform / SaaS / Panel / Terraform / K8s  │  ← Org, user, billing, RBAC, IPAM
 └──────────────────────┬──────────────────────┘
-                       │ gRPC / REST over a local transport
-                       │ (unix socket or loopback HTTP)
+                       │ REST over the operator's private network
+                       │ (one bearer token)
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼
    ┌─────────┐    ┌─────────┐    ┌─────────┐
@@ -25,10 +31,10 @@ to the platform layer above it.
    └─────────┘    └─────────┘    └─────────┘
 ```
 
-Both agent listeners are local to the node under
-[ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md). A platform on another host
-supplies its own hop — an SSH tunnel, or a component co-located with the agent. Direct
-cross-host management over mTLS is deferred.
+The API listener serves plain HTTP on an address the operator chooses, and the operator places
+it on a private network —
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md). TLS and mutual TLS
+are deferred until a node must be reached across a network the operator does not control.
 
 ## Intended consumers
 
@@ -44,19 +50,25 @@ That constraint shapes the whole API: idempotent writes, full state reads for dr
 detection, stable identifiers, and errors distinguishable by code rather than by message
 string.
 
-## In scope
+## In the first release
 
-- Interface lifecycle: create, delete, up/down, addresses, MTU, listen port, fwmark
-- Peer lifecycle: create, update, delete, list
-- Routes on the interface matching AllowedIPs
-- Key generation and rotation, public key import
-- Runtime state read from the kernel
-- Persistent desired state with automatic reconciliation
-- Client `.conf` generation and QR codes
-- Forward policy: peer-to-peer, interface-to-interface, egress
-- NAT through nftables
-- Metrics, health, audit log, per-interface diagnostics and a node overview endpoint
-- Installation, update and removal through a script over a released `.deb`
+- Interfaces the agent creates: create, delete, enable and disable, addresses, MTU, listen port
+- Peers: create, update, delete, list — a supplied public key, or a key pair the agent generates
+- Routes for allowed IPs, installed by `wg-quick`
+- Keys generated through `wg`; an interface key supplied or generated
+- A client `.conf` returned when a peer is created with a generated key pair
+- Runtime state read from `wg show`
+- Durable desired state, with interfaces restored at boot by their `wg-quick@` units
+- A CLI on the node and a REST API behind one token
+- A `.deb` package
+
+## Later — the backlog
+
+Forward policy and NAT; drift correction; adoption of interfaces configured by hand;
+diagnostics and a node overview; metrics and an audit log; backup and restore; QR codes, a key
+rotation operation and client routing modes; the installation script; roles, several tokens and
+TLS. Each has its requirements already written; the [backlog](../60-planning/backlog.md) says
+when each returns.
 
 **IPv4 only.** See [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md).
 
@@ -81,7 +93,7 @@ reuse.
 | Policy routing for full-tunnel clients | Client-side concern |
 | Host DNS management | Client-side concern |
 | IPv6 | Deferred — [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md) |
-| Remote management over TCP with mTLS, and node enrollment | Deferred — [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md) |
+| Mutual TLS and node enrollment | Deferred — [ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md) carries one token over the operator's private network |
 | Per-principal request rate limiting | Deferred until the API has production traffic to size a limit against |
 | A signed APT repository | Deferred — [ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md) ships an install script over a released `.deb` |
 | Zero-downtime interface key rotation | Deferred. `REQ-KEY-004` warns that rotation disconnects peers |
@@ -96,8 +108,9 @@ reuse.
 
 The differentiator is:
 
-> **Declarative reconciliation, durable desired state, an API that runs least-privilege and
-> local by default, and first-class Terraform and Kubernetes support.**
+> **Declarative desired state over the tools operators already trust — `wg-quick` files and
+> units — with an API that refuses what WireGuard would silently break, and a path from there to
+> reconciliation and first-class Terraform and Kubernetes support.**
 
 Plus one property the architecture provides for free: **the data plane runs independently
 of the agent.** When the agent crashes or is being upgraded, the kernel keeps forwarding

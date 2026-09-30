@@ -3,6 +3,10 @@
 > Task-oriented guide. Underlying concepts are in the
 > [connectivity model](../40-concepts/connectivity-model.md); normative requirements in
 > [SPEC-02](../20-spec/SPEC-02-forward-policy.md).
+>
+> Forward policy is delivered after the first release — B-04 in the
+> [backlog](../60-planning/backlog.md). Until then forwarding and NAT are the host's, set once for
+> every interface: [SPEC-13](../20-spec/SPEC-13-applying-changes.md) section 5.
 
 ## Four common patterns
 

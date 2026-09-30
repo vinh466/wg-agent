@@ -5,26 +5,21 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- A warning that reaches a review is a warning nobody reads. -->
+    <!-- A warning that reaches a review is a warning nobody reads. The SDK passes it
+         through to the NativeAOT compiler too, so a trim or AOT warning fails the build. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
-    <!-- ADR-0012 ships one self-contained NativeAOT binary with no runtime to
+    <!-- REQ-CFG-044 ships one self-contained NativeAOT binary with no runtime to
          install. NativeAOT also removes the JIT, which is what lets the systemd
-         unit of REQ-CFG-010 keep MemoryDenyWriteExecute=yes. -->
+         unit of SPEC-09 keep MemoryDenyWriteExecute=yes. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <IsAotCompatible>true</IsAotCompatible>
-
-    <!-- LibraryImport generates unsafe marshalling code. The only native calls
-         the agent makes are socket(2), bind(2) and close(2) against libc, because
-         .NET refuses AF_NETLINK through its managed Socket constructor; see
-         ADR-0012. -->
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!-- The agent targets Linux only (CLAUDE.md, glibc linux-x64). Declaring it at
-       the assembly level lets CA1416 accept the Unix-only surface the store lock,
-       file modes and netlink adapters need, without a guard at every call site. -->
+       the assembly level lets CA1416 accept the Unix-only surface the store lock
+       and file modes need, without a guard at every call site. -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatform">
       <_Parameter1>linux</_Parameter1>

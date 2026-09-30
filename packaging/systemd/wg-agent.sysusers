@@ -1,5 +1,0 @@
-# REQ-CFG-021 — the account the unit runs as under REQ-CFG-010.
-#
-# A system user with no login shell and no home directory: the agent reads
-# /etc/wg-agent and writes /var/lib/wg-agent, and needs nothing else.
-u wg-agent - "WireGuard control plane agent" /var/lib/wg-agent /usr/sbin/nologin

@@ -66,7 +66,7 @@ docs/
 ├── 00-overview/           Product positioning, architecture, glossary
 ├── 10-decisions/          ADRs — architectural decisions, append-only
 ├── 20-spec/               ★ NORMATIVE — the source of truth
-├── 30-api/                API contract (generated from .proto, never hand-edited)
+├── 30-api/                API contract (rendered from api/openapi.yaml, never hand-edited)
 ├── 40-concepts/           Explanations — how the system works
 ├── 50-guides/             Task-oriented operational guides
 ├── 60-planning/           Roadmap, milestones, risks, open questions, backlog, spec audit
@@ -124,7 +124,7 @@ the API contract in front of the product definition.
         │
         ▼
  ┌─────────────┐
- │  .proto     │◄── Update the contract, regenerate 30-api/
+ │ openapi.yaml│◄── Update the contract, regenerate 30-api/
  └──────┬──────┘
         │
         ▼
