@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-30
 depends_on: [SPEC-05]
-adrs: [ADR-0010, ADR-0013, ADR-0015, ADR-0016]
+adrs: [ADR-0013, ADR-0015, ADR-0016, ADR-0018]
 milestone: P1–P3
 ---
 
@@ -204,54 +204,9 @@ control plane is not a reason to drop live tunnels. Under ADR-0013 the interface
 created keep running under their `wg-quick@` units, and their files stay in `/etc/wireguard/` as
 the operator's. `REQ-CFG-028` keeps that from becoming a silent leak — an operator learns what
 remains as it becomes theirs to handle.
-Reasoning in [ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md).
+Reasoning in [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md).
 
-## 6. Install script
-
-The install script and the release pipeline are delivered later; the
-[backlog](../60-planning/backlog.md) holds them. Their requirements are re-read against
-`REQ-CFG-045` when they return, since the package now generates the token itself.
-
-> **REQ-CFG-029** — The repository MUST publish an install script supporting the `install`,
-> `update` and `uninstall` subcommands.
-
-> **REQ-CFG-030** — The install script MUST verify the checksum of a downloaded artifact
-> before installing it.
-
-> **REQ-CFG-031** — On `install`, the script MUST write a configuration enabling the HTTP
-> listener on a loopback address.
-
-> **REQ-CFG-032** — On `install`, the script MUST generate one `admin` token when no token
-> file exists.
-
-> **REQ-CFG-033** — On completion, the script MUST print the listener address together with
-> any token generated during that run.
-
-> **REQ-CFG-034** — On `uninstall`, the script MUST leave WireGuard links in place by default.
-
-> **REQ-CFG-035** — The script MUST accept `uninstall --remove-links`, which deletes the
-> WireGuard links the agent manages.
-
-> **REQ-CFG-036** — The release pipeline MUST publish a `.deb` and its checksum for `amd64`
-> and `arm64`.
-
-The script fetches the package matching the host architecture, verifies it against
-`REQ-CFG-030`, and hands it to the package manager. `update` repeats that sequence, so
-`apt upgrade` alone does not reach the agent — the trade accepted in
-[ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md).
-
-Token issuance sits with the script rather than with `postinst` so that generating a value and
-displaying it are one action, which is what `REQ-CLI-011` and `REQ-CLI-012` in
-[SPEC-12](SPEC-12-cli.md) require: a token is shown once, as it is created, and never again.
-`REQ-CFG-033` therefore prints a token only on a run that created one. Re-running
-`install` on a node that already has a token reports the address alone and leaves the
-credential untouched, and `wg-agent token regen` is the way to replace a lost one.
-
-A package installed on its own, without the script, generates its token under `REQ-CFG-045` and
-serves on loopback, so it is fully usable — the script adds the download and the update path
-rather than enabling basic operation.
-
-## 7. Removed requirements
+## 6. Removed requirements
 
 Removed in v2.0 by [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) and the move of
 the configuration into one `KEY=VALUE` file:
@@ -268,3 +223,27 @@ runs as root under `REQ-SEC-086`, confined by `REQ-CFG-043`.
 
 ~~**REQ-CFG-020**~~ — A static build with `CGO_ENABLED=0` for `amd64` and `arm64`. Go build
 flags describe a removed implementation; `REQ-CFG-044` states the build.
+
+Removed in v2.0 by [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md): the
+agent is an internal tool, installed by its operator through the package manager, with nothing
+released for anyone else to download:
+
+~~**REQ-CFG-029**~~ — An install script with `install`, `update` and `uninstall`.
+
+~~**REQ-CFG-030**~~ — Checksum verification of a downloaded artifact.
+
+~~**REQ-CFG-031**~~ — The script writing a configuration that enables the listener on loopback.
+`REQ-SEC-084` binds to loopback by default.
+
+~~**REQ-CFG-032**~~ — The script generating an `admin` token. `REQ-CFG-045` generates it in
+`postinst`.
+
+~~**REQ-CFG-033**~~ — The script printing the listener address and a token it generated.
+
+~~**REQ-CFG-034**~~ — `uninstall` leaving WireGuard links in place. `REQ-CFG-027` carries the rule
+for every removal through the package manager.
+
+~~**REQ-CFG-035**~~ — `uninstall --remove-links`.
+
+~~**REQ-CFG-036**~~ — A release pipeline publishing a `.deb` and its checksum for `amd64` and
+`arm64`.

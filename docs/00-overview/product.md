@@ -2,55 +2,45 @@
 
 ## What wg-agent is
 
-**A node-level control plane agent for WireGuard on Linux.**
+**An internal tool that manages the WireGuard interfaces of one Linux node.**
 
-It turns the WireGuard state of **one machine** into an API-addressable resource under a
-declarative model. Callers describe desired state; the agent is responsible for bringing
-the kernel to that state and keeping it there.
+It replaces the manual work of keeping `wg-quick` files by hand: it creates interfaces, adds and
+removes peers, hands a client its configuration and reports status, and it refuses the
+configurations WireGuard would silently break. It drives `wg` and `wg-quick` rather than the
+kernel directly — [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md), carried forward
+by [ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md).
 
-The critical boundary: **the agent manages one node.** Orchestration across nodes belongs
-to the platform layer above it.
+The critical boundary: **the agent manages one node.** Coordinating several nodes belongs to the
+operator's own scripts or orchestrator above it.
 
-**The first release is narrower than the product this page describes.** It is a wrapper over
-`wg` and `wg-quick` that replaces an operator's manual work on a node —
-[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) — reached from a CLI on the node
-and a REST API over the operator's private network. The platform-facing properties below grow
-from it through the [backlog](../60-planning/backlog.md). By the operator's statement of
-2026-09-30 it is an internal tool: breadth of support for other parties is not a goal of the first
-release.
+By the operator's statement of 2026-09-30 it is an internal tool. Support for parties other than
+its operator is not a goal, and the parts of the plan that served them were struck rather than
+deferred — the [backlog](../60-planning/backlog.md) lists them under *Not planned*.
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Platform / SaaS / Panel / Terraform / K8s  │  ← Org, user, billing, RBAC, IPAM
+│   The operator's scripts or orchestrator    │  ← which addresses, which nodes, which users
 └──────────────────────┬──────────────────────┘
                        │ REST over the operator's private network
                        │ (one bearer token)
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼
    ┌─────────┐    ┌─────────┐    ┌─────────┐
-   │wg-agent │    │wg-agent │    │wg-agent │   ← 1 agent per node
+   │wg-agent │    │wg-agent │    │wg-agent │   ← 1 agent per node, and its CLI on the node
    │ node-a  │    │ node-b  │    │ node-c  │
    └─────────┘    └─────────┘    └─────────┘
 ```
 
 The API listener serves plain HTTP on an address the operator chooses, and the operator places
 it on a private network —
-[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md). TLS and mutual TLS
-are deferred until a node must be reached across a network the operator does not control.
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md). TLS waits until a
+node must be reached across a network the operator does not control.
 
-## Intended consumers
+## Who uses it
 
-Not end users. The consumers are **machines**:
-
-- VPN platforms and VPN SaaS products
-- Control panels, hosting, PaaS
-- Terraform providers
-- Kubernetes operators
-- Internal automation
-
-That constraint shapes the whole API: idempotent writes, full state reads for drift
-detection, stable identifiers, and errors distinguishable by code rather than by message
-string.
+The operator, twice over: at a node's shell through the CLI, and from their own scripts or
+orchestrator through the API. Both reach the same core, and both are written against codes rather
+than messages: idempotent writes, stable identifiers, and errors distinguishable by reason code.
 
 ## In the first release
 
@@ -66,64 +56,53 @@ string.
 - Runtime state read from `wg show`
 - Durable desired state, with interfaces restored at boot by their `wg-quick@` units
 - A CLI on the node and a REST API behind one token
-- A `.deb` package
+- A `.deb` package the operator installs
 
 ## Later — the backlog
 
-Forward policy and NAT; drift correction; adoption of interfaces configured by hand;
-diagnostics and a node overview; metrics and an audit log; backup and restore; QR codes, a key
-rotation operation and client routing modes; the installation script; roles, several tokens and
-TLS. Each has its requirements already written; the [backlog](../60-planning/backlog.md) says
-when each returns.
+Forward policy and NAT managed by the agent; drift correction; adoption of interfaces configured
+by hand; diagnostics and a node overview; metrics and an audit log; backup and restore; QR codes,
+a key rotation operation and client routing modes; TLS. Each has its requirements already
+written; the [backlog](../60-planning/backlog.md) says when each returns.
 
 **IPv4 only.** See [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md).
 
 ## Out of scope
 
-This is the most important section of this page. Most open-source WireGuard projects die
-of scope creep — they start as an agent and end as a half-finished SaaS that nobody can
-reuse.
-
 | Not done here | Belongs to |
 |---|---|
-| VPN user authentication | Platform |
-| User, organization, tenant management | Platform |
-| Billing, quota | Platform |
-| UI, dashboard | Platform |
-| RBAC, IAM, business ACL | Platform |
-| IPAM — allocating peer addresses | Platform. The agent **validates**, and gives a generated peer the next free address of its interface's subnet — `REQ-KEY-047` |
-| Multi-node orchestration, mesh topology | Platform |
-| Business database | Platform |
+| Users, organizations, billing, a UI | The operator's own systems |
+| Deciding which peer gets which address | The operator. The agent **validates**, and gives a generated peer the next free address of its interface's subnet — `REQ-KEY-047` |
+| Several nodes, mesh topology | The operator's scripts or orchestrator |
 | `PostUp` / `PostDown` through the API | Never — [ADR-0007](../10-decisions/ADR-0007-no-shell-hooks.md); the operator sets them through the CLI — [ADR-0017](../10-decisions/ADR-0017-operator-hooks-through-the-cli.md) |
 | Owning the host firewall | Never — [ADR-0008](../10-decisions/ADR-0008-no-host-firewall-ownership.md) |
 | Policy routing for full-tunnel clients | Client-side concern |
 | Host DNS management | Client-side concern |
 | IPv6 | Deferred — [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md) |
-| Mutual TLS and node enrollment | Deferred — [ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md) carries one token over the operator's private network |
-| Per-principal request rate limiting | Deferred until the API has production traffic to size a limit against |
-| A signed APT repository | Deferred — [ADR-0010](../10-decisions/ADR-0010-install-script-over-released-deb.md) ships an install script over a released `.deb` |
+| Roles, several tokens, mutual TLS, node enrollment | Not planned — one operator, one token |
+| An install script, a release pipeline, an APT repository | Not planned — [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md) |
+| Published clients, a compatibility gate in CI | Not planned — no client outside the operator's own |
 | Zero-downtime interface key rotation | Deferred. `REQ-KEY-004` warns that rotation disconnects peers |
-| Userspace WireGuard (boringtun) | Deferred |
-| Network namespaces | Deferred |
+| Userspace WireGuard (boringtun), network namespaces | Deferred |
 | Overlapping subnets across interfaces | Requires network namespaces |
 
-## Differentiation
+## What it gives the operator
 
-`wgrest`, `wg-api`, Netmaker, Netbird and Firezone already exist. The differentiator is
-**not** "a REST API for WireGuard" — that has been built several times.
+Against editing `wg-quick` files by hand:
 
-The differentiator is:
+- **One command per change, from anywhere on the private network.** No shell on the node for a
+  peer, and no restart for one either — `wg syncconf` leaves every other session untouched.
+- **Refusal before breakage.** Host bits, a default route, a port in use, a peer carrying the
+  node's own key — the mistakes WireGuard accepts and then silently mishandles are refused with a
+  reason code.
+- **A complete client file, once.** Generated with the peer, carrying the right endpoint and port.
 
-> **Declarative desired state over the tools operators already trust — `wg-quick` files and
-> units — with an API that refuses what WireGuard would silently break, and a path from there to
-> reconciliation and first-class Terraform and Kubernetes support.**
-
-Plus one property the architecture provides for free: **the data plane runs independently
-of the agent.** When the agent crashes or is being upgraded, the kernel keeps forwarding
-traffic. An agent outage is not a VPN outage.
+And one property the design provides for free: **the data plane runs independently of the
+agent.** The interfaces belong to their `wg-quick@` units, so when the agent stops or is
+upgraded, traffic keeps flowing. An agent outage is not a VPN outage.
 
 ## Read next
 
-- [Architecture](architecture.md) — layers and library boundaries
-- [Connectivity model](../40-concepts/connectivity-model.md) — the hardest concept
+- [Architecture](architecture.md) — layers and the programs behind each operation
+- [Roadmap](../60-planning/roadmap.md) — the phases of the first release
 - [Decision index](../10-decisions/README.md) — why the system has this shape

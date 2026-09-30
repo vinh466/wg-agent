@@ -1,12 +1,12 @@
 ---
 id: ADR-0010
 title: Distribution by install script over a released .deb
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-08-05
 updated: 2026-08-05
 supersedes: []
-superseded_by: null
+superseded_by: ADR-0018
 affects: [SPEC-09, SPEC-12]
 ---
 

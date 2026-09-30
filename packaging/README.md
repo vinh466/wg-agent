@@ -29,5 +29,5 @@ What P3 builds, and the requirement each part answers:
 | Dependencies on `wireguard-tools` and `libc6 (>= 2.34)` | `REQ-CFG-021` |
 | Maintainer scripts that never remove a WireGuard link | `REQ-CFG-025` to `REQ-CFG-028` |
 
-The install script and the release pipeline wait under `B-03` in the
-[backlog](../docs/60-planning/backlog.md).
+There is no install script and no release pipeline: the operator installs the package through the
+package manager — [ADR-0018](../docs/10-decisions/ADR-0018-deb-installed-by-the-operator.md).

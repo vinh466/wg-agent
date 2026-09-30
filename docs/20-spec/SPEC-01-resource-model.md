@@ -46,7 +46,7 @@ interfaces it cannot name, and nothing to pass to `AdoptInterface`.
 
 > **REQ-RES-030** — `InterfaceSpec` MUST NOT contain a peer list.
 
-Rationale: separate collections let Terraform or an operator manage individual peers
+Rationale: separate collections let a script or an operator manage individual peers
 without contesting ownership with the interface spec. Atomic replacement of a whole peer
 set uses `BatchUpdatePeers` (`REQ-API-034`).
 

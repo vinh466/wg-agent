@@ -85,8 +85,6 @@ file unreadable by the agent whenever the writing command ran as a different acc
 agent then refuses to start under `REQ-SEC-072`. `REQ-RCN-004` states the same pairing for the
 store.
 
-> **REQ-SEC-075** — Each configured token MUST map to exactly one role.
-
 > **REQ-SEC-076** — A token value MUST NOT appear in any log entry, audit record or API
 > response.
 
@@ -97,32 +95,16 @@ The agent reads the token file again when it changes rather than on a signal. Th
 the command replacing the token take effect without finding the running agent, which neither a
 pid file nor a child process may do.
 
-> **REQ-SEC-079** — The principal attributed to a request MUST be `unix/<uid>` on the unix
-> socket and `token/<label>` on the HTTP listener.
-
-`REQ-SEC-079` gives [SPEC-08](SPEC-08-observability.md) a stable audit identity without exposing
-the token value; it arrives with several tokens and the audit log.
-
 A bearer token has no expiry and is not bound to a caller. Revocation is a replacement under
 `REQ-SEC-085`, which is proportionate while the token reaches the node only over the operator's
 private network.
 
 ## 5. Authorization
 
-With one token every authenticated caller holds full control. The roles below arrive with several
-tokens; until then `REQ-SEC-075`, `REQ-SEC-020` and `REQ-SEC-021` have nothing to decide.
-
-> **REQ-SEC-020** — The agent MUST support two roles.
-
-| Role | Permitted |
-|---|---|
-| `reader` | Read-only operations: Get, List, Health |
-| `admin` | All operations |
-
-> **REQ-SEC-021** — An identity absent from the role mapping MUST be rejected with
-> `PERMISSION_DENIED`.
-
-Finer-grained RBAC belongs to the platform layer.
+One token grants full control under
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md). The agent is an
+internal tool with one caller, so roles and several principals are not planned; finer-grained
+control belongs to whatever sits above the agent.
 
 ## 6. Least-privilege execution
 
@@ -239,3 +221,14 @@ signal.
 
 ~~**REQ-SEC-041**~~ — No child process in any production path. Replaced by `REQ-SEC-087` to
 `REQ-SEC-089`.
+
+Removed in v2.0 because the agent is an internal tool with one token, by the operator's decision
+of 2026-09-30:
+
+~~**REQ-SEC-075**~~ — One role for each configured token.
+
+~~**REQ-SEC-079**~~ — The principal attributed to a request.
+
+~~**REQ-SEC-020**~~ — Two roles, `reader` and `admin`.
+
+~~**REQ-SEC-021**~~ — Rejection of an identity absent from the role mapping.

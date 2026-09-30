@@ -7,7 +7,7 @@ in common usage, the "Avoid" column lists the rejected ones.
 |---|---|---|
 | **Agent** | The wg-agent process on one node | daemon, server |
 | **Node** | A Linux machine running the agent | host (reserved for the OS underneath) |
-| **Platform** | The layer calling the agent API: SaaS, panel, Terraform, operator | client, caller (when describing the architectural role) |
+| **Platform** | The layer calling the agent API: the operator's scripts or orchestrator | client, caller (when describing the architectural role) |
 | **Caller** | The party invoking a specific RPC | — |
 | **Interface** | A WireGuard network interface, e.g. `wg0` | tunnel, device |
 | **Peer** | A WireGuard counterpart on an interface, identified by public key | client, user |

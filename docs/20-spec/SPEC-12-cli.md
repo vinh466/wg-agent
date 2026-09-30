@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-05
 updated: 2026-09-30
 depends_on: [SPEC-04, SPEC-05, SPEC-09]
-adrs: [ADR-0010, ADR-0011, ADR-0013, ADR-0015, ADR-0017]
+adrs: [ADR-0011, ADR-0013, ADR-0015, ADR-0017, ADR-0018]
 milestone: P1–P2
 ---
 
@@ -20,7 +20,7 @@ The subcommands of the `wg-agent` binary: what each one does, how it reaches the
 interfaces, how an existing interface is adopted and released, and how the token is issued.
 
 **Not in this module:**
-- Configuration keys and the install script → [SPEC-09](SPEC-09-config-deployment.md)
+- Configuration keys and packaging → [SPEC-09](SPEC-09-config-deployment.md)
 - Token semantics → [SPEC-05](SPEC-05-security.md)
 - What each operation does → [SPEC-04](SPEC-04-api-conventions.md) and
   [SPEC-13](SPEC-13-applying-changes.md)

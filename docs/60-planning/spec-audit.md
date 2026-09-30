@@ -563,3 +563,13 @@ return only the interfaces the agent created.
   compatibility gate of B-05; roles and several principals of B-08; the contract test of P2. Each
   could be marked not planned rather than deferred, which removes it from every future count;
   the contract test is the one worth keeping, since the operator's own orchestrator calls the API.
+
+### Answer, third round, 2026-09-30
+
+- **R-17** — trimmed in full. Struck rather than deferred: the install script and release
+  pipeline, `REQ-CFG-029` to `REQ-CFG-036`, with
+  [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md) superseding ADR-0010; the
+  compatibility gate in CI, `REQ-API-061`; roles and several principals, `REQ-SEC-020`,
+  `REQ-SEC-021`, `REQ-SEC-075` and `REQ-SEC-079`. product.md positions the agent as the internal
+  tool it is. TLS stays deferred, and the contract test of P2 stays, since the operator's own
+  orchestrator calls the API. The plan holds 317 live requirements, 162 of them in P1 to P3.

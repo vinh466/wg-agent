@@ -38,5 +38,5 @@ operation added later breaks no client.
 
 ## Compatibility checking
 
-Blocking a compatibility-breaking change within a version is `REQ-API-061`, deferred under
-`B-05`. Until then `REQ-API-003` governs by hand: a breaking change moves the path to `/v2`.
+No CI gate blocks a compatibility-breaking change: the agent is an internal tool with no published
+client. `REQ-API-003` governs by hand — a breaking change moves the path to `/v2`.

@@ -79,7 +79,7 @@ which is why it reports figures rather than prose.
 The `Reported` column above says what belongs in a component's details, not what its message
 shape is. `REQ-DIA-052` fixes one envelope for all nine rather than thirty typed fields across
 nine messages, which is what lets a component gain a detail without that being a change to the
-contract under `REQ-API-061`. Typed payloads are a candidate for a later version, not a thing
+contract under `REQ-API-003`. Typed payloads are a candidate for a later version, not a thing
 this one has to guess at.
 
 > **REQ-DIA-022** — `GetOverview` MUST be read-only and accessible to the `reader` role.

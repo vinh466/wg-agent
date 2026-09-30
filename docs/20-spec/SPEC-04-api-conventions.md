@@ -38,8 +38,6 @@ of section 7 are delivered after the wrapper of
 > **REQ-API-003** — A compatibility-breaking change MUST increment the major version in the path
 > prefix, from `/v1` to `/v2`.
 
-> **REQ-API-061** — CI MUST block compatibility-breaking changes within a package version.
-
 [ADR-0014](../10-decisions/ADR-0014-rest-api-described-by-openapi.md) fixes the format. The
 document is written before the server that serves it, as this specification is, and a contract
 test compares what the server exposes with it.
@@ -185,7 +183,8 @@ the answer is to adopt it under `REQ-RCN-060` rather than to update it.
 > changing collection stays stable.
 
 Pagination is specified before the first list call is written because adding these fields
-later changes the response message, which `REQ-API-061` blocks within a package version.
+later changes the response message, a breaking change that `REQ-API-003` answers only with a new
+path version.
 Resource identity is `name` for interfaces and `public_key` for peers, per `REQ-RES-010` and
 `REQ-RES-020`.
 
@@ -389,6 +388,10 @@ application is restored and reported under `REQ-APL-008`.
 
 ~~**REQ-API-079**~~ — Structured error payloads in `google.rpc.Status.details`. No payload in v1
 needs one; a problem document takes extension members when one does.
+
+~~**REQ-API-061**~~ — CI blocking compatibility-breaking changes within a version. Removed in v2.0:
+the agent is an internal tool with no published client, and `REQ-API-003` governs a breaking
+change by hand.
 
 ## 11. Open questions
 

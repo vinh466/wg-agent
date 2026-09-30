@@ -12,7 +12,7 @@ order, not about correctness. Phase P4 is chosen from this file once P1 to P3 ru
 
 [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) narrowed the near-term product to a
 wrapper over `wg` and `wg-quick` that replaces an operator's manual work. Against that target this
-file defers **168 of the 330 live requirements**, leaving 162 in phases P1 to P3. Counting them
+file defers **155 of the 317 live requirements**, leaving 162 in phases P1 to P3. Counting them
 is what keeps the plan honest: a phase that looks small only because nobody counted is the
 failure this file exists to prevent. Counts are as of the front-matter date.
 
@@ -34,17 +34,17 @@ than implemented as it stands.
 |---|---|---|
 | B-01 | Metrics and audit | 10 |
 | B-02 | Backup, restore, upgrade and migration | 15 |
-| B-03 | Install script and release pipeline | 8 |
+| B-03 | Install script and release pipeline — not planned | 0 |
 | B-04 | Forward policy and NAT | 33 |
-| B-05 | API scaffolding for several writers | 16 |
+| B-05 | API scaffolding for several writers | 15 |
 | B-06 | Diagnostics and the node overview | 16 |
 | B-07 | Orphan bookkeeping | 4 |
-| B-08 | Roles, several principals, transport security | 4 |
+| B-08 | Transport security | 0 |
 | B-09 | Continuous reconcile and drift correction | 14 |
 | B-10 | Adoption and foreign interfaces | 36 |
 | B-11 | Key and client-configuration extras | 10 |
 | B-12 | Resource fields beyond the wrapper | 2 |
-| | **Total** | **168** |
+| | **Total** | **155** |
 
 ---
 
@@ -76,16 +76,12 @@ restores. The audit's section 4.6 lists the gaps SPEC-10 carries.
 
 ---
 
-## B-03 — Install script and release pipeline
+## B-03 — Install script and release pipeline: not planned
 
-**Defers:** `REQ-CFG-029` to `REQ-CFG-036`. Eight requirements.
-
-**Returns when:** the agent is installed by someone other than its author, or the repository is
-published with releases to download.
-
-**On return:** `REQ-CFG-045` makes the package generate the token, so the script's own token
-requirements, `REQ-CFG-032` and `REQ-CFG-033`, are re-read against it; `REQ-CFG-036` names
-`arm64`, which the platform floor excludes.
+Struck on 2026-09-30 with [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md):
+the agent is an internal tool, installed by its operator through the package manager, so nothing
+is released for anyone to download. The eight requirements are in the removed section of
+[SPEC-09](../20-spec/SPEC-09-config-deployment.md).
 
 ---
 
@@ -116,9 +112,11 @@ interfaces.
 
 **Defers:** `REQ-API-011` to `REQ-API-015` (pagination), `REQ-API-030` to `REQ-API-035`,
 `REQ-API-062`, `REQ-API-072` and `REQ-API-077` (revisions, `ETag` and batch writes),
-`REQ-API-061` (the compatibility gate in CI), `REQ-RES-031`. Sixteen requirements.
+`REQ-RES-031`. Fifteen requirements.
 
-**Returns when:** a second writer exists, or a client is published to anyone.
+**Returns when:** a second writer exists.
+
+The compatibility gate in CI, `REQ-API-061`, was struck on 2026-09-30: no client is published.
 
 With one writer an omitted revision is an unconditional overwrite, which is the behaviour a
 single operator wants; pagination guards a ceiling one node does not reach.
@@ -150,15 +148,17 @@ half-deleted for a record to remember.
 
 ---
 
-## B-08 — Roles, several principals, transport security
+## B-08 — Transport security
 
-**Defers:** `REQ-SEC-020`, `REQ-SEC-021`, `REQ-SEC-075`, `REQ-SEC-079`. Four requirements.
+**Defers:** no requirement yet.
 
-**Returns when:** a second caller needs narrower rights than full control, or the listener must
-be reached across a network the operator does not control.
+**Returns when:** the listener must be reached across a network the operator does not control.
 
-The second trigger brings TLS, which has no requirement yet: the measurements in
-[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md) are where it starts.
+It brings TLS, which the measurements in
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md) already cover. Roles
+and several principals, the rest of this entry before 2026-09-30, were struck with it: one token,
+one caller, an internal tool. They are in the removed section of
+[SPEC-05](../20-spec/SPEC-05-security.md).
 
 ---
 
@@ -227,6 +227,14 @@ while the interface identifier stays (audit M-30).
 Chosen after P1 to P3 run on a real node, from what that use shows is missing. The likely ones:
 B-11 in whole or in part, drift detection from B-09, and a node overview from B-06. B-04 returns
 the moment peers must be isolated from each other.
+
+## Not planned
+
+Struck rather than deferred, because the agent is an internal tool — the operator's decision of
+2026-09-30: the install script and release pipeline (formerly B-03), the compatibility gate in CI,
+and roles and several principals (formerly part of B-08). The positioning towards Terraform
+providers, Kubernetes operators and VPN platforms went from
+[product.md](../00-overview/product.md) with them.
 
 ## What is not in this file
 
