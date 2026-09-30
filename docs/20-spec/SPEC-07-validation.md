@@ -59,14 +59,16 @@ two identical prefixes the later-configured peer silently displaces the earlier 
 > **REQ-VAL-014** — The agent MUST reject `addresses` overlapping a WireGuard interface on the
 > host other than the one the spec names, with `ADDRESS_CONFLICT`.
 
-> **REQ-VAL-015** — The agent MUST reject a create request naming a WireGuard link, or a file
+> **REQ-VAL-015** — The agent MUST reject a create request naming a network link, or a file
 > under `/etc/wireguard/`, that already exists, with `INTERFACE_EXISTS`.
 
 `REQ-VAL-013` and `REQ-VAL-014` reach foreign interfaces as well as managed ones. A port or
 subnet held by a link the agent did not create collides just as firmly, and checking only
-managed interfaces would let the spec pass validation and fail when applied. Both exclude the
-interface the spec names, so validating an adopted spec does not match it against the very link
-it was read from.
+managed interfaces would let the spec pass validation and fail when applied. They reach a
+managed interface whose `enabled` is false as well: it has no device, but its unit would collide
+the moment it is enabled. Both exclude the interface the spec names, so validating an adopted spec
+does not match it against the very link it was read from. Two subnets overlap when one contains
+the other.
 
 `REQ-VAL-013` is not made redundant by the kernel. Two WireGuard devices may both hold one
 listen port while at most one of them is up; the second bind is refused on the transition to up,
@@ -102,6 +104,13 @@ half-configured.
 
 > **REQ-VAL-020** — The agent MUST reject any address or CIDR of the IPv6 family with
 > `IPV6_NOT_SUPPORTED`.
+
+> **REQ-VAL-047** — The agent MUST reject an `addresses`, `allowed_ips` or `client_allowed_ips`
+> entry that is not an address with a prefix length, with `CIDR_INVALID`.
+
+Every other rule on those fields reads a network; an entry that is not one — `10.8.0.1` with no
+prefix, or text — would otherwise reach `wg-quick` and fail there. An IPv6 entry is refused under
+`REQ-VAL-020` rather than this rule.
 
 Silent omission is prohibited, as is accepting the value without configuring it. Reasoning
 in [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md).
@@ -178,8 +187,8 @@ A typo here causes silent loss of connectivity, so it is caught at write time.
 
 ## 4. Warning severity
 
-> **REQ-VAL-030** — The agent MUST warn with `ALLOWED_IPS_OVERLAP` when `allowed_ips` entries
-> overlap at differing prefix lengths.
+> **REQ-VAL-030** — The agent MUST warn with `ALLOWED_IPS_OVERLAP` when an `allowed_ips` entry
+> overlaps, at a differing prefix length, an entry of the same or another peer of the interface.
 
 Longest-prefix matching makes this valid, but it usually indicates a mistake.
 
@@ -225,6 +234,7 @@ Syntactically valid, practically broken.
 | Empty `addresses` | REQ-VAL-016 | Error |
 | Empty `allowed_ips` | REQ-VAL-017 | Error |
 | IPv6 address | REQ-VAL-020 | Error |
+| Entry that is not a CIDR | REQ-VAL-047 | Error |
 | Port outside 1 to 65535 | REQ-VAL-036 | Error |
 | Keepalive above 65535 | REQ-VAL-037 | Error |
 | MTU outside 68 to 65535 | REQ-VAL-038 | Error |

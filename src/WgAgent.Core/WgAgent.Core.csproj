@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Model, store, lock, validate, render, apply — architecture.md, Repository layout. -->
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Platform/WgAgent.Platform.csproj" />
+  </ItemGroup>
+</Project>

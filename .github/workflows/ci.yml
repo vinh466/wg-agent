@@ -10,8 +10,7 @@ jobs:
   # toolchain beyond Docker, so this gate holds while the specification is ahead
   # of the code.
   #
-  # The build, test and contract jobs arrive with the tooling they run, as the
-  # implementation is rebuilt from the specification. A job that calls a target
+  # Each further job arrives with the tooling it runs. A job that calls a target
   # nothing defines fails on every push and teaches the reader to ignore red.
   docs:
     runs-on: ubuntu-latest
@@ -23,3 +22,16 @@ jobs:
         run: docs/check-traceability.sh
       - name: Diagrams render
         run: docs/check-mermaid.sh
+
+  # Build with warnings as errors, then the unit tier: no privilege needed.
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: make build
+      - name: Unit tests
+        run: make test

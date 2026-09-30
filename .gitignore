@@ -1,7 +1,9 @@
 # .NET build output
 bin/
 obj/
+out/
 artifacts/
+TestResults/
 *.user
 
 # Local tool manifests are committed; their restore cache is not

@@ -6,7 +6,10 @@
 #   2. every requirement marked Implemented has at least one referencing test
 #
 # This script is that check. It is deliberately separate from check-docs.sh,
-# which cds into docs/ and therefore can never see a Go file.
+# which cds into docs/ and therefore can never see a source file.
+#
+# A requirement a backlog entry defers is not expected to have a test: a module
+# is Implemented when every requirement of it outside the backlog is.
 #
 # Usage: docs/check-traceability.sh          exit 0 = pass
 #        docs/check-traceability.sh --quiet  errors only
@@ -56,8 +59,22 @@ done <<<"$used"
 [ $n -eq 0 ] && grn "  ok — every referenced ID exists in docs/20-spec/"
 
 # ── 2. Every Implemented requirement has a referencing test ─────────────────
-# Scope is per module: a requirement is Implemented when its module says so.
+# Scope is per module: a requirement is Implemented when its module says so,
+# unless an entry of docs/60-planning/backlog.md defers it.
 hdr "2. Implemented requirements are covered by a test"
+deferred=$(
+  awk '/^\*\*Defers:\*\*/{f=1} f{print} /^$/{f=0}' docs/60-planning/backlog.md \
+  | tr -d '`' | tr '\n' ' ' \
+  | grep -oP 'REQ-[A-Z]{3}-\d{3}( to REQ-[A-Z]{3}-\d{3})?' \
+  | while read -r first _ last; do
+      if [ -n "${last:-}" ]; then
+        area=${first%-*}
+        for ((k=10#${first##*-}; k<=10#${last##*-}; k++)); do printf '%s-%03d\n' "$area" "$k"; done
+      else
+        echo "$first"
+      fi
+    done | sort -u
+)
 mapfile -t TESTFILES < <(find ./tests -name '*.cs' \
   -not -path '*/bin/*' -not -path '*/obj/*' 2>/dev/null | sort)
 tested=""
@@ -73,6 +90,7 @@ for f in docs/20-spec/SPEC-*.md; do
   grep -qP '^status:\s*Implemented' "$f" || continue
   while IFS= read -r id; do
     [ -z "$id" ] && continue
+    grep -qx "$id" <<<"$deferred" && continue
     grep -qx "$id" <<<"$tested" || {
       red "  UNTESTED  $id ($(basename "$f") is Implemented)"; fail=1; n=$((n+1)); }
   done < <(grep -hoP '^> \*\*\KREQ-[A-Z]{3}-\d{3}' "$f")

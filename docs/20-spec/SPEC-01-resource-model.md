@@ -94,8 +94,9 @@ The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL ter
 | `post_down` | []string | No | `[]` | Commands `wg-quick` runs as root after taking the interface down. Set through the CLI alone |
 
 An interface's **subnets** are the networks its `addresses` belong to: `10.8.0.1/24` gives
-`10.8.0.0/24`. Its **first subnet** is the one of its first address. Validation, client configuration and [SPEC-13](SPEC-13-applying-changes.md) all
-test a peer's allowed IPs against them.
+`10.8.0.0/24`. Its **first subnet** is the one of its first address. An allowed-IPs entry lies
+**within** the subnets when one of them contains it. Validation, client configuration and
+[SPEC-13](SPEC-13-applying-changes.md) all test a peer's allowed IPs against them.
 
 `listen_port` defaults to the port WireGuard documents rather than to `0`. A port the kernel
 chooses changes every time `wg-quick` brings the interface up, and a client configuration

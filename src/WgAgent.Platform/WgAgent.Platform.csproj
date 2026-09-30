@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The ports and the types that cross them. References no adapter: that is what keeps
+       every layer above testable without privilege (CLAUDE.md, Repository layout). -->
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Platform</RootNamespace>
+  </PropertyGroup>
+</Project>
