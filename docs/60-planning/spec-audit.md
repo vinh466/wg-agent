@@ -426,8 +426,67 @@ libnftables under F-01.
 
 ## 7. Order of work
 
+Superseded by the phases of the [roadmap](roadmap.md) once the specification was cut to the
+wrapper; section 8 records where each item landed.
+
 1. Decisions D-01 to D-16 and F-01 to F-07.
 2. One spec change per module, each with its version bump, carrying the decided items and the
    M items of that module.
 3. P-01 and P-02 against the amended spec.
 4. `docs/check-*.sh` passing, then the tooling step of the roadmap.
+
+## 8. After the wrapper cut
+
+Reassessed on 2026-09-30, after ADR-0013 to ADR-0015 and the cut of the specification to the
+wrapper. Every item above now stands in one of five states.
+
+| State | Items |
+|---|---|
+| **Resolved by the cut** | D-03, D-04, D-05, D-06 (`REQ-VAL-044`), D-08, D-09, D-11, D-15; F-07; M-01 except the deferred SPEC-08 label, M-03, M-05, M-06, M-07, M-09, M-13, M-14, M-15, M-16, M-23, M-26, M-27; P-01, P-02, P-03 |
+| **Decided** | D-02 — IPv6 endpoints stay refused with the overlay; D-10 — Debian 13 and Ubuntu 24.04 onwards; F-02 — REST, ADR-0014; F-03 — one `KEY=VALUE` file, R-03; F-04 — one token, ADR-0015; F-05 — QR deferred to B-11 rather than struck |
+| **Waits with its backlog entry** | D-01, D-07, D-16, F-01, M-10 with B-04; D-12, M-25 with B-10; the reconcile half of D-13, M-11, M-17 with B-09; D-14, M-24 with B-01; M-02 with B-02; M-08, M-20 and the SPEC-11 half of M-04 with B-06; M-12 with B-05; M-22 with B-08; M-30 with B-12 |
+| **No longer applies** | M-18 — no netlink; M-19 — `wg` resolves a hostname when it applies the file, and `REQ-VAL-033` warns; M-21 — no sysctl, no generic netlink, no module check |
+| **Open, small, for P1 to P3** | M-28 — status fields defined only by tables; the rest of M-29 — an unwritable store reported as `STORE_CORRUPT`, the flag naming rule of `REQ-CFG-042`, the scope of `REQ-VAL-030`; F-06 — R-13 |
+
+The apply half of D-13 is `REQ-APL-008`: a failed change is restored and reported rather than
+left degraded.
+
+### Review points
+
+Decisions taken during the cut, for the operator to confirm or overturn; each is a small edit
+either way.
+
+- **R-01** SPEC-13, the new module holding the wrapper's mechanics, is `Review`. P1 implements
+  it once accepted.
+- **R-02** `listen_port` defaults to 51820 and `0` is refused (`REQ-VAL-036`): a port the kernel
+  picks changes at every restart and breaks every client configuration naming it.
+- **R-03** The configuration is one `KEY=VALUE` file, `/etc/default/wg-agent`, rather than YAML:
+  seven scalar keys, no parser dependency.
+- **R-04** An `allowed_ips` entry with host bits is refused (`REQ-VAL-041`) rather than
+  normalised.
+- **R-05** A default route in `allowed_ips` is refused (`REQ-VAL-044`), so a full tunnel through a
+  peer is not possible in v1.
+- **R-06** Forwarding and NAT stay the host's through P3 ([SPEC-13](../20-spec/SPEC-13-applying-changes.md)
+  section 5). An interface the agent creates carries no `PostUp`, so a node whose peers must reach
+  each other or the networks beyond needs `ip_forward` and a masquerade rule set once on the host.
+  The P3 guide shows how; pulling a minimal NAT switch forward from B-04 is the alternative.
+- **R-07** A client configuration exists only in the response that created the peer with a
+  generated key pair (`REQ-KEY-042`). A peer created with a supplied public key has none, and no
+  later operation rebuilds one until B-11.
+- **R-08** The package generates the token silently at installation (`REQ-CFG-045`); the operator
+  reads it as root, or runs `token rotate`, which prints a new one.
+- **R-09** The CLI acts directly, without the daemon (`REQ-CLI-002`), so P1 delivers a usable CLI
+  before any API exists.
+- **R-10** `RotateInterfaceKey`, `GenerateKeyPair` and QR codes wait in B-11; meanwhile
+  `UpdateInterface` with a new `private_key` rotates a key.
+
+Open questions that change the plan if answered differently:
+
+- **R-11** A hand edit to a file the agent created is replaced at its next write. Should the agent
+  detect the edit and refuse instead — the open question of SPEC-13?
+- **R-12** `docs/check-traceability.sh` treats every requirement of an `Implemented` module as
+  needing a test, the deferred ones included. It has to read the backlog before the first module
+  of P1 is marked `Implemented` — a tooling task at the start of P1.
+- **R-13** The build stack — .NET 10, NativeAOT, `linux-x64` — lost its ADR when ADR-0012 was
+  superseded; `REQ-CFG-044` and `CLAUDE.md` carry it. A short ADR restating it would keep the fact
+  in one home.

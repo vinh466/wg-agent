@@ -38,7 +38,11 @@ one branching on a failure.
 ## 3. Error severity
 
 > **REQ-VAL-010** — The agent MUST reject an interface name not matching
-> `^[a-zA-Z][a-zA-Z0-9_-]{0,14}$` with `INTERFACE_NAME_INVALID`.
+> `^[a-zA-Z][a-zA-Z0-9_-]{0,14}$`, or equal to `all` or `default`, with `INTERFACE_NAME_INVALID`.
+
+The kernel refuses `all` and `default` with `EINVAL`, because each would collide with a directory
+of the same name under `/proc/sys/net/ipv4/conf/`; refusing them here names the reason instead of
+failing when the unit starts.
 
 > **REQ-VAL-011** — The agent MUST reject a public key that is not base64 of exactly 32
 > bytes with `PUBLIC_KEY_INVALID`.
@@ -137,6 +141,15 @@ rather than guesses. `addresses` keep their host bits and are not affected.
 > **REQ-VAL-042** — The agent MUST reject an `endpoint` that is not a host and a port from 1 to
 > 65535 with `ENDPOINT_INVALID`.
 
+> **REQ-VAL-044** — The agent MUST reject an `allowed_ips` entry whose prefix length is 0 with
+> `ALLOWED_IPS_DEFAULT_ROUTE`.
+
+`wg-quick` turns a default route among a peer's allowed IPs into full-tunnel policy routing on the
+node itself: a firewall mark, a routing table of its own, and a rule sending every unmarked packet
+through that peer. The node's own traffic — the replies of an SSH session included — would leave
+through the tunnel. `manage_routes`, delivered later with backlog B-12, is what lets an operator
+render `Table = off` and route such a peer by hand; until then the entry is refused.
+
 > **REQ-VAL-043** — The agent MUST reject a peer created with `generate_keypair` none of whose
 > `allowed_ips` entries lies within the interface's subnets, with `CLIENT_ADDRESS_MISSING`.
 
@@ -162,7 +175,7 @@ A typo here causes silent loss of connectivity, so it is caught at write time.
 Longest-prefix matching makes this valid, but it usually indicates a mistake.
 
 > **REQ-VAL-031** — The agent MUST warn with `ALLOWED_IPS_OUT_OF_SUBNET` when a peer's
-> `allowed_ips` falls outside the interface subnet.
+> `allowed_ips` entry falls outside every one of the interface's subnets.
 
 Valid for site-to-site, usually a mistake otherwise.
 
@@ -211,6 +224,7 @@ Syntactically valid, practically broken.
 | Host bits in `allowed_ips` | REQ-VAL-041 | Error |
 | Malformed `endpoint` | REQ-VAL-042 | Error |
 | Generated peer with no address in the subnets | REQ-VAL-043 | Error |
+| Default route in `allowed_ips` | REQ-VAL-044 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |
 | One-sided `inter_interface` | REQ-VAL-023 | Warning |

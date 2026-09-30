@@ -72,6 +72,7 @@ opposite sides of the same question.
 > **REQ-RES-011** — `name` MUST match `^[a-zA-Z][a-zA-Z0-9_-]{0,14}$`.
 
 The 15-character limit derives from Linux `IFNAMSIZ = 16`, including the NUL terminator.
+`REQ-VAL-010` also refuses `all` and `default`, which the pattern admits and the kernel does not.
 
 ### 3.2. InterfaceSpec
 

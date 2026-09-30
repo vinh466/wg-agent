@@ -12,7 +12,7 @@ order, not about correctness. Phase P4 is chosen from this file once P1 to P3 ru
 
 [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) narrowed the near-term product to a
 wrapper over `wg` and `wg-quick` that replaces an operator's manual work. Against that target this
-file defers **168 of the 319 live requirements**, leaving 151 in phases P1 to P3. Counting them
+file defers **168 of the 320 live requirements**, leaving 152 in phases P1 to P3. Counting them
 is what keeps the plan honest: a phase that looks small only because nobody counted is the
 failure this file exists to prevent. Counts are as of the front-matter date.
 
