@@ -539,6 +539,7 @@ components:
         - APPLY_FAILED
         - FIELD_IMMUTABLE
         - FIELD_UNKNOWN
+        - REQUEST_MALFORMED
         - ADDRESSES_REQUIRED
         - ALLOWED_IPS_REQUIRED
         - ENDPOINT_REQUIRED

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The REST listener of ADR-0014: ASP.NET Core Minimal APIs with source-generated JSON, so it
+       publishes with no trim or AOT warning. The contract is api/openapi.yaml (REQ-API-001). -->
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Service/WgAgent.Service.csproj" />
+    <ProjectReference Include="../WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WgAgent.Tests" />
+  </ItemGroup>
+</Project>

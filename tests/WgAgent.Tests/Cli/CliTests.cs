@@ -79,9 +79,11 @@ public sealed class CliTests : IDisposable
     [Fact]
     public void Subcommands_AreThoseOfTheTable_REQ_CLI_001()
     {
-        Assert.Contains("interface", Ok("--help").Out);
+        var root = Ok("--help").Out;
+        foreach (var group in new[] { "serve", "interface", "peer", "token", "version" }) Assert.Contains(group, root);
         foreach (var verb in new[] { "create", "list", "get", "update", "delete" }) Assert.Contains(verb, Ok("interface", "--help").Out);
         foreach (var verb in new[] { "add", "list", "get", "update", "remove" }) Assert.Contains(verb, Ok("peer", "--help").Out);
+        Assert.Contains("rotate", Ok("token", "--help").Out);
         Assert.Equal(0, Run("version").Code);
     }
 

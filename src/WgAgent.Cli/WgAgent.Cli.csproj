@@ -11,6 +11,7 @@
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../WgAgent.Api/WgAgent.Api.csproj" />
     <ProjectReference Include="../WgAgent.Service/WgAgent.Service.csproj" />
     <ProjectReference Include="../WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
   </ItemGroup>

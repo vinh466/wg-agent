@@ -86,10 +86,9 @@ without breaking a client, while one frozen in the wrong shape cannot be changed
 > **REQ-API-081** — The server MUST convert the path segment encoding of `REQ-RES-021` into the
 > field encoding of `REQ-API-080`.
 
-Three rows bind `{public_key}` into a request field. A server that passed the segment through
-unchanged would compare unpadded base64url from the path with padded standard base64 from the
-store, so the same peer would be addressable by two different strings and an equality check
-would fail for one of them. Converting at the edge keeps one encoding inside the service.
+Three rows bind `{public_key}` into a request field. Converting the path's unpadded base64url to
+the store's padded standard base64 at the edge keeps one encoding inside the service, so a peer is
+not addressable by two strings one equality check would split.
 
 ## 5. Write semantics
 
@@ -159,9 +158,8 @@ undo what the operator set on the node.
 > **REQ-API-071** — `CreatePeer` MUST reject a public key already described on that interface
 > with `PEER_EXISTS`.
 
-Update is not an upsert. A `PUT` to a name desired state does not describe is far more often a
-typo than an intent to create, and `REQ-VAL-015` already refuses the mirror case on create, so
-accepting one here would leave the two verbs disagreeing.
+Update is not an upsert: a `PUT` to a name desired state does not describe is far more often a typo
+than an intent to create, and `REQ-VAL-015` already refuses the mirror case on create.
 
 `INTERFACE_NOT_MANAGED` is distinct from `INTERFACE_NOT_FOUND`: the link exists on the host but
 nobody has asked the agent to manage it. That is a `FOREIGN` interface under `REQ-RES-017`, and
@@ -195,11 +193,10 @@ Resource identity is `name` for interfaces and `public_key` for peers, per `REQ-
 > **REQ-API-077** — An interface's `revision` MUST also change when the set of peers on that
 > interface changes.
 
-`REQ-API-077` is what makes `REQ-API-072` work. Peers are a separate collection under
-`REQ-RES-002`, so an interface revision bound to its own spec alone would not move when a peer
-was added, and the batch write it guards would not detect the change it exists to detect. The
-cost is that an interface revision turns over more often, which is correct: a peer set is part
-of what that interface does.
+`REQ-API-077` is what makes `REQ-API-072` work: peers are a separate collection (`REQ-RES-002`),
+so an interface revision bound to its spec alone would not move when a peer was added, and the batch
+write it guards would miss the change. An interface revision turning over more often is correct — a
+peer set is part of what that interface does.
 
 > **REQ-API-031** — On a mismatched `revision`, the agent MUST return `FAILED_PRECONDITION`
 > with reason `REVISION_MISMATCH`, mapped to HTTP `412`.
@@ -221,15 +218,21 @@ of what that interface does.
 > **REQ-API-072** — `BatchUpdatePeers` MUST accept the interface `revision` and reject a
 > mismatch under `REQ-API-031`.
 
-Without it the one operation that can replace an entire peer set is also the one with no way to
-detect that the set changed underneath the caller. `replace_all = true` deletes every peer the
-request omits, so a stale read followed by a batch write is how a caller silently removes a peer
-somebody else added.
+Without it the one operation that can replace an entire peer set has no way to detect the set
+changing underneath the caller: with `replace_all = true`, a stale read then a batch write silently
+removes a peer somebody else added.
 
 ## 7. Error model
 
 > **REQ-API-082** — An error response MUST be an `application/problem+json` body whose `reason`
 > member carries the error's reason code.
+
+> **REQ-API-086** — A request body that is not valid JSON of the operation's schema MUST be
+> rejected with `REQUEST_MALFORMED`, mapped to HTTP `400`.
+
+`FIELD_UNKNOWN` (`REQ-VAL-050`) names a member the schema does not define; `REQUEST_MALFORMED`
+covers the rest — a body that does not parse, or gives a field the wrong JSON type. The closed set of
+`REQ-API-041` must name both, or an error would carry a code no client can branch on.
 
 > **REQ-API-041** — The `reason` member MUST carry one of the values enumerated below.
 
@@ -241,7 +244,7 @@ RFC 9457, which a generic HTTP client reads without knowing the codes.
 
 | HTTP | Reason codes |
 |---|---|
-| 400 | `INTERFACE_NAME_INVALID`, `PUBLIC_KEY_INVALID`, `KEY_INVALID`, `ADDRESSES_REQUIRED`, `ALLOWED_IPS_REQUIRED`, `ALLOWED_IPS_DUPLICATE`, `ALLOWED_IPS_NOT_CANONICAL`, `IPV6_NOT_SUPPORTED`, `LISTEN_PORT_INVALID`, `KEEPALIVE_INVALID`, `MTU_INVALID`, `ENDPOINT_INVALID`, `ENDPOINT_REQUIRED`, `PEER_IS_INTERFACE`, `CLIENT_ADDRESS_MISSING`, `ALLOWED_IPS_DEFAULT_ROUTE`, `HOOK_INVALID`, `CIDR_INVALID`, `FIELD_IMMUTABLE`, `FIELD_UNKNOWN`, `FORWARD_POLICY_NEEDS_UPLINK`, `PEER_INTERFACE_NOT_FOUND`, `ADOPTION_FIELD_REQUIRED` |
+| 400 | `INTERFACE_NAME_INVALID`, `PUBLIC_KEY_INVALID`, `KEY_INVALID`, `ADDRESSES_REQUIRED`, `ALLOWED_IPS_REQUIRED`, `ALLOWED_IPS_DUPLICATE`, `ALLOWED_IPS_NOT_CANONICAL`, `IPV6_NOT_SUPPORTED`, `LISTEN_PORT_INVALID`, `KEEPALIVE_INVALID`, `MTU_INVALID`, `ENDPOINT_INVALID`, `ENDPOINT_REQUIRED`, `PEER_IS_INTERFACE`, `CLIENT_ADDRESS_MISSING`, `ALLOWED_IPS_DEFAULT_ROUTE`, `HOOK_INVALID`, `CIDR_INVALID`, `FIELD_IMMUTABLE`, `FIELD_UNKNOWN`, `REQUEST_MALFORMED`, `FORWARD_POLICY_NEEDS_UPLINK`, `PEER_INTERFACE_NOT_FOUND`, `ADOPTION_FIELD_REQUIRED` |
 | 401 | `TOKEN_INVALID` |
 | 404 | `INTERFACE_NOT_FOUND`, `INTERFACE_NOT_MANAGED`, `PEER_NOT_FOUND` |
 | 409 | `INTERFACE_EXISTS`, `PEER_EXISTS`, `SUBNET_FULL`, `LISTEN_PORT_IN_USE`, `ADDRESS_CONFLICT`, `INTERFACE_NOT_FOREIGN`, `INTERFACE_NOT_ADOPTED`, `ADOPTION_BLOCKED` |
@@ -274,7 +277,7 @@ LISTEN_PORT_INVALID         KEEPALIVE_INVALID         MTU_INVALID
 KEY_INVALID                 PEER_IS_INTERFACE         ALLOWED_IPS_NOT_CANONICAL
 ENDPOINT_INVALID            CLIENT_ADDRESS_MISSING    ALLOWED_IPS_DEFAULT_ROUTE
 HOOK_INVALID                SUBNET_FULL               CIDR_INVALID
-STORE_BUSY                  FIELD_UNKNOWN
+STORE_BUSY                  FIELD_UNKNOWN             REQUEST_MALFORMED
 ```
 
 `TOKEN_MISSING` was removed in v1.9. `REQ-SEC-078` treats a missing token and a wrong one
@@ -296,6 +299,7 @@ performs. The rest are named where the behaviour is defined:
 | `PEER_NOT_FOUND` | `REQ-API-070` |
 | `PEER_EXISTS` | `REQ-API-071` |
 | `FIELD_IMMUTABLE` | `REQ-API-066` |
+| `REQUEST_MALFORMED` | `REQ-API-086` |
 | `APPLY_FAILED` | `REQ-APL-008`, `REQ-APL-011` |
 | `STORE_BUSY` | `REQ-RCN-075` |
 | `REVISION_MISMATCH` | `REQ-API-031` |
@@ -340,12 +344,10 @@ each one a stable `hint_code`.
 | 3 | A token is configured (`REQ-SEC-072`) | `TOKEN_INVALID` |
 | 4 | `CAP_NET_ADMIN` is held | `MISSING_CAP_NET_ADMIN` |
 
-A startup failure carries a reason code for the same purpose a request failure does: an
-installer or a unit log should be able to branch on the cause without matching message text.
-Checks 1 and 2 are separate because a corrupt store and a store from a newer build call for
-opposite actions — restore one, downgrade nothing. The modules delivered later bring their own
-checks: the forwarding sysctl and `nf_tables` with [SPEC-02](SPEC-02-forward-policy.md), the
-metrics bind address with [SPEC-08](SPEC-08-observability.md).
+A startup failure carries a reason code so an installer or a unit log can branch on the cause
+without matching message text. Checks 1 and 2 are separate because a corrupt store and one from a
+newer build call for opposite actions — restore one, downgrade nothing. Modules delivered later bring
+their own checks — the forwarding sysctl and `nf_tables` with SPEC-02, the metrics bind with SPEC-08.
 
 > **REQ-API-051** — `/v1/health` MUST report success only after every startup check passes.
 
@@ -363,11 +365,10 @@ changing this one, so the simpler form carries no cost to reverse.
 
 > **REQ-API-074** — Shutdown MUST NOT alter the kernel state of any interface it manages.
 
-`REQ-API-074` is the property that makes an upgrade safe, and it is the same one the whole
-design rests on: the data plane runs independently of the agent, so stopping the agent is not
-stopping the tunnel. Under ADR-0013 the interfaces belong to their `wg-quick@` units, which the
-agent's own shutdown leaves running. A shutdown that tore interfaces down would turn every package
-upgrade into an outage.
+`REQ-API-074` makes an upgrade safe, and it is the property the whole design rests on: the data
+plane runs independently of the agent. The interfaces belong to their `wg-quick@` units (ADR-0013),
+which the agent's shutdown leaves running, so stopping the agent is not stopping the tunnel — a
+shutdown that tore interfaces down would turn every package upgrade into an outage.
 
 ## 10. Removed requirements
 

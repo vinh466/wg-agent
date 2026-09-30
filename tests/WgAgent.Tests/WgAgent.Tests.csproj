@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
+    <PackageReference Include="YamlDotNet" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
@@ -16,6 +17,7 @@
     <ProjectReference Include="../../src/WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
     <ProjectReference Include="../../src/WgAgent.Service/WgAgent.Service.csproj" />
     <ProjectReference Include="../../src/WgAgent.Cli/WgAgent.Cli.csproj" />
+    <ProjectReference Include="../../src/WgAgent.Api/WgAgent.Api.csproj" />
     <ProjectReference Include="../WgAgent.Testing/WgAgent.Testing.csproj" />
   </ItemGroup>
 </Project>

@@ -51,6 +51,7 @@ public static class Cli
         root.Directives.Clear();
 
         global.AddTo(root);
+        root.Subcommands.Add(ServeCommand.Build(context, global));
         root.Subcommands.Add(InterfaceCommands.Build(context, global));
         root.Subcommands.Add(PeerCommands.Build(context, global));
         root.Subcommands.Add(TokenCommands.Build(context, global));
