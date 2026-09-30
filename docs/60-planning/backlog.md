@@ -1,254 +1,231 @@
 ---
-updated: 2026-09-05
+updated: 2026-09-30
 ---
 
 # Backlog
 
-Requirements deferred out of the near-term build. Nothing here is withdrawn: every ID below
-stays live and normative in its module, and the [module index](../20-spec/README.md) is
-unchanged. Deferral is a statement about build order, not about correctness.
+Requirements outside phases P1 to P3 of the [roadmap](roadmap.md). Nothing here is withdrawn:
+every ID below stays live and normative in its module. Deferral is a statement about build
+order, not about correctness. Phase P4 is chosen from this file once P1 to P3 run on a real node.
 
 ## Why this file exists
 
-The [roadmap](roadmap.md) sizes the work for the product described in
-[product.md](../00-overview/product.md) — a component consumed by VPN platforms, Terraform
-providers and Kubernetes operators. The near-term target is narrower: a single operator
-managing their own node, adopting an interface that already exists, reaching the API locally
-behind one token.
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) narrowed the near-term product to a
+wrapper over `wg` and `wg-quick` that replaces an operator's manual work. Against that target this
+file defers **168 of the 319 live requirements**, leaving 151 in phases P1 to P3. Counting them
+is what keeps the plan honest: a phase that looks small only because nobody counted is the
+failure this file exists to prevent. Counts are as of the front-matter date.
 
-Against that narrower target, this file defers **97 of the 310 live requirements**, leaving
-213 in the near-term build. Deferring them explicitly is what keeps the count honest — the
-alternative is a milestone plan that looks achievable only because nobody counted.
-
-Reading the milestone numbers as the smaller slice does not work: M0 through M2 still carry
-280 of 310 requirements, because the machine-facing scaffolding is spread across the MVP
-modules rather than concentrated after them. Counts are as of the front-matter date.
+Several entries were written for a control plane that drove the kernel directly. Each says what
+has to be re-read against ADR-0013 when it returns, so a returning entry is re-specified rather
+than implemented as it stands.
 
 ## How to read an entry
 
 | Field | Meaning |
 |---|---|
-| **Defers** | The requirement IDs moved out of the near-term build |
-| **Keeps** | Requirements in the same area that stay in, and why |
+| **Defers** | The requirement IDs moved out of phases P1 to P3 |
 | **Returns when** | The condition that puts the entry back on the critical path |
+| **On return** | What must be re-read or re-decided first |
 
 ## Summary
 
 | Entry | Area | Deferred |
 |---|---|---|
-| B-01 | Metrics, logs and audit | 10 |
+| B-01 | Metrics and audit | 10 |
 | B-02 | Backup, restore, upgrade and migration | 15 |
-| B-03 | Packaging, install script and release pipeline | 20 |
-| B-04 | Forward policy and NAT | 22 |
-| B-05 | API scaffolding for machine consumers | 14 |
-| B-06 | Interface diagnostics | 9 |
+| B-03 | Install script and release pipeline | 8 |
+| B-04 | Forward policy and NAT | 33 |
+| B-05 | API scaffolding for several writers | 16 |
+| B-06 | Diagnostics and the node overview | 16 |
 | B-07 | Orphan bookkeeping | 4 |
-| B-08 | Multi-principal machinery | 3 |
-| | **Total** | **97** |
+| B-08 | Roles, several principals, transport security | 4 |
+| B-09 | Continuous reconcile and drift correction | 14 |
+| B-10 | Adoption and foreign interfaces | 36 |
+| B-11 | Key and client-configuration extras | 10 |
+| B-12 | Resource fields beyond the wrapper | 2 |
+| | **Total** | **168** |
 
 ---
 
-## B-01 — Metrics, logs and audit
+## B-01 — Metrics and audit
 
-**Defers:** all of [SPEC-08](../20-spec/SPEC-08-observability.md) — `REQ-OBS-001` to
-`REQ-OBS-004`, `REQ-OBS-010`, `REQ-OBS-011`, `REQ-OBS-020` to `REQ-OBS-023`. Ten requirements.
+**Defers:** `REQ-OBS-001` to `REQ-OBS-004`, `REQ-OBS-012`, `REQ-OBS-020` to `REQ-OBS-023`,
+`REQ-SEC-083`. Ten requirements.
 
-**Returns when:** a second principal exists, or a dashboard consumes the node.
+**Returns when:** a dashboard consumes the node, or a second principal exists.
 
-The audit log attributes state-changing operations among principals. One operator holding one
-admin token is one principal, so the record answers a question nobody is asking. Prometheus
-collectors and the cardinality controls in `REQ-OBS-003` size for thousands of peers.
+The structured logs of `REQ-OBS-010` and `REQ-OBS-011` stay in P3. The audit log attributes
+operations among principals, and one token is one principal.
 
-Already scheduled at M3, so this entry records a reason rather than a change.
+**On return:** `REQ-OBS-004` counts drift, which exists only once B-09 does.
 
 ---
 
 ## B-02 — Backup, restore, upgrade and migration
 
-**Defers:** all of [SPEC-10](../20-spec/SPEC-10-lifecycle.md) — `REQ-LIF-001`, `REQ-LIF-010`
-to `REQ-LIF-012`, `REQ-LIF-020` to `REQ-LIF-023`, `REQ-LIF-030`, `REQ-LIF-031`, `REQ-LIF-040`,
+**Defers:** all of [SPEC-10](../20-spec/SPEC-10-lifecycle.md) — `REQ-LIF-001`, `REQ-LIF-010` to
+`REQ-LIF-012`, `REQ-LIF-020` to `REQ-LIF-023`, `REQ-LIF-030`, `REQ-LIF-031`, `REQ-LIF-040`,
 `REQ-LIF-050` to `REQ-LIF-053`. Fifteen requirements.
 
 **Returns when:** `OQ-06`, `OQ-07` and `OQ-08` settle, which is also what moves SPEC-10 from
 `Draft` to `Accepted`.
 
-One correction worth recording, because the name invites the opposite assumption: `import`
-under `REQ-LIF-051` reads a wg-agent export file, and `REQ-LIF-023` refuses a non-empty store.
-It does **not** ingest an interface that already exists in the kernel. SPEC-10 is not the home
-of interface adoption and never was.
+**On return:** under ADR-0013 the interface files in `/etc/wireguard/` are part of what a backup
+restores. The audit's section 4.6 lists the gaps SPEC-10 carries.
 
 ---
 
-## B-03 — Packaging, install script and release pipeline
+## B-03 — Install script and release pipeline
 
-**Defers:** `REQ-CFG-011` to `REQ-CFG-013` (systemd hardening verified across six
-distributions), `REQ-CFG-020` to `REQ-CFG-026`, `REQ-CFG-028` (the `.deb`, its conffiles and
-maintainer scripts), `REQ-CFG-029` to `REQ-CFG-036` and `REQ-CFG-038` (install script,
-checksum verification, dual-architecture release). Twenty requirements.
+**Defers:** `REQ-CFG-029` to `REQ-CFG-036`. Eight requirements.
 
-**Keeps:** `REQ-CFG-001` and `REQ-CFG-002` (environment overrides, refuse unknown keys),
-`REQ-CFG-003` (the token file maps a token to one role and one label), `REQ-CFG-004` and
-`REQ-CFG-005` (`/etc/default/wg-agent`, tolerating its absence), `REQ-CFG-010` (a dedicated
-account with `AmbientCapabilities=CAP_NET_ADMIN`), and `REQ-CFG-027`.
+**Returns when:** the agent is installed by someone other than its author, or the repository is
+published with releases to download.
 
-`REQ-CFG-027` — package removal never deletes a WireGuard link — is the single most important
-requirement in this module for a node whose interface predates the agent. It stays in.
-
-**Returns when:** the agent is installed somewhere its author does not have a shell.
-
-`go build` plus one unit file reaches a node the operator already administers. The `.deb` and
-the install script solve distribution to strangers.
+**On return:** `REQ-CFG-045` makes the package generate the token, so the script's own token
+requirements, `REQ-CFG-032` and `REQ-CFG-033`, are re-read against it; `REQ-CFG-036` names
+`arm64`, which the platform floor excludes.
 
 ---
 
 ## B-04 — Forward policy and NAT
 
-**Defers:** `REQ-FWD-001` to `REQ-FWD-005`, `REQ-FWD-010` to `REQ-FWD-017`, `REQ-FWD-021`,
-`REQ-FWD-023`, `REQ-FWD-030` to `REQ-FWD-032`, `REQ-FWD-040` to
-`REQ-FWD-042`. Twenty-one requirements.
+**Defers:** all of [SPEC-02](../20-spec/SPEC-02-forward-policy.md) — `REQ-FWD-001` to
+`REQ-FWD-005`, `REQ-FWD-010` to `REQ-FWD-017`, `REQ-FWD-020` to `REQ-FWD-025`, `REQ-FWD-030` to
+`REQ-FWD-032`, `REQ-FWD-040` to `REQ-FWD-042` — with the validation that reads it, `REQ-VAL-021`
+to `REQ-VAL-023`, `REQ-VAL-034` and `REQ-VAL-035`, and the sysctl carve-out, `REQ-CFG-011` to
+`REQ-CFG-013`. Thirty-three requirements.
 
-**Keeps:** `REQ-FWD-020` (set `forwarding = 1` on the agent's own WireGuard interfaces),
-`REQ-FWD-025` (verify the sysctl is writable at startup, returned from this item once
-`REQ-FWD-020` was implemented — the check is what turns a hardened unit missing the
-`REQ-CFG-011` carve-out from a puzzling `DEGRADED` into a named startup failure) and
-`REQ-FWD-022` (never touch the sysctl of an interface desired state does not describe, amended
-by [ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) to test desired-state
-membership rather than creation) and `REQ-FWD-024`, which records the pre-adoption value.
+**Returns when:** peers of one interface must be isolated from each other, or the agent must
+manage egress and NAT rather than the host.
 
-**Returns when:** a second interface exists, or peers need egress.
+Until then forwarding and NAT are the host's, configured once for every interface — section 5 of
+[SPEC-13](../20-spec/SPEC-13-applying-changes.md).
 
-**Deviation recorded:** the reconcile engine performs every step of `REQ-RCN-022` except step
-10, the nftables table. Step 9 is performed, because `REQ-FWD-020` is one of the three
-requirements this item keeps: without it two peers of one interface are not forwarded to each
-other, which is the whole of the flat-LAN-per-group pattern.
-
-The consequence is that an `ALLOW` axis is enforced and a `DENY` axis is not. `inter_interface`
-and `external` default to `DENY` and stay unenforced until step 10 lands, which on a
-single-interface node with no egress makes the claim vacuous rather than false — the trade this
-item already argues for. `nat` is stored and not applied.
-
-An unwritable sysctl is caught at startup by `REQ-FWD-025` and named
-`SYSCTL_WRITE_DENIED`, so a unit hardened without the `REQ-CFG-011` carve-out fails at
-deployment. Should one slip past the check, reconcile reports the same code as a `DEGRADED`
-condition on the affected interface: the tunnel still works, and forwarding between its peers
-does not.
-
-The default `ForwardPolicySpec` sets `inter_interface: DENY` and `external: DENY`, and a
-`DENY` axis requires nftables. On a node with one interface there is no second interface to
-isolate it from. Deferring this trades an unenforced default for not carrying
-`google/nftables` on day one — and that trade must be written down rather than assumed, since
-the roadmap's own argument for pulling SPEC-02 into M2 is that defaults claiming isolation
-they do not enforce mislead operators. A single-interface node makes the claim vacuous rather
-than false, which is why the trade is acceptable here and not in a release.
+**On return:** the mechanism is open. libnftables with an owned, persistent table is F-01 and
+D-16 of the [audit](spec-audit.md); it needs `NFT_TABLE_F_PERSIST`, which Debian 13 carries and
+Ubuntu 24.04 carries only with its HWE kernel, and Ubuntu 24.04's libnftables 1.0.9 cannot express
+it. The audit's D-01 and D-07 decide the sysctl rule and the treatment of foreign WireGuard
+interfaces.
 
 ---
 
-## B-05 — API scaffolding for machine consumers
+## B-05 — API scaffolding for several writers
 
-**Defers:** `REQ-API-011` to `REQ-API-015` (pagination), `REQ-API-031` to `REQ-API-033`
-(optimistic concurrency), `REQ-API-034`, `REQ-API-035` and `REQ-API-062`
-(batch peer updates), `REQ-API-060` and `REQ-API-061` (published clients and the
-`buf breaking` compatibility gate). Thirteen requirements.
-
-**Keeps:** `REQ-API-030` and `REQ-API-077`, the revision itself. `REQ-RES-031` is not deferred
-and already puts an opaque `revision` in `status`, so deferring the field while keeping the
-requirement that it move when the peer set changes would leave two live requirements without a
-subject. What is deferred is the enforcement: `REQ-API-032` makes an omitted revision an
-unconditional overwrite, which is the behaviour a single writer wants.
+**Defers:** `REQ-API-011` to `REQ-API-015` (pagination), `REQ-API-030` to `REQ-API-035`,
+`REQ-API-062`, `REQ-API-072` and `REQ-API-077` (revisions, `ETag` and batch writes),
+`REQ-API-061` (the compatibility gate in CI), `REQ-RES-031`. Sixteen requirements.
 
 **Returns when:** a second writer exists, or a client is published to anyone.
 
-Pagination guards a ceiling the scale target itself puts at ten interfaces and a thousand
-peers. Optimistic concurrency arbitrates between concurrent writers; with one writer
-`REQ-API-032` already makes an omitted revision an unconditional overwrite, which is the
-behavior a single operator wants anyway.
+With one writer an omitted revision is an unconditional overwrite, which is the behaviour a
+single operator wants; pagination guards a ceiling one node does not reach.
 
-`REQ-API-060` and `REQ-API-061` are deferred **obligations**, not deleted ones. The `.proto`
-stays the source of truth under [ADR-0003](../10-decisions/ADR-0003-protobuf-source-of-truth.md);
-what is deferred is the promise not to break generated clients that nobody has generated.
+**On return:** the audit's M-12 — a batch cannot be atomic in the kernel, only in the store.
 
 ---
 
-## B-06 — Interface diagnostics
+## B-06 — Diagnostics and the node overview
 
-**Defers:** `REQ-DIA-001`, `REQ-DIA-004`, `REQ-DIA-010`, `REQ-DIA-011`, `REQ-DIA-022` to
-`REQ-DIA-025`, `REQ-DIA-031`. Nine requirements.
+**Defers:** `REQ-DIA-001` to `REQ-DIA-005`, `REQ-DIA-010`, `REQ-DIA-011`, `REQ-DIA-020` to
+`REQ-DIA-025`, `REQ-DIA-030`, `REQ-DIA-031`, `REQ-DIA-052`. Sixteen requirements.
 
-**Keeps:** `REQ-DIA-020` and `REQ-DIA-021` — the node overview and its status vocabulary,
-reduced from nine components to the four that exist in the near-term build. Also
-`REQ-DIA-002`, `REQ-DIA-003`, `REQ-DIA-005` and `REQ-DIA-030`, which the adoption readiness
-report of `REQ-DIA-040` builds on: `REQ-DIA-041` adopts the finding shape of `REQ-DIA-002`,
-`REQ-CLI-005` renders the `hint` of `REQ-DIA-003`, and `REQ-DIA-030` supplies its closed
-`hint_code` set. All of section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md) is
-near-term work.
+**Returns when:** an operator needs a node's health without logging in to it.
 
-**Returns when:** B-04 returns. The fourteen-check `DiagnoseInterface` exists to debug the
-seven conditions that must hold for two peers to communicate, and those conditions are the
-forward policy this build does not enforce.
-
-One check is pulled forward ahead of the rest: `REQ-DIA-043` detects a contending `wg-quick`
-unit, which adoption depends on.
+**On return:** the check list reads nftables and sysctl state that exists only with B-04, and
+`REQ-DIA-010` must stop contradicting `REQ-FWD-040` (audit M-08).
 
 ---
 
 ## B-07 — Orphan bookkeeping
 
-**Defers:** `REQ-RCN-033` to `REQ-RCN-035` and `REQ-RCN-037` — the deletion record that
-survives a restart and distinguishes an orphaned link from a foreign one.
+**Defers:** `REQ-RCN-033` to `REQ-RCN-035`, `REQ-RCN-037`. Four requirements.
 
-**Keeps:** `REQ-RCN-030` and `REQ-RCN-031` (foreign links reported, never modified) — the
-requirements that make coexistence with an existing interface safe, and the ones adoption must
-amend rather than ignore. Also `REQ-RCN-038`, which is plain transactional correctness.
+**Returns when:** a failed delete must survive a restart as something other than an error.
 
-**Returns when:** an operator cannot log in to remove a link by hand.
-
-The deletion record exists so a fleet controller need not shell into the node. An operator who
-is already there runs `ip link del`.
+Under ADR-0013 a delete that fails is restored and reported (`REQ-APL-008`), so nothing is left
+half-deleted for a record to remember.
 
 ---
 
-## B-08 — Multi-principal machinery
+## B-08 — Roles, several principals, transport security
 
-**Defers:** `REQ-SEC-079` (principal attribution, whose only consumer is the deferred audit
-log), `REQ-RES-014` and `REQ-RES-026` (`labels` reserved for the platform layer, and
-`instance_id` exposed so a platform can detect counter resets).
+**Defers:** `REQ-SEC-020`, `REQ-SEC-021`, `REQ-SEC-075`, `REQ-SEC-079`. Four requirements.
 
-**Keeps:** `REQ-SEC-020`, `REQ-SEC-021` and `REQ-SEC-075`. Two roles and one token-to-role
-mapping is one annotation and one check; removing it would churn four requirements to save
-nothing. `REQ-RES-015` stays, because `instance_id` still has to be generated — only its
-platform-facing exposure is deferred.
+**Returns when:** a second caller needs narrower rights than full control, or the listener must
+be reached across a network the operator does not control.
 
-**Returns when:** a second principal exists. Same trigger as B-01.
+The second trigger brings TLS, which has no requirement yet: the measurements in
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md) are where it starts.
 
 ---
 
-## Not deferred, and deliberately so
+## B-09 — Continuous reconcile and drift correction
 
-| Kept | Why |
-|---|---|
-| The declarative model — [ADR-0001](../10-decisions/ADR-0001-declarative-model.md) | Its stated conditions for revisiting are **None**: without it the agent is an API wrapper rather than a control plane. For one operator it is worth more, not less — it is what makes an interface survive a reboot without `wg-quick` |
-| `REQ-RCN-013`, `REQ-RCN-051` | `endpoint` stays kernel-owned. This is what stops a roaming client being cut on every reconcile pass |
-| `REQ-RCN-021` | Netlink event subscription. Detecting an externally deleted link is the reconcile loop's whole value on a node that other tools also touch |
-| `REQ-RCN-041` | Backoff with jitter. A retry loop without it is a busy loop |
-| `REQ-SEC-041` | No child process in production paths |
-| `REQ-CFG-027` | Package removal never deletes a link |
+**Defers:** `REQ-RCN-010` to `REQ-RCN-013`, `REQ-RCN-051` (field ownership), `REQ-RCN-020` to
+`REQ-RCN-022`, `REQ-RCN-024` (triggers and algorithm), `REQ-RCN-040`, `REQ-RCN-041` (degraded
+state and backoff), `REQ-RES-032`, `REQ-CLI-008`, `REQ-CLI-009`. Fourteen requirements.
 
-One cost saving that needs no deferral at all: **bbolt is not mandated.** The line naming it in
-[SPEC-03](../20-spec/SPEC-03-state-reconcile.md) carries no RFC 2119 keyword, and prose without
-a keyword is explanatory. `REQ-RCN-001` to `REQ-RCN-005` are satisfied by a JSON file written
-to a temporary path and renamed atomically at mode `0600`.
+**Returns when:** hand edits or other tools changing the agent's interfaces cost the operator
+real time.
+
+**On return:** `REQ-RCN-022` is written as netlink steps. Under ADR-0013 reconcile compares the
+store with the rendered file and with `wg show`, and repairs through the same synchronisation and
+restart as [SPEC-13](../20-spec/SPEC-13-applying-changes.md); the algorithm is re-specified, not
+implemented as it stands. The audit's D-04, D-05 and D-13 are its questions.
+
+---
+
+## B-10 — Adoption and foreign interfaces
+
+**Defers:** `REQ-RCN-031`, `REQ-RCN-036`, `REQ-RCN-060` to `REQ-RCN-067`, `REQ-RCN-069` to
+`REQ-RCN-074` (adoption and release), `REQ-RES-017`, `REQ-RES-018` (ownership and a fresh
+identifier), `REQ-API-067`, `REQ-API-068`, `REQ-DIA-040` to `REQ-DIA-051` (the readiness report),
+`REQ-CLI-004` to `REQ-CLI-007` (`doctor` and `adopt`). Thirty-six requirements.
+
+**Returns when:** an interface the operator configured by hand must come under management.
+
+The agent manages only what it created, by the operator's decision of 2026-09-29.
+
+**On return:** under ADR-0013 adopting means taking over a file in `/etc/wireguard/` that
+`REQ-APL-002` forbids the agent to read; adoption is the explicit exception, and its requirements
+are re-specified around the file rather than the kernel dump.
+
+---
+
+## B-11 — Key and client-configuration extras
+
+**Defers:** `REQ-KEY-003`, `REQ-KEY-004` (`RotateInterfaceKey`), `REQ-KEY-015` (a switch for
+server-side generation), `REQ-KEY-030` to `REQ-KEY-033` (client routing modes),
+`REQ-KEY-039` (QR codes), `REQ-KEY-040`, `REQ-KEY-041` (`GenerateKeyPair`). Ten requirements.
+
+**Returns when:** the operator asks for one. These are the most likely candidates for P4.
+
+`UpdateInterface` with a new `private_key` already rotates a key; the dedicated operation adds
+generation and the warning. `AUTO` routing reads `forward_policy` and waits for B-04.
+
+---
+
+## B-12 — Resource fields beyond the wrapper
+
+**Defers:** `REQ-RES-015`, `REQ-RES-026` (`instance_id` and counter-reset detection), and the
+fields `fwmark` and `manage_routes`, which carry no requirement of their own. Two requirements.
+
+**Returns when:** a platform does traffic accounting from the counters, or routing needs a
+firewall mark or a routing table other than the main one.
+
+**On return:** counters are per peer in the kernel, so a peer removed and added again resets them
+while the interface identifier stays (audit M-30).
+
+## Candidates for P4
+
+Chosen after P1 to P3 run on a real node, from what that use shows is missing. The likely ones:
+B-11 in whole or in part, drift detection from B-09, and a node overview from B-06. B-04 returns
+the moment peers must be isolated from each other.
 
 ## What is not in this file
 
-Interface adoption is **near-term work, not deferred work**. It is specified in
-[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) and in section 6.3 of
-[SPEC-03](../20-spec/SPEC-03-state-reconcile.md), section 5 of
-[SPEC-11](../20-spec/SPEC-11-diagnostics.md) and section 3 of
-[SPEC-12](../20-spec/SPEC-12-cli.md). Naming the sections rather than requirement ranges is
-deliberate: three earlier enumerations of those ranges went stale within a day. It is the
-reason the near-term target is worth building at all: it is what lets the agent take over a node
-that already runs WireGuard instead of demanding one that does not.
-
-Two entries above are load-bearing for it. B-06 keeps `REQ-DIA-020` and `REQ-DIA-021`, which the
-readiness report shares a module with, and B-04 keeps `REQ-FWD-022`, which governs the sysctl of
-an interface the agent did not create.
+Work without a requirement: rebuilding `packaging/systemd/` from SPEC-09 in P3, and the open
+question of [SPEC-13](../20-spec/SPEC-13-applying-changes.md) — whether a hand edit to a file the
+agent created should block the next write.

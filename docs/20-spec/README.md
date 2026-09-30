@@ -47,25 +47,31 @@ requirement marked `Implemented` has at least one referencing test.
 
 ## Module index
 
-| ID | Module | Prefix | Status | Milestone |
+| ID | Module | Prefix | Status | Phase |
 |---|---|---|---|---|
-| [SPEC-01](SPEC-01-resource-model.md) | Resource model | `RES` | Accepted | M0 |
-| [SPEC-02](SPEC-02-forward-policy.md) | Forward policy and NAT | `FWD` | Accepted | M2, NAT at M4 |
-| [SPEC-03](SPEC-03-state-reconcile.md) | Desired state and reconcile | `RCN` | Accepted | M1 |
-| [SPEC-04](SPEC-04-api-conventions.md) | API conventions, concurrency, errors | `API` | Accepted | M0 |
-| [SPEC-05](SPEC-05-security.md) | Security, authentication, authorization | `SEC` | Accepted | M2 |
-| [SPEC-06](SPEC-06-key-management.md) | Key management | `KEY` | Accepted | M1 |
-| [SPEC-07](SPEC-07-validation.md) | Validation | `VAL` | Accepted | M1 |
-| [SPEC-08](SPEC-08-observability.md) | Metrics, logs, audit | `OBS` | Accepted | M3 |
-| [SPEC-09](SPEC-09-config-deployment.md) | Configuration, packaging, deployment | `CFG` | Accepted | M2 |
-| [SPEC-10](SPEC-10-lifecycle.md) | Lifecycle: upgrade, backup, DR | `LIF` | **Draft** | M3 |
-| [SPEC-11](SPEC-11-diagnostics.md) | Diagnostics and node overview | `DIA` | Accepted | M1 |
-| [SPEC-12](SPEC-12-cli.md) | Command line surface | `CLI` | Accepted | M2 |
+| [SPEC-01](SPEC-01-resource-model.md) | Resource model | `RES` | Accepted | P1 |
+| [SPEC-02](SPEC-02-forward-policy.md) | Forward policy and NAT | `FWD` | Accepted | Backlog B-04 |
+| [SPEC-03](SPEC-03-state-reconcile.md) | Desired state and reconcile | `RCN` | Accepted | P1; reconcile B-09, adoption B-10 |
+| [SPEC-04](SPEC-04-api-conventions.md) | API conventions, concurrency, errors | `API` | Accepted | P2 |
+| [SPEC-05](SPEC-05-security.md) | Security, authentication, authorization | `SEC` | Accepted | P1 to P3 |
+| [SPEC-06](SPEC-06-key-management.md) | Key management | `KEY` | Accepted | P1 |
+| [SPEC-07](SPEC-07-validation.md) | Validation | `VAL` | Accepted | P1 |
+| [SPEC-08](SPEC-08-observability.md) | Metrics, logs, audit | `OBS` | Accepted | Logs P3; the rest B-01 |
+| [SPEC-09](SPEC-09-config-deployment.md) | Configuration, packaging, deployment | `CFG` | Accepted | P1 to P3 |
+| [SPEC-10](SPEC-10-lifecycle.md) | Lifecycle: upgrade, backup, DR | `LIF` | **Draft** | Backlog B-02 |
+| [SPEC-11](SPEC-11-diagnostics.md) | Diagnostics and node overview | `DIA` | Accepted | Backlog B-06, B-10 |
+| [SPEC-12](SPEC-12-cli.md) | Command line surface | `CLI` | Accepted | P1, P2 |
+| [SPEC-13](SPEC-13-applying-changes.md) | Applying a change through wg and wg-quick | `APL` | **Review** | P1 |
 
-SPEC-10 remains `Draft`. Three of its decisions are unsettled — export encryption, partial
-import and downward migration — and all three sit at M3, outside the MVP. Approving a module
-whose own text says *Undecided* would drain the status vocabulary of meaning, so it waits for
-those answers. Every module the MVP depends on is `Accepted`.
+The phases are those of the [roadmap](../60-planning/roadmap.md); a backlog entry names the
+[backlog](../60-planning/backlog.md) block holding the module's deferred requirements.
+
+SPEC-13 is `Review`: it was written for the wrapper of
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) and awaits approval before P1
+implements it. SPEC-10 remains `Draft`. Three of its decisions are unsettled — export encryption,
+partial import and downward migration — and all three wait with B-02. Approving a module whose
+own text says *Undecided* would drain the status vocabulary of meaning, so it waits for those
+answers.
 
 ## Dependency graph
 
@@ -74,18 +80,19 @@ one it depends on, so anything with no outgoing arrow can be read first.
 
 ```mermaid
 graph RL
-  SPEC01["SPEC-01<br/>Resource model<br/>(M0)"]
-  SPEC04["SPEC-04<br/>API conventions<br/>(M0)"]
-  SPEC02["SPEC-02<br/>Forward policy<br/>(M2)"]
-  SPEC03["SPEC-03<br/>State and reconcile<br/>(M1)"]
-  SPEC05["SPEC-05<br/>Security<br/>(M2)"]
-  SPEC06["SPEC-06<br/>Key management<br/>(M1)"]
-  SPEC07["SPEC-07<br/>Validation<br/>(M1)"]
-  SPEC08["SPEC-08<br/>Observability<br/>(M3)"]
-  SPEC09["SPEC-09<br/>Config and deployment<br/>(M2)"]
-  SPEC10["SPEC-10<br/>Lifecycle<br/>(M3 · Draft)"]
-  SPEC11["SPEC-11<br/>Diagnostics<br/>(M1)"]
-  SPEC12["SPEC-12<br/>CLI<br/>(M2)"]
+  SPEC01["SPEC-01<br/>Resource model<br/>(P1)"]
+  SPEC04["SPEC-04<br/>API conventions<br/>(P2)"]
+  SPEC02["SPEC-02<br/>Forward policy<br/>(backlog)"]
+  SPEC03["SPEC-03<br/>State and reconcile<br/>(P1)"]
+  SPEC05["SPEC-05<br/>Security<br/>(P1–P3)"]
+  SPEC06["SPEC-06<br/>Key management<br/>(P1)"]
+  SPEC07["SPEC-07<br/>Validation<br/>(P1)"]
+  SPEC08["SPEC-08<br/>Observability<br/>(P3 logs)"]
+  SPEC09["SPEC-09<br/>Config and deployment<br/>(P1–P3)"]
+  SPEC10["SPEC-10<br/>Lifecycle<br/>(backlog · Draft)"]
+  SPEC11["SPEC-11<br/>Diagnostics<br/>(backlog)"]
+  SPEC12["SPEC-12<br/>CLI<br/>(P1–P2)"]
+  SPEC13["SPEC-13<br/>Applying changes<br/>(P1 · Review)"]
 
   SPEC02 --> SPEC01
   SPEC03 --> SPEC01
@@ -104,19 +111,20 @@ graph RL
   SPEC10 --> SPEC09
   SPEC11 --> SPEC02
   SPEC11 --> SPEC03
+  SPEC12 --> SPEC04
   SPEC12 --> SPEC05
   SPEC12 --> SPEC09
-  SPEC12 --> SPEC10
+  SPEC13 --> SPEC01
+  SPEC13 --> SPEC03
 
   classDef draft stroke-dasharray: 5 5
-  class SPEC10 draft
+  class SPEC10,SPEC13 draft
 ```
 
-SPEC-01 and SPEC-04 carry no dependency, which is why both sit at M0. The one dashed edge is
-worth noticing: SPEC-12 is `Accepted` and depends on SPEC-10, which is `Draft`. Section 2 of
-[SPEC-12](SPEC-12-cli.md) scopes the two subcommands that reach into SPEC-10 out of the MVP, so
-the dependency does not block the milestone — but it is the one place the module graph crosses a
-status boundary.
+SPEC-01 carries no dependency, which is why it is read first. Two edges point from a P1 module
+into the backlog: SPEC-03 and SPEC-07 depend on SPEC-02 through their deferred sections — the
+reconcile steps that apply policy, and the policy validation rules — which stay inert until B-04
+returns. Nothing P1 implements reads SPEC-02.
 
 ## Module boundaries
 
@@ -128,6 +136,7 @@ To prevent duplication, each topic has exactly one home:
 | Default field values | SPEC-01 | SPEC-09 (which covers overriding only) |
 | nftables rules, sysctl | SPEC-02 | SPEC-03 (which only invokes them) |
 | Reconcile algorithm | SPEC-03 | — |
+| How a change reaches WireGuard: files, units, synchronisation, restarts | SPEC-13 | SPEC-03 (which covers the store, the lock and the deferred reconcile) |
 | Field ownership during reconcile | SPEC-03 | SPEC-01 |
 | RPC shapes, error codes, revisions | SPEC-04 | — |
 | Listeners, authentication, roles | SPEC-05 | SPEC-09 (which covers configuration only) |

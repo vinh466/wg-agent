@@ -1,154 +1,70 @@
 ---
-updated: 2026-09-29
+updated: 2026-09-30
 ---
 
 # Roadmap
 
-## What MVP means
+## What the first release is
 
-MVP is **M0 through M2**. The bar is four operator-visible capabilities:
+A wrapper over `wg` and `wg-quick` that replaces an operator's manual work on a node —
+[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md). It creates interfaces, adds and
+removes peers, hands a client its configuration and reads status, from a CLI on the node and from
+a REST API reached over the operator's private network —
+[ADR-0014](../10-decisions/ADR-0014-rest-api-described-by-openapi.md) and
+[ADR-0015](../10-decisions/ADR-0015-network-listener-with-a-shared-secret.md). It manages only
+the interfaces it created.
 
-1. Install, update and uninstall on Debian or Ubuntu with one script from the public repository
-2. Per-host overrides through `/etc/default/wg-agent`, the way any Debian service behaves
-3. A working API on a loopback address, with a token issued during installation
-4. `GET /v1/overview` reporting every agent component, usable for a dashboard or a quick debug
+It runs on Debian 13 and later and Ubuntu 24.04 LTS and later, on `linux-x64` — D-10 of the
+[specification audit](spec-audit.md). Everything else waits in the [backlog](backlog.md), and
+phase P4 is chosen from it once P1 to P3 are in use.
 
-M3 onwards is beyond MVP. Metrics, audit log, backup and restore, NAT, and the Terraform
-provider all wait.
+## Phases
 
-## Milestones
-
-| Milestone | Content | Specs | Exit criteria |
+| Phase | Content | Modules | Exit criteria |
 |---|---|---|---|
-| **M0 — Foundation** | Repo layout, `.proto` contract, platform ports and the netlink adapter, in-memory CRUD | SPEC-01, SPEC-04 | Tests in a netns create an interface, add a peer, read statistics |
-| **M1 — Declarative** | file-backed store, reconcile engine, revisions, validation, error model, diagnostics, node overview | SPEC-03, SPEC-06, SPEC-07, SPEC-11 | Reboot self-heals. Manually deleting a link rebuilds it. Roaming survives. `GET /v1/overview` names a broken component |
-| **M2 — MVP** | Unix socket, loopback HTTP with tokens, roles, systemd hardening, `.deb`, install script, CLI, forward policy axes | SPEC-05, SPEC-09, SPEC-12, SPEC-02 in part | One script installs, prints a token, and the API answers on loopback. Uninstall leaves links alone. `intra`/`inter`/`external` DENY actually blocks |
-| **M3 — Operations** | Metrics, audit log, backup and restore, log rotation | SPEC-08, SPEC-10 | Dashboard shows handshake, traffic and drift. Restore onto a new node succeeds |
-| **M4 — Networking and UX** | NAT, `ALLOW_LIST`, uplink forwarding, `ClientRouting.AUTO`, QR, batch, watch | SPEC-02 remainder | All four topology patterns verified by netns tests |
-| **M5 — Ecosystem** | Terraform provider, a client SDK, published OpenAPI, user documentation | — | `terraform apply` manages peers and detects drift |
+| **P1 — Core and CLI** | The store and its lock; interfaces and peers through files in `/etc/wireguard/`, `wg-quick@` units and `wg syncconf`; status from `wg show`; validation; key generation; the client configuration built when a peer is created; the configuration file; the CLI | SPEC-01, SPEC-03, SPEC-06, SPEC-07, SPEC-13; SPEC-05 section 7; SPEC-09 section 2; SPEC-12 except `serve` and `token` | In a container: create an interface, add a peer with a generated key pair and connect a client with the printed file; add a second peer while the first pings without loss; route a peer outside the subnet and see the unit restart with the route installed; delete the interface and leave no file behind |
+| **P2 — REST API** | `api/openapi.yaml`, written first; `serve`; the HTTP listener, one token, problem documents for errors; health and version; `token rotate` | SPEC-04; SPEC-05 sections 2 to 4; SPEC-09 section 2.1; SPEC-12 `serve` and `token` | Every operation of SPEC-04 answers over HTTP with the token and refuses without it; the contract test passes; the CLI and the API change one node side by side |
+| **P3 — Packaging and operation** | The `.deb` with its confined unit, the token generated at install, the conffile and maintainer scripts; structured logs; a test tier under each distribution's own systemd; the operator guide | SPEC-09 sections 3 to 5; SPEC-05 section 6; SPEC-08 section 3 | Installed on Debian 13 and Ubuntu 24.04, the agent's interfaces survive a reboot and the package's removal; the unit's confinement holds under each distribution's systemd |
+| **P4 — From use** | Chosen from the backlog after P1 to P3 run on a real node | — | — |
 
-## The SPEC-02 split
+P1 carries 95 requirements, P2 40 and P3 16: 151 of the 319 live ones. The other 168 are in the
+backlog, entry by entry.
 
-The default `ForwardPolicySpec` sets `inter_interface: DENY` and `external: DENY`, and a
-`DENY` axis needs nftables. A release whose defaults claim isolation it does not enforce would
-be lying to its operators, so the axes ship with MVP and the rest follows at M4.
-
-| Lands at M2 | Deferred to M4 |
-|---|---|
-| `REQ-FWD-001` to `REQ-FWD-005` — the axes and their semantics | `REQ-FWD-014` — `ALLOW_LIST` |
-| `REQ-FWD-010` to `REQ-FWD-013`, `REQ-FWD-015` to `REQ-FWD-017` — nftables rules | `REQ-FWD-023` — uplink forwarding |
-| `REQ-FWD-040`, `REQ-FWD-041` — table ownership and teardown | `REQ-FWD-030` to `REQ-FWD-032` — NAT and masquerade |
-| `REQ-FWD-020` to `REQ-FWD-022`, `REQ-FWD-024`, `REQ-FWD-025`, `REQ-FWD-042` — forwarding sysctl | `REQ-KEY-031` `ALLOW_LIST` branch — `ClientRouting.AUTO` |
-
-`external = ALLOW` stays unreachable until M4 without extra work: `REQ-FWD-023` rejects it
-unless `nat.enable_uplink_forwarding` is set, and NAT does not exist yet. The MVP therefore
-supports `external: DENY` only, and the existing validation says so rather than failing
-obscurely.
-
-## Changes from the original plan
-
-**SPEC-11 (diagnostics) moved from M4 to M1**, and gained the node overview. Once
-`ForwardPolicySpec` exists, seven independent conditions must hold for two peers to
-communicate. Diagnostic tooling is needed as soon as topology patterns are first tested.
-
-**SPEC-10 (lifecycle) added at M3.** It came out of the end-to-end review: backup, restore,
-upgrade, audit log rotation and scale targets had no home in the earlier plan.
-
-**mTLS dropped from M2.** [ADR-0009](../10-decisions/ADR-0009-local-only-listeners.md)
-confines v1 to a unix socket plus a loopback HTTP listener with static tokens. That removes
-certificate issuance, node enrollment and certificate rotation — the largest block of work in
-M2 — and pushes remote management to a later version. M5 gains a dependency: the Terraform
-provider needs a tunnel or a co-located component to reach a node.
-
-**SPEC-12 (CLI) added at M2.** Token issuance, export and import all needed an operator-facing
-command surface that no module owned.
-
-**Part of SPEC-02 pulled from M4 into M2**, per the split above.
-
-**Health and readiness merged.** `/v1/healthz` and `/v1/readyz` became a single `/v1/health`,
-with `/v1/overview` carrying the component detail that a probe never needed.
-
-## Milestone dependencies
-
-```
-M0 ──► M1 ──► M2 ──► M3 ──► M4 ──► M5
-```
-
-- M2 needs the store and reconcile engine from M1, since the install script's exit criteria
-  cover a running agent
-- M4 extends the forward policy work started in M2
-- M5 needs a stable API from M0 and complete policy support from M4
-
-**M0 to M2 are build order, not shipping boundaries.** Nothing is released before M2. That
-matters because several M1 modules reference SPEC-02, which lands at M2: reconcile steps 9 and
-10 in `REQ-RCN-022`, the policy validation rules `REQ-VAL-021` to `REQ-VAL-023` and
-`REQ-VAL-034` to `REQ-VAL-035`, and the nftables and sysctl checks in SPEC-11. Those pieces
-stay inert through M1 and become live in M2. Reading the milestone numbers as independent
-releases is what makes that look like a dependency inversion.
+Inside a phase the order is the module workflow of `CLAUDE.md`: read the module, resolve doubt as
+a spec change, write a failing test per requirement, write the code, keep nothing unspecified, run
+the checks. Tooling is built at the start of P1 — the task runner, and the container tier the
+first integration test needs.
 
 ## State as of the front-matter date
-
-**Direction decided 2026-09-29 — [ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md).**
-v1 narrows to a wrapper over `wg` and `wg-quick` that replaces the operator's manual work; the
-rest of the specification stays and moves to the backlog. The milestone table above predates
-the change and is rewritten when the v1 specification is cut. Proposed split:
-
-| In v1 | To the backlog |
-|---|---|
-| Interfaces the agent creates: create, get, list, update, delete — IPv4 addresses, listen port, MTU, private key generated or supplied | Forward policy and NAT — SPEC-02 |
-| Peers: add, get, list, update, remove — a supplied public key, or a key pair the agent generates | Drift correction and the periodic reconcile — SPEC-03 sections 3 to 5 |
-| A client `.conf` for a peer created with a generated key, returned once | Adoption and `doctor` — SPEC-03 section 6.3, SPEC-11 section 5 |
-| Runtime status from `wg show dump`: handshake, transfer, endpoint | Diagnostics and the node overview — SPEC-11 |
-| A CLI and a REST API over one core; the API reachable over the operator's private network with one secret — ADR-0014, ADR-0015 | Metrics and audit — SPEC-08 |
-| Validation that refuses what `wg-quick` would refuse | Backup, restore and migration — SPEC-10 |
-| A `.deb` carrying the agent's unit | TLS, roles, several secrets and mutual TLS — SPEC-05 section 4; QR codes — `REQ-KEY-039` |
-
-Interfaces the operator configured by hand stay untouched: the agent reads, edits and deletes
-only the files it created. The overlay stays IPv4 only under ADR-0005.
-
-The specification is complete for M0 through M2. The implementation is at zero, deliberately.
-
-An implementation in Go reached a working vertical slice, and a partial port of it to C#
-followed the move to .NET. Both were removed, and the code is rebuilt from the specification
-alone, because a port reproduces decisions the specification never made. Two were found on
-inspection: the forwarding condition of `REQ-FWD-020` implemented differently from its text,
-with the comment that justified the difference lost in the port, and a reconcile behaviour
-for a missing private key that no requirement asks for. A port carries such decisions
-without marking them, so removing the code was cheaper than proving the absence of more.
 
 | Item | State |
 |---|---|
 | Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
-| ADR-0001 through ADR-0015 | Accepted, except those superseded: ADR-0002 by ADR-0012, ADR-0012 by ADR-0013, ADR-0003 by ADR-0014, ADR-0009 by ADR-0015 |
-| SPEC-01 through SPEC-09, SPEC-11, SPEC-12 | Accepted |
-| SPEC-10 | Draft — three M3 decisions unsettled |
-| Open questions blocking the MVP | 0 — see [open questions](open-questions.md) |
-| `.proto` contract | Committed — source of truth under ADR-0003 |
-| systemd unit, sysusers and tmpfiles | Committed with the removed implementation — D-15 of the [audit](spec-audit.md) |
-| Full specification audit | Read complete — 16 decisions, 7 foundation choices and 30 fixes in the [audit](spec-audit.md), none applied |
-| Implementation | None. Rebuilt module by module from the specification |
+| Decisions | ADR-0001 to ADR-0015 accepted, except those superseded: ADR-0002 and ADR-0012 by their successors, ADR-0003 by ADR-0014, ADR-0009 by ADR-0015 |
+| Specification | 319 live requirements — 151 in P1 to P3, 168 deferred; 39 struck |
+| SPEC-13 | `Review` — awaits acceptance |
+| SPEC-10 | `Draft` — its three open decisions wait with B-02 |
+| API contract | `api/openapi.yaml` is written at the start of P2; the `.proto` files are removed |
+| systemd unit | Rebuilt from SPEC-09 in P3 |
+| Specification audit | Reassessed after the wrapper cut — section 8 of the [audit](spec-audit.md) |
+| Implementation | None. Built phase by phase from the specification |
 
-## Interface adoption
+## How the plan got here
 
-[ADR-0011](../10-decisions/ADR-0011-operator-initiated-adoption.md) added adoption of an
-interface the agent did not create. It splits across the existing milestones rather than forming
-section 6.3 of [SPEC-03](../20-spec/SPEC-03-state-reconcile.md) needs the store and reconcile
-engine, so it lands with M1, while `doctor`, `adopt` and `release` are a command surface and land
-with M2 alongside the rest of SPEC-12.
+The plan before ADR-0013 sized a control plane for machine consumers in milestones M0 to M5:
+netlink, a reconcile loop, forward policy and NAT, adoption, diagnostics, metrics, backup, and a
+Terraform provider. An implementation in Go reached a working slice of it, and a partial port to
+C# followed the move to .NET. Both were removed so the code is rebuilt from the specification
+alone, because a port reproduces decisions the specification never made.
 
-Section 5 of [SPEC-11](../20-spec/SPEC-11-diagnostics.md) sits with M1, matching the milestone
-that module already carries. Sections are named rather than requirement ranges because the
-ranges moved three times while the design settled.
-
-Adoption is the capability that makes the agent usable on a node where WireGuard already runs,
-which is the ordinary case rather than the exception. The MVP bar in the first section predates
-it and does not name it.
+The specification audit of September 2026 found the gaps that rebuilding would have met, and the
+operator's own need turned out narrower than the plan: the manual `wg-quick` work on each node.
+ADR-0013 to ADR-0015 narrowed the first release to it. The milestone table of the earlier plan
+remains in the history of this file.
 
 ## Next actions
 
-1. Cut the v1 specification: amend the modules v1 keeps, mark the rest deferred in the
-   backlog, and reassess the [audit](spec-audit.md) item by item — most items belong to
-   modules that move to the backlog
-2. Build tooling for .NET: a task runner and the container tiers of the
+1. Review the points in section 8 of the [audit](spec-audit.md), and accept SPEC-13
+2. Build tooling for .NET: a task runner and the container tier of the
    [test guide](../50-guides/running-tests.md)
-3. Implement module by module, following the module workflow in `CLAUDE.md`
+3. Implement P1 module by module, following the module workflow in `CLAUDE.md`
