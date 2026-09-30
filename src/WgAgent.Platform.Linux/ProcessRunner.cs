@@ -26,14 +26,18 @@ internal sealed class ProcessRunner : IProcessRunner
 
     private readonly IReadOnlyDictionary<string, string> _programs;
     private readonly TimeSpan _timeout;
+    private readonly ApplyDeadline? _deadline;
 
-    public ProcessRunner(TimeSpan timeout) : this(AgentPrograms, timeout) { }
+    /// <param name="timeout">The longest any one program may run.</param>
+    /// <param name="deadline">The deadline of the change being applied, which shortens that (REQ-API-022).</param>
+    public ProcessRunner(TimeSpan timeout, ApplyDeadline? deadline = null) : this(AgentPrograms, timeout, deadline) { }
 
     /// <summary>For the tests of the runner itself, which need programs of their own.</summary>
-    internal ProcessRunner(IReadOnlyDictionary<string, string> programs, TimeSpan timeout)
+    internal ProcessRunner(IReadOnlyDictionary<string, string> programs, TimeSpan timeout, ApplyDeadline? deadline = null)
     {
         _programs = programs;
         _timeout = timeout;
+        _deadline = deadline;
     }
 
     public ProcessResult Run(string program, IReadOnlyList<string> arguments, string? standardInput = null)
@@ -50,16 +54,20 @@ internal sealed class ProcessRunner : IProcessRunner
         };
         foreach (var argument in arguments) info.ArgumentList.Add(argument);
 
+        var allowed = _deadline?.Remaining(_timeout) ?? _timeout;
+        if (allowed <= TimeSpan.Zero)
+            throw new PlatformException($"The change ran out of time before {program} {string.Join(' ', arguments)}.");
+
         using var process = Process.Start(info) ?? throw new PlatformException($"{program} could not be started.");
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
         if (standardInput is not null) process.StandardInput.Write(standardInput);
         process.StandardInput.Close();
 
-        if (!process.WaitForExit(_timeout))
+        if (!process.WaitForExit(allowed))
         {
             process.Kill(entireProcessTree: true);
-            throw new PlatformException($"{program} {string.Join(' ', arguments)} did not finish within {_timeout.TotalSeconds:0.#} s.");
+            throw new PlatformException($"{program} {string.Join(' ', arguments)} did not finish within {allowed.TotalSeconds:0.#} s.");
         }
         return new ProcessResult(process.ExitCode, output.Result, error.Result);
     }

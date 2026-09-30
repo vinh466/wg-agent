@@ -5,7 +5,7 @@ public sealed class SystemdUnits : IUnitManager
 {
     private readonly IProcessRunner _runner;
 
-    public SystemdUnits(TimeSpan timeout) : this(new ProcessRunner(timeout)) { }
+    public SystemdUnits(TimeSpan timeout, ApplyDeadline? deadline = null) : this(new ProcessRunner(timeout, deadline)) { }
     internal SystemdUnits(IProcessRunner runner) => _runner = runner;
 
     public void Enable(string interfaceName) => Systemctl("enable", interfaceName);

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The operations the CLI and the API share (REQ-CLI-023). -->
+  <PropertyGroup>
+    <RootNamespace>WgAgent.Service</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../WgAgent.Core/WgAgent.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -41,6 +41,22 @@ public sealed class AdapterTests : IDisposable
     }
 
     [Fact]
+    public void Programs_StopAtTheChangesDeadline_REQ_API_022()
+    {
+        var deadline = new ApplyDeadline();
+        var runner = new ProcessRunner(new Dictionary<string, string> { ["sleep"] = "/usr/bin/sleep" }, TimeSpan.FromSeconds(30), deadline);
+        deadline.Begin(TimeSpan.FromMilliseconds(300));
+        var clock = Stopwatch.StartNew();
+
+        Assert.Throws<PlatformException>(() => runner.Run("sleep", ["5"]));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(3), $"stopped after {clock.Elapsed}");
+        Assert.Throws<PlatformException>(() => runner.Run("sleep", ["0"]));   // no time left: not started at all
+
+        deadline.End();
+        Assert.Equal(0, runner.Run("sleep", ["0"]).ExitCode);   // outside a change, the program's own bound
+    }
+
+    [Fact]
     public void Keys_TravelOnStandardInputOnly_REQ_SEC_089()
     {
         var secret = TestKeys.Secret(0x5A);

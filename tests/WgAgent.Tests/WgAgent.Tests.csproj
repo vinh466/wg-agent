@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/WgAgent.Core/WgAgent.Core.csproj" />
     <ProjectReference Include="../../src/WgAgent.Platform.Linux/WgAgent.Platform.Linux.csproj" />
+    <ProjectReference Include="../../src/WgAgent.Service/WgAgent.Service.csproj" />
     <ProjectReference Include="../WgAgent.Testing/WgAgent.Testing.csproj" />
   </ItemGroup>
 </Project>

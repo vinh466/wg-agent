@@ -15,7 +15,11 @@ public sealed record ApplyResult(bool Restarted);
 /// peers restart (REQ-APL-006); a unit is stopped before its file is replaced (REQ-APL-010); a
 /// failure restores the previous file and running state (REQ-APL-008).
 /// </summary>
-public sealed class Applier(IWireGuardTool wg, IUnitManager units, IConfigDirectory files)
+/// <param name="deadline">
+/// The deadline of the change, shared with the adapters; a restoration ends it, so each program the
+/// restoration runs has its own bound (REQ-APL-012).
+/// </param>
+public sealed class Applier(IWireGuardTool wg, IUnitManager units, IConfigDirectory files, ApplyDeadline? deadline = null)
 {
     public ApplyResult Apply(string name, StoredInterface? before, StoredInterface? after)
     {
@@ -163,8 +167,9 @@ public sealed class Applier(IWireGuardTool wg, IUnitManager units, IConfigDirect
     private static string Render(StoredInterface state) => ConfigRenderer.File(state.Spec, state.Peers);
 
     /// <summary>Runs a restoration step, returning its failure rather than throwing it.</summary>
-    private static string? Attempt(Action step)
+    private string? Attempt(Action step)
     {
+        deadline?.End();
         try { step(); return null; }
         catch (PlatformException e) { return e.Message; }
     }

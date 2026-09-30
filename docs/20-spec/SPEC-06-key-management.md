@@ -174,7 +174,7 @@ The agent never alters host DNS configuration.
 > **REQ-KEY-036** — The generated config file MUST carry an `Endpoint` naming the address and
 > port a client reaches this node at.
 
-> **REQ-KEY-037** — The endpoint MUST combine a host — from the request, or from the
+> **REQ-KEY-037** — The endpoint MUST combine a host — the request's `node_endpoint`, or the
 > `node.endpoint` configuration key of [SPEC-09](SPEC-09-config-deployment.md) when the request
 > omits it — with the interface's `listen_port`.
 

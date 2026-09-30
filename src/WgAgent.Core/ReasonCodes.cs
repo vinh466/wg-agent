@@ -31,6 +31,10 @@ public static class ReasonCodes
     public const string StoreSchemaTooNew = "STORE_SCHEMA_TOO_NEW";
     public const string StoreBusy = "STORE_BUSY";
     public const string ApplyFailed = "APPLY_FAILED";
+    public const string InterfaceNotManaged = "INTERFACE_NOT_MANAGED";
+    public const string PeerNotFound = "PEER_NOT_FOUND";
+    public const string PeerExists = "PEER_EXISTS";
+    public const string EndpointRequired = "ENDPOINT_REQUIRED";
 
     // Warnings, REQ-VAL-002.
     public const string AllowedIpsOverlap = "ALLOWED_IPS_OVERLAP";

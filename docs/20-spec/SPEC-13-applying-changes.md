@@ -117,6 +117,20 @@ last, once the change has taken effect, so it never describes a configuration th
 restoration is itself a synchronisation or a restart; should it fail as well, the same response
 says so.
 
+> **REQ-APL-011** — When storing an applied change fails, the agent MUST restore the interface's
+> previous configuration file and running state and return the failure with reason `APPLY_FAILED`.
+
+A store that cannot be written — a full disk, a read-only file system — would otherwise leave the
+interface running a configuration the store does not describe, and the next write would compute
+its change from the wrong starting point.
+
+> **REQ-APL-012** — A restoration under `REQ-APL-008` or `REQ-APL-011` MUST bound each program it
+> runs by `apply_timeout`, independently of the time the failed change consumed.
+
+A change that fails because it ran out of time still has to be undone. Bounding the undoing by the
+time already spent would leave the interface half-applied, the state `REQ-APL-008` exists to
+prevent.
+
 ## 5. Limits accepted
 
 The agent corrects no drift, and each write replaces the whole file. A hand edit to a file the

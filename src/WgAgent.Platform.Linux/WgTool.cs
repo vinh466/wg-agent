@@ -5,7 +5,7 @@ public sealed class WgTool : IWireGuardTool
 {
     private readonly IProcessRunner _runner;
 
-    public WgTool(TimeSpan timeout) : this(new ProcessRunner(timeout)) { }
+    public WgTool(TimeSpan timeout, ApplyDeadline? deadline = null) : this(new ProcessRunner(timeout, deadline)) { }
     internal WgTool(IProcessRunner runner) => _runner = runner;
 
     public SecretKey GenerateKey() => ParseSecret(Wg(["genkey"]), "genkey");

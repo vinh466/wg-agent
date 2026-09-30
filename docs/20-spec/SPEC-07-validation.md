@@ -47,6 +47,10 @@ failing when the unit starts.
 > **REQ-VAL-011** — The agent MUST reject a public key that is not base64 of exactly 32
 > bytes with `PUBLIC_KEY_INVALID`.
 
+A string whose unused final bits are not zero decodes to 32 bytes and is still not their base64:
+WireGuard's own tools refuse it, and accepting it would give one key two spellings, so one peer
+could be described twice.
+
 > **REQ-VAL-012** — The agent MUST reject two peers on one interface holding identical
 > `allowed_ips` entries with `ALLOWED_IPS_DUPLICATE`.
 
@@ -148,7 +152,11 @@ miss it as a duplicate of `10.0.0.0/24`. The caller may have meant `10.0.0.5/32`
 rather than guesses. `addresses` keep their host bits and are not affected.
 
 > **REQ-VAL-042** — The agent MUST reject an `endpoint` that is not a host and a port from 1 to
-> 65535 with `ENDPOINT_INVALID`.
+> 65535, or a `node_endpoint` that is not a host, with `ENDPOINT_INVALID`.
+
+`endpoint` is where the node reaches a peer; `node_endpoint`, a field of the request that creates a
+peer with a generated key pair, is where the client reaches the node, and its port is the
+interface's own under `REQ-KEY-037`.
 
 > **REQ-VAL-044** — The agent MUST reject an `allowed_ips` entry whose prefix length is 0 with
 > `ALLOWED_IPS_DEFAULT_ROUTE`.
@@ -173,6 +181,15 @@ another `PostUp`, a `PrivateKey` — that `REQ-APL-003` exists to exclude.
 
 The client configuration takes its `Address` from those entries under `REQ-KEY-043`; without one
 the file would carry none.
+
+> **REQ-VAL-048** — The agent MUST reject a peer creation request carrying both a `public_key` and
+> `generate_keypair` with `PUBLIC_KEY_INVALID`.
+
+> **REQ-VAL-049** — The agent MUST reject a peer creation request carrying both a `preshared_key`
+> and `generate_preshared_key` with `KEY_INVALID`.
+
+A request that names a key and asks for one to be generated has two answers, and choosing either
+would silently discard what the caller sent.
 
 > **REQ-VAL-021** — The agent MUST reject `external = ALLOW` combined with
 > `nat.enable_uplink_forwarding = false` with `FORWARD_POLICY_NEEDS_UPLINK`.
@@ -246,6 +263,7 @@ Syntactically valid, practically broken.
 | Default route in `allowed_ips` | REQ-VAL-044 | Error |
 | Line break in a hook | REQ-VAL-045 | Error |
 | No free address for a generated peer | REQ-VAL-046 | Error |
+| A key supplied and generated at once | REQ-VAL-048, REQ-VAL-049 | Error |
 | `external` without uplink forwarding | REQ-VAL-021 | Error |
 | Unknown `allowed_peer_interfaces` entry | REQ-VAL-022 | Error |
 | One-sided `inter_interface` | REQ-VAL-023 | Warning |

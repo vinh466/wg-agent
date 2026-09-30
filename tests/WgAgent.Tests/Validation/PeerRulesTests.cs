@@ -26,6 +26,7 @@ public class PeerRulesTests
     [InlineData("tooshort=")]
     [InlineData("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
     [InlineData("-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-=")]
+    [InlineData("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB=")]   // 32 bytes, with an unused bit set
     public void PublicKey_NotThirtyTwoBytesOfBase64_IsRejected_REQ_VAL_011(string key) =>
         Assert.Equal("PUBLIC_KEY_INVALID", ErrorOf(Check(Peer("10.8.0.2/32")) with { PublicKey = key }));
 
@@ -145,5 +146,19 @@ public class PeerRulesTests
         Assert.Equal(C("10.8.0.4/32"), Networks.LowestFreeHost(subnet, [C("10.8.0.1/24")], [C("10.8.0.2/32"), C("10.8.0.3/32")]));
         // An allowed-IPs range holds every address in it.
         Assert.Equal(C("10.8.0.16/32"), Networks.LowestFreeHost(subnet, [C("10.8.0.1/24")], [C("10.8.0.0/28")]));
+    }
+
+    [Fact]
+    public void PublicKey_GivenWithGenerateKeypair_IsRejected_REQ_VAL_048()
+    {
+        Assert.Equal("PUBLIC_KEY_INVALID", ErrorOf(Check(Peer("10.8.0.2/32")) with { GenerateKeypair = true }));
+        Assert.Null(ErrorOf(Check(Peer("10.8.0.2/32")) with { GenerateKeypair = true, PublicKey = null }));
+    }
+
+    [Fact]
+    public void PresharedKey_GivenWithGeneratePresharedKey_IsRejected_REQ_VAL_049()
+    {
+        Assert.Equal("KEY_INVALID", ErrorOf(Check(Peer("10.8.0.2/32") with { PresharedKey = TestKeys.Secret(9) }) with { GeneratePresharedKey = true }));
+        Assert.Null(ErrorOf(Check(Peer("10.8.0.2/32")) with { GeneratePresharedKey = true }));
     }
 }

@@ -46,13 +46,17 @@ public sealed class PublicKey : IEquatable<PublicKey>
 
 internal static class KeyBytes
 {
-    /// <summary>Standard base64, padded, decoding to exactly 32 bytes.</summary>
+    /// <summary>
+    /// Standard base64, padded, decoding to exactly 32 bytes — and the one spelling of them: a string
+    /// whose unused final bits are set is refused, as WireGuard's tools refuse it (REQ-VAL-011).
+    /// </summary>
     public static bool TryDecode(string? base64, out byte[] bytes)
     {
         bytes = [];
         if (base64 is null || base64.Length != 44 || !base64.EndsWith('=') || base64.EndsWith("==")) return false;
         var buffer = new byte[33];
         if (!Convert.TryFromBase64String(base64, buffer, out var written) || written != PublicKey.Length) return false;
+        if (Convert.ToBase64String(buffer, 0, PublicKey.Length) != base64) return false;
         bytes = buffer[..PublicKey.Length];
         return true;
     }

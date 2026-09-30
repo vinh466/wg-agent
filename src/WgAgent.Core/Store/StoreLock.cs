@@ -16,6 +16,9 @@ public sealed class StoreLock : IDisposable
 
     public static StoreLock Acquire(string lockPath, TimeSpan timeout)
     {
+        // The directory the store's first save would create, owner-only as that save creates it.
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(lockPath))!,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var clock = Stopwatch.StartNew();
         while (true)
         {

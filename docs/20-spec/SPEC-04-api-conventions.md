@@ -150,11 +150,11 @@ to the CLI alone. `REQ-API-085` is what keeps `REQ-API-064` from erasing them: a
 replacement arriving over the API carries no hooks, and replacing them with none would silently
 undo what the operator set on the node.
 
-> **REQ-API-069** — `UpdateInterface` MUST reject an interface that desired state does not
-> describe with `INTERFACE_NOT_MANAGED`.
+> **REQ-API-069** — An operation other than `CreateInterface` MUST reject an interface that
+> desired state does not describe with `INTERFACE_NOT_MANAGED`.
 
-> **REQ-API-070** — `UpdatePeer` and `DeletePeer` MUST reject a peer that desired state does
-> not describe with `PEER_NOT_FOUND`.
+> **REQ-API-070** — `GetPeer`, `UpdatePeer` and `DeletePeer` MUST reject a peer that desired state
+> does not describe with `PEER_NOT_FOUND`.
 
 > **REQ-API-071** — `CreatePeer` MUST reject a public key already described on that interface
 > with `PEER_EXISTS`.
@@ -284,7 +284,7 @@ WireGuard in tree, the agent loads no module itself, and the startup check that 
 gone.
 
 Every value has a producing requirement, in both directions: no code is unreachable, and no rule
-that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-047` each name their own code, error
+that has to report one lacks it. `REQ-VAL-010` to `REQ-VAL-049` each name their own code, error
 and warning alike, and the startup table of `REQ-API-050` names the codes for the checks it
 performs. The rest are named where the behaviour is defined:
 
@@ -296,7 +296,7 @@ performs. The rest are named where the behaviour is defined:
 | `PEER_NOT_FOUND` | `REQ-API-070` |
 | `PEER_EXISTS` | `REQ-API-071` |
 | `FIELD_IMMUTABLE` | `REQ-API-066` |
-| `APPLY_FAILED` | `REQ-APL-008` |
+| `APPLY_FAILED` | `REQ-APL-008`, `REQ-APL-011` |
 | `STORE_BUSY` | `REQ-RCN-075` |
 | `REVISION_MISMATCH` | `REQ-API-031` |
 | `RECONCILE_FAILED` | `REQ-RCN-040` |

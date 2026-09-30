@@ -148,4 +148,16 @@ public class ResourceModelTests
 
         Assert.Equal(TestKeys.Base64(9), secret.Reveal());
     }
+
+    [Fact]
+    public void Spec_TellsAnAbsentFieldFromItsZeroValue_REQ_API_076()
+    {
+        var absent = JsonSerializer.Deserialize("""{"addresses":["10.8.0.1/24"]}""", CoreJsonContext.Default.InterfaceSpec)!;
+        var zero = JsonSerializer.Deserialize("""{"addresses":["10.8.0.1/24"],"enabled":false,"mtu":0,"listen_port":0}""", CoreJsonContext.Default.InterfaceSpec)!;
+
+        Assert.Equal((null, null, null), (absent.Enabled, absent.Mtu, absent.ListenPort));
+        Assert.Equal((false, 0u, 0u), (zero.Enabled, zero.Mtu, zero.ListenPort));
+        Assert.Equal(true, Defaults.Apply(absent).Enabled);   // absent takes the default...
+        Assert.Equal(false, Defaults.Apply(zero).Enabled);    // ...and false stays false
+    }
 }

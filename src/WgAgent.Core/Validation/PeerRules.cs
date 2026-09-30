@@ -14,7 +14,7 @@ public sealed record PeerCheck
     /// <summary>The interface's own public key, for REQ-VAL-040.</summary>
     public PublicKey? InterfacePublicKey { get; init; }
 
-    /// <summary>The peer's public key as given; null when the agent generates the key pair.</summary>
+    /// <summary>The peer's public key as given, if any.</summary>
     public string? PublicKey { get; init; }
 
     public required PeerSpec Spec { get; init; }
@@ -22,12 +22,18 @@ public sealed record PeerCheck
     /// <summary>True when the request asks the agent to generate the key pair (REQ-KEY-011).</summary>
     public bool GenerateKeypair { get; init; }
 
+    /// <summary>True when the request asks the agent to generate the preshared key (REQ-KEY-021).</summary>
+    public bool GeneratePresharedKey { get; init; }
+
     /// <summary>The interface's other peers.</summary>
     public IReadOnlyList<PeerSpec> OtherPeers { get; init; } = [];
 
     public IReadOnlyList<string>? ClientAllowedIps { get; init; }
     public uint? ClientPersistentKeepalive { get; init; }
     public IReadOnlyList<string>? Dns { get; init; }
+
+    /// <summary>The host a client reaches the node at, for the client configuration (REQ-KEY-037).</summary>
+    public string? NodeEndpoint { get; init; }
 }
 
 /// <summary>The peer-level rules of SPEC-07, in the order the module lists them.</summary>
@@ -73,6 +79,10 @@ public static partial class PeerRules
     {
         var spec = check.Spec;
 
+        // REQ-VAL-048
+        if (check.GenerateKeypair && check.PublicKey is not null)
+            return Finding.Error(ReasonCodes.PublicKeyInvalid, "public_key is given, and generate_keypair asks for a key pair to be generated.");
+
         // REQ-VAL-011
         PublicKey? key = null;
         if (!check.GenerateKeypair && !Platform.PublicKey.TryParse(check.PublicKey, out key))
@@ -81,6 +91,10 @@ public static partial class PeerRules
         // REQ-VAL-040
         if (key is not null && check.InterfacePublicKey is not null && key.Equals(check.InterfacePublicKey))
             return Finding.Error(ReasonCodes.PeerIsInterface, "The peer's public key is the interface's own public key.");
+
+        // REQ-VAL-049
+        if (check.GeneratePresharedKey && spec.PresharedKey is not null)
+            return Finding.Error(ReasonCodes.KeyInvalid, "preshared_key is given, and generate_preshared_key asks for one to be generated.");
 
         // REQ-VAL-039
         if (spec.PresharedKey is { IsWellFormed: false })
@@ -142,6 +156,15 @@ public static partial class PeerRules
             }
         }
 
+        // REQ-VAL-042 and REQ-VAL-020 for node_endpoint, a host alone
+        if (check.NodeEndpoint is { } nodeEndpoint)
+        {
+            if (nodeEndpoint.Contains(':'))
+                return Finding.Error(ReasonCodes.Ipv6NotSupported, $"node_endpoint '{nodeEndpoint}' is not an IPv4 host.");
+            if (!IsHost(nodeEndpoint))
+                return Finding.Error(ReasonCodes.EndpointInvalid, $"node_endpoint '{nodeEndpoint}' is not a host.");
+        }
+
         // REQ-VAL-020, REQ-VAL-047 for the client configuration's own fields
         foreach (var text in check.ClientAllowedIps ?? [])
             if (InterfaceRules.ParseEntry(text, "client_allowed_ips") is { } bad) return bad;
@@ -173,6 +196,10 @@ public static partial class PeerRules
         if (DigitsAndDots().IsMatch(host)) return IsIPv4Literal(host);
         return HostName().IsMatch(host);
     }
+
+    /// <summary>A hostname or an IPv4 address, with no port.</summary>
+    public static bool IsHost(string host) =>
+        DigitsAndDots().IsMatch(host) ? IsIPv4Literal(host) : HostName().IsMatch(host);
 
     private static bool IsIPv4Literal(string host) =>
         Cidr.TryParse(host + "/32", out var c) && !c.IsIPv6;
