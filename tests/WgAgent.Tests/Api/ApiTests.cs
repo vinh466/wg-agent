@@ -251,4 +251,32 @@ public sealed class ApiTests
             Assert.True(body.RootElement.TryGetProperty(field, out _), field);
         Assert.Equal(42, body.RootElement.GetProperty("uptime_seconds").GetInt64());
     }
+
+    [Fact]
+    public async Task PublicKeyBodyField_IsStandardBase64_REQ_API_080()
+    {
+        await using var api = new ApiHarness();
+        await api.Post("/v1/interfaces", Wg0);
+
+        // The body carries the key as standard padded base64 (REQ-RES-027), not the path's base64url.
+        var (code, body) = await api.Post("/v1/interfaces/wg0/peers", $$"""{"public_key":"{{PeerA}}","allowed_ips":["10.8.0.2/32"]}""");
+        Assert.Equal(HttpStatusCode.Created, code);
+        Assert.Equal(PeerA, body.RootElement.GetProperty("peer").GetProperty("public_key").GetString());
+        Assert.EndsWith("=", PeerA);   // padded standard base64
+    }
+
+    [Fact]
+    public async Task TheToken_NeverAppearsInAResponse_REQ_SEC_076()
+    {
+        await using var api = new ApiHarness();
+        var bodies = new List<string>
+        {
+            (await api.Post("/v1/interfaces", Wg0)).Item2.RootElement.GetRawText(),
+            (await api.Get("/v1/interfaces")).Item2.RootElement.GetRawText(),
+            (await api.Get("/v1/version")).Item2.RootElement.GetRawText(),
+            (await api.Get("/v1/interfaces", api.ClientWith("wrong"))).Item2.RootElement.GetRawText(),   // the 401 problem
+        };
+        foreach (var text in bodies)
+            Assert.DoesNotContain(ApiHarness.Token, text);
+    }
 }

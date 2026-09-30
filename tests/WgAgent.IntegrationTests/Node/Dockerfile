@@ -3,7 +3,7 @@
 FROM debian:13
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      systemd wireguard-tools iproute2 iputils-ping procps \
+      systemd wireguard-tools iproute2 iputils-ping procps curl \
  && rm -rf /var/lib/apt/lists/*
 STOPSIGNAL SIGRTMIN+3
 CMD ["/lib/systemd/systemd"]

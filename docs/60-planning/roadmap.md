@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-30
+updated: 2026-10-01
 ---
 
 # Roadmap
@@ -28,9 +28,9 @@ phase P4 is chosen from it once P1 to P3 are in use.
 | **P3 — Packaging and operation** | The `.deb` with its confined unit, the token generated at install, the conffile and maintainer scripts; structured logs; a test tier under each distribution's own systemd; the operator guide | SPEC-09 sections 3 to 5; SPEC-05 section 6; SPEC-08 section 3 | Installed on Debian 13 and Ubuntu 24.04, the agent's interfaces survive a reboot and the package's removal; the unit's confinement holds under each distribution's systemd |
 | **P4 — From use** | Chosen from the backlog after P1 to P3 run on a real node | — | — |
 
-P1 carries 127 requirements, P2 42 and P3 16: 185 of the 340 live ones. The other 155 are in the
-backlog, entry by entry. P1 grew by 23 while it was built: each was a doubt the code met and the
-specification settled first, as the module workflow requires.
+P1 carries 127 requirements, P2 43 and P3 16: 186 of the 341 live ones. The other 155 are in the
+backlog, entry by entry. P1 and P2 grew by 24 while they were built: each was a doubt the code met
+and the specification settled first, as the module workflow requires.
 
 Inside a phase the order is the module workflow of `CLAUDE.md`: read the module, resolve doubt as
 a spec change, write a failing test per requirement, write the code, keep nothing unspecified, run
@@ -43,13 +43,13 @@ first integration test needs.
 |---|---|
 | Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
 | Decisions | ADR-0001 to ADR-0018 accepted, except those superseded: ADR-0002, ADR-0012 and ADR-0013 by their successors, ADR-0003 by ADR-0014, ADR-0009 by ADR-0015, ADR-0010 by ADR-0018 |
-| Specification | 340 live requirements — 185 in P1 to P3, 155 deferred; 52 struck |
-| SPEC-01, SPEC-03, SPEC-06, SPEC-07, SPEC-13 | `Implemented` — every requirement outside the backlog has a test |
+| Specification | 341 live requirements — 186 in P1 to P3, 155 deferred; 52 struck |
+| SPEC-01, SPEC-03, SPEC-04, SPEC-06, SPEC-07, SPEC-12, SPEC-13 | `Implemented` — every requirement outside the backlog has a test |
 | SPEC-10 | `Draft` — its three open decisions wait with B-02 |
-| API contract | `api/openapi.yaml` is written at the start of P2; the `.proto` files are removed |
+| API contract | `api/openapi.yaml` is the source of truth; `docs/30-api` is rendered from it |
 | systemd unit | Rebuilt from SPEC-09 in P3 |
 | Specification audit | Reassessed after the wrapper cut — section 8 of the [audit](spec-audit.md) |
-| Implementation | P1 delivered: the store and its lock, apply, the service shared by the CLI and the API, the configuration file and the CLI. The unit and integration tiers pass; the exit criteria of P1 run in the integration tier |
+| Implementation | P1 and P2 delivered: the store and its lock, apply, the shared service, the configuration file, the CLI, and the REST API with one bearer token and `serve`. The unit and integration tiers pass; the exit criteria of P1 and P2 run in the integration tier, and the whole binary publishes NativeAOT without warning |
 
 ## How the plan got here
 
@@ -66,6 +66,7 @@ remains in the history of this file.
 
 ## Next actions
 
-1. Start P2 with its contract: `api/openapi.yaml`, written before any route —
-   [ADR-0014](../10-decisions/ADR-0014-rest-api-described-by-openapi.md)
-2. Implement P2 module by module, following the module workflow in `CLAUDE.md`
+1. Start P3: the `.deb` and its confined systemd unit, the token generated at install, the
+   conffile and maintainer scripts (SPEC-09 sections 3 to 5), structured logs (SPEC-08 section 3),
+   and the packaging test tier under each distribution's own systemd
+2. Implement P3 module by module, following the module workflow in `CLAUDE.md`

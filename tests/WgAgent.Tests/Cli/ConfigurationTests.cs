@@ -131,4 +131,11 @@ public sealed class ConfigurationTests : IDisposable
         Refusal(() => Load(File("WG_AGENT_LOG_LEVEL = debug")));             // read as written
         Refusal(() => Load(File("WG_AGENT_LOG_LEVEL=\"debug\"")));
     }
+
+    [Fact]
+    public void NoListenerAddress_DefaultsToLoopback_REQ_SEC_084()
+    {
+        var address = Load(Path.Combine(_dir, "absent")).ListenAddress;
+        Assert.StartsWith("127.", address);
+    }
 }

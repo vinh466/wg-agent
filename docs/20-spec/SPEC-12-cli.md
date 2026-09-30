@@ -2,11 +2,11 @@
 id: SPEC-12
 title: Command line surface
 prefix: CLI
-status: Accepted
+status: Implemented
 version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-05
-updated: 2026-09-30
+updated: 2026-10-01
 depends_on: [SPEC-04, SPEC-05, SPEC-09]
 adrs: [ADR-0011, ADR-0013, ADR-0015, ADR-0017, ADR-0018]
 milestone: P1–P2

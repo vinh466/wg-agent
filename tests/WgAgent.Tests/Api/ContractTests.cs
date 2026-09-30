@@ -66,6 +66,40 @@ public sealed class ContractTests
         Assert.Empty(enumValues.Except(defined));
     }
 
+    [Fact]
+    public void EveryPathCarriesTheMajorVersion_REQ_API_003()
+    {
+        var server = (Dictionary<object, object>)((List<object>)Doc["servers"])[0];
+        Assert.Equal("/v1", (string)server["url"]);   // the major version lives in the one server prefix
+        foreach (var path in Map(Doc["paths"]).Keys.Cast<string>())
+            Assert.StartsWith("/", path);
+    }
+
+    [Fact]
+    public void DocsAreRenderedFromTheContract_REQ_API_060()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "docs/30-api/api.md"))) dir = Path.GetDirectoryName(dir);
+        var rendered = File.ReadAllText(Path.Combine(dir!, "docs/30-api/api.md"));
+        foreach (var (_, item) in Map(Doc["paths"]))
+            foreach (var (method, op) in Map(item))
+                if (method is "get" or "post" or "put" or "delete")
+                    Assert.Contains((string)Map(op)["operationId"], rendered);
+    }
+
+    [Fact]
+    public void NoRequestFieldAcceptsACommand_REQ_SEC_040()
+    {
+        string[] forbidden = ["post_up", "post_down", "command", "exec", "args", "script", "hook"];
+        foreach (var (name, schema) in Map(Map(Doc["components"])["schemas"]))
+        {
+            var map = Map(schema);
+            if (!map.TryGetValue("properties", out var props)) continue;
+            foreach (var field in Map(props).Keys.Cast<string>())
+                Assert.DoesNotContain(field, forbidden);
+        }
+    }
+
     [Theory]
     [MemberData(nameof(Schemas))]
     public void Contract_SchemaPropertiesMatchTheServer_REQ_API_001(string schema, string sampleJson)
