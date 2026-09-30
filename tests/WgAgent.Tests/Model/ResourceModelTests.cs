@@ -160,4 +160,16 @@ public class ResourceModelTests
         Assert.Equal(true, Defaults.Apply(absent).Enabled);   // absent takes the default...
         Assert.Equal(false, Defaults.Apply(zero).Enabled);    // ...and false stays false
     }
+
+    [Fact]
+    public void Warnings_AreAListOfCodeAndMessage_REQ_RES_033()
+    {
+        var warned = Interface with { Status = Interface.Status with { Warnings = [new Warning("MTU_OUT_OF_RANGE", "mtu 1200 lies outside 1280 to 1500.")] } };
+
+        var warnings = Json(warned, CoreJsonContext.Default.InterfaceResource).GetProperty("status").GetProperty("warnings");
+        var entry = Assert.Single(warnings.EnumerateArray());
+        Assert.Equal(["code", "message"], entry.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("MTU_OUT_OF_RANGE", entry.GetProperty("code").GetString());
+        Assert.Equal(JsonValueKind.Array, Json(Interface, CoreJsonContext.Default.InterfaceResource).GetProperty("status").GetProperty("warnings").ValueKind);
+    }
 }

@@ -7,8 +7,8 @@ leaked.
 | Tier | How | Needs | Covers |
 |---|---|---|---|
 | Documentation | `docs/check-docs.sh`, `check-traceability.sh`, `check-mermaid.sh` | nothing (mermaid needs Docker) | the docs themselves |
-| Unit | `dotnet test tests/WgAgent.Tests` | the .NET SDK | everything above `WgAgent.Platform` |
-| Integration | `WgAgent.IntegrationTests` in a container running systemd | Docker | real `wg`, `wg-quick@` units and peers that handshake |
+| Unit | `make test` | the .NET SDK | everything above `WgAgent.Platform` |
+| Integration | `make test-integration` | the .NET SDK and Docker | the published binary against real `wg`, `wg-quick@` units and peers that handshake |
 | Packaging | the `.deb` under each supported distribution's systemd | Docker | the unit, its confinement, the maintainer scripts — P3 |
 
 ```mermaid
@@ -30,9 +30,10 @@ graph TD
 Each tier assumes the one above it passes: a failing unit tier makes an integration failure
 uninformative, because the cause could be either layer.
 
-Only the documentation tier runs today. The implementation is built phase by phase from the
-specification, and each tier arrives with the first requirement that needs it — the integration
-tier with the first adapter of P1.
+The documentation, unit and integration tiers run; the packaging tier arrives with P3.
+`make test-integration` publishes the binary self-contained rather than with NativeAOT, which needs
+clang, and hands its directory to the tests in `WGAGENT_TEST_BINARY`. The code is the same either
+way; the packaging tier is where the NativeAOT binary is tested.
 
 ## Why the integration tier runs systemd
 

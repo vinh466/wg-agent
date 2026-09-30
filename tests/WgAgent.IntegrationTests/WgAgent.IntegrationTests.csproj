@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Integration tier: the published wg-agent against real wg, wg-quick@ units and systemd, in a
+       privileged container. Needs Docker; `make test-integration` publishes the binary first. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>WgAgent.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Node/Dockerfile" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

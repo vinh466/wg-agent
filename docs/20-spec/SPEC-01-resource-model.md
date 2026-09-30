@@ -2,7 +2,7 @@
 id: SPEC-01
 title: Resource model
 prefix: RES
-status: Accepted
+status: Implemented
 version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03

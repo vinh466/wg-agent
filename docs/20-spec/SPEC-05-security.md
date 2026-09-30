@@ -152,8 +152,8 @@ in the `wg-quick@` unit rather than in the agent.
 | Data | Rule |
 |---|---|
 | Interface private key | Stored at `0600`, in the store and in the interface's configuration file. Never returned, never logged |
-| Server-generated peer private key | Never stored. Returned once, inside the client configuration. Never logged |
-| Preshared key | Stored, in the store and in the configuration file. Returned only inside the client configuration of the request that generated it. Never logged |
+| Server-generated peer private key | Never stored. Returned once, in the response that generated it, and inside its client configuration. Never logged |
+| Preshared key | Stored, in the store and in the configuration file. A generated one is returned once, in the response that generated it. Never logged |
 | API token | Stored at `0600`. Printed only by the command that generates it. Never logged |
 | Public key | Not sensitive. Freely logged and returned |
 

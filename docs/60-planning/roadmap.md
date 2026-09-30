@@ -23,13 +23,14 @@ phase P4 is chosen from it once P1 to P3 are in use.
 
 | Phase | Content | Modules | Exit criteria |
 |---|---|---|---|
-| **P1 — Core and CLI** | The store and its lock; interfaces and peers through files in `/etc/wireguard/`, `wg-quick@` units and `wg syncconf`; status from `wg show`; validation; key generation; the client configuration built when a peer is created; the configuration file; the CLI | SPEC-01, SPEC-03, SPEC-06, SPEC-07, SPEC-13; SPEC-05 section 7; SPEC-09 section 2; SPEC-12 except `serve` and `token` | In a container: create an interface, add a peer with a generated key pair and connect a client with the printed file; add a second peer while the first pings without loss; route a peer outside the subnet and see the unit restart with the route installed; delete the interface and leave no file behind |
+| **P1 — Core and CLI** | The store and its lock; interfaces and peers through files in `/etc/wireguard/`, `wg-quick@` units and `wg syncconf`; status from `wg show`; validation; key generation; the client configuration built when a peer is created; the configuration file; the CLI | SPEC-01, SPEC-03, SPEC-06, SPEC-07, SPEC-13; SPEC-05 sections 7 and 8; SPEC-09 section 2; SPEC-12 except `serve` and `token` | In a container: create an interface, add a peer with a generated key pair and connect a client with the printed file; add a second peer while the first pings without loss; route a peer outside the subnet and see the unit restart with the route installed; delete the interface and leave no file behind |
 | **P2 — REST API** | `api/openapi.yaml`, written first; `serve`; the HTTP listener, one token, problem documents for errors; health and version; `token rotate` | SPEC-04; SPEC-05 sections 2 to 4; SPEC-09 section 2.1; SPEC-12 `serve` and `token` | Every operation of SPEC-04 answers over HTTP with the token and refuses without it; the contract test passes; the CLI and the API change one node side by side |
 | **P3 — Packaging and operation** | The `.deb` with its confined unit, the token generated at install, the conffile and maintainer scripts; structured logs; a test tier under each distribution's own systemd; the operator guide | SPEC-09 sections 3 to 5; SPEC-05 section 6; SPEC-08 section 3 | Installed on Debian 13 and Ubuntu 24.04, the agent's interfaces survive a reboot and the package's removal; the unit's confinement holds under each distribution's systemd |
 | **P4 — From use** | Chosen from the backlog after P1 to P3 run on a real node | — | — |
 
-P1 carries 104 requirements, P2 42 and P3 16: 162 of the 317 live ones. The other 155 are in the
-backlog, entry by entry.
+P1 carries 127 requirements, P2 42 and P3 16: 185 of the 340 live ones. The other 155 are in the
+backlog, entry by entry. P1 grew by 23 while it was built: each was a doubt the code met and the
+specification settled first, as the module workflow requires.
 
 Inside a phase the order is the module workflow of `CLAUDE.md`: read the module, resolve doubt as
 a spec change, write a failing test per requirement, write the code, keep nothing unspecified, run
@@ -42,13 +43,13 @@ first integration test needs.
 |---|---|
 | Documentation architecture, rules, checks | Done — docs, traceability and mermaid checks |
 | Decisions | ADR-0001 to ADR-0018 accepted, except those superseded: ADR-0002, ADR-0012 and ADR-0013 by their successors, ADR-0003 by ADR-0014, ADR-0009 by ADR-0015, ADR-0010 by ADR-0018 |
-| Specification | 317 live requirements — 162 in P1 to P3, 155 deferred; 52 struck |
-| SPEC-13 | Accepted 2026-09-30 |
+| Specification | 340 live requirements — 185 in P1 to P3, 155 deferred; 52 struck |
+| SPEC-01, SPEC-03, SPEC-06, SPEC-07, SPEC-13 | `Implemented` — every requirement outside the backlog has a test |
 | SPEC-10 | `Draft` — its three open decisions wait with B-02 |
 | API contract | `api/openapi.yaml` is written at the start of P2; the `.proto` files are removed |
 | systemd unit | Rebuilt from SPEC-09 in P3 |
 | Specification audit | Reassessed after the wrapper cut — section 8 of the [audit](spec-audit.md) |
-| Implementation | None. Built phase by phase from the specification |
+| Implementation | P1 delivered: the store and its lock, apply, the service shared by the CLI and the API, the configuration file and the CLI. The unit and integration tiers pass; the exit criteria of P1 run in the integration tier |
 
 ## How the plan got here
 
@@ -65,7 +66,6 @@ remains in the history of this file.
 
 ## Next actions
 
-1. Build tooling for .NET: a task runner, the container tier of the
-   [test guide](../50-guides/running-tests.md), and `check-traceability.sh` reading the backlog
-   so deferred requirements are not reported untested (R-12)
-2. Implement P1 module by module, following the module workflow in `CLAUDE.md`
+1. Start P2 with its contract: `api/openapi.yaml`, written before any route —
+   [ADR-0014](../10-decisions/ADR-0014-rest-api-described-by-openapi.md)
+2. Implement P2 module by module, following the module workflow in `CLAUDE.md`

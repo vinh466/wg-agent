@@ -35,3 +35,18 @@ jobs:
         run: make build
       - name: Unit tests
         run: make test
+
+  # The integration tier: the published binary against real wg and wg-quick@ units, in a
+  # privileged container running systemd. The runner's kernel carries WireGuard in tree.
+  integration:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Load the WireGuard module
+        run: sudo modprobe wireguard
+      - name: Integration tests
+        run: make test-integration

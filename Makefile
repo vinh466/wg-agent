@@ -14,9 +14,14 @@ build:
 test:
 	$(DOTNET) test --project tests/WgAgent.Tests -c $(CONFIG)
 
-# Integration tier: real wg and wg-quick@ units in a privileged systemd container.
+# Integration tier: the published binary against real wg and wg-quick@ units, in a privileged
+# systemd container. Published self-contained rather than NativeAOT, which needs clang; the code
+# is the same either way.
+INTEGRATION_BINARY := $(CURDIR)/artifacts/integration/wg-agent
+
 test-integration:
-	$(DOTNET) test --project tests/WgAgent.IntegrationTests -c $(CONFIG)
+	$(DOTNET) publish src/WgAgent.Cli -c $(CONFIG) -r linux-x64 --self-contained -p:PublishAot=false -o $(INTEGRATION_BINARY)
+	WGAGENT_TEST_BINARY=$(INTEGRATION_BINARY) $(DOTNET) test --project tests/WgAgent.IntegrationTests -c $(CONFIG)
 
 # Documentation tier.
 check:

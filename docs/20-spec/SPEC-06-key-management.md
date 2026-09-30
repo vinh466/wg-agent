@@ -2,7 +2,7 @@
 id: SPEC-06
 title: Key management
 prefix: KEY
-status: Accepted
+status: Implemented
 version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03

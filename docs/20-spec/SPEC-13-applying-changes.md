@@ -2,7 +2,7 @@
 id: SPEC-13
 title: Applying a change through wg and wg-quick
 prefix: APL
-status: Accepted
+status: Implemented
 version: 1.0
 owner: Vinh Nguyen
 created: 2026-09-30

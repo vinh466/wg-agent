@@ -2,7 +2,7 @@
 id: SPEC-03
 title: Desired state and reconcile
 prefix: RCN
-status: Accepted
+status: Implemented
 version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
