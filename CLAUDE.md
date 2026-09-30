@@ -147,7 +147,8 @@ privilege, and a project reference is how the compiler enforces it.
 
 ## Implementation language
 
-C# on **.NET 10**, published with NativeAOT for `linux-x64` against glibc.
+C# on **.NET 10**, published with NativeAOT for `linux-x64` against glibc —
+[ADR-0016](docs/10-decisions/ADR-0016-dotnet-nativeaot-build.md).
 
 .NET 10 rather than 9 because it is the LTS line, supported to November 2028,
 while .NET 9 reaches end of support on 10 November 2026.

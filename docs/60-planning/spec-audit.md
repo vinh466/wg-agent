@@ -490,3 +490,52 @@ Open questions that change the plan if answered differently:
 - **R-13** The build stack — .NET 10, NativeAOT, `linux-x64` — lost its ADR when ADR-0012 was
   superseded; `REQ-CFG-044` and `CLAUDE.md` carry it. A short ADR restating it would keep the fact
   in one home.
+
+### Answers, 2026-09-30
+
+R-01 accepted — SPEC-13 is `Accepted`. R-02 confirmed: every interface file carries `ListenPort`.
+R-03, R-04, R-05, R-08, R-09 and R-10 confirmed as proposed. R-07 confirmed: the operator or the
+orchestrator keeps the client configuration, and a lost one is replaced by recreating the peer.
+R-11: a hand edit is overwritten, and SPEC-13 says so. R-12 is a tooling task at the start of P1.
+R-13: [ADR-0016](../10-decisions/ADR-0016-dotnet-nativeaot-build.md). R-06 stays open, below.
+
+A second pass over the cut added three requirements a P1 implementer would otherwise have had to
+invent: `REQ-RES-036` — null rather than zero when an interface has no device; `REQ-APL-009` —
+interface files owned by root at `0600`, replaced atomically; and `REQ-APL-006` now names the
+addition and removal of a site-to-site peer, not only its change. `ListInterfaces` is stated to
+return only the interfaces the agent created.
+
+### Second round
+
+- **R-06 — NAT and forwarding, open.** The operator asked why the agent cannot write `PostUp` and
+  `PostDown` itself, as is done by hand. It can; what it must not do is take the lines from a
+  caller. A hook runs as root whenever `wg-quick` brings the interface up, and the token crosses
+  the private network in clear, so a free-form hook field would hand root to whoever reads that
+  network — the reason of ADR-0007.
+  - (a) The host sets `ip_forward` and a masquerade rule once, for every interface. The plan is
+    unchanged.
+  - (b) Structured NAT rendered as hooks. An interface carries `nat.enabled` and
+    `nat.masquerade_out_interface`; the agent itself writes fixed `PostUp` and `PostDown` lines
+    from them — `sysctl` for forwarding, an `nft` table of the interface's own holding one
+    masquerade rule, dropped at `PostDown`. Only validated names and subnets reach the lines. It
+    costs a new ADR restating ADR-0013 with this exception, `REQ-APL-003` widened by two keys, the
+    slice `REQ-FWD-030` and `REQ-FWD-031` brought forward from B-04, and a dependency on
+    `nftables`. A host firewall whose forward policy drops traffic — ufw's default — still has to
+    allow it, under ADR-0008.
+  - (c) Free-form hooks from the API. Refused: remote root.
+  - (d) Free-form hooks from a root-owned file on the node, copied into every file the agent
+    renders. As flexible as manual work and safe, since only root edits the file; the agent then
+    renders content it did not validate.
+- **R-14 — Keepalive in the client configuration.** The file carries no `PersistentKeepalive`.
+  A client behind NAT that sends nothing for a while loses its mapping, and the node cannot reach
+  it until it sends again. An optional request field would set it.
+- **R-15 — Choosing a peer's address.** The caller chooses each peer's allowed IPs; IPAM belongs to
+  the platform under product.md, and by hand it is one of the chores. The agent could assign the
+  lowest free `/32` of the interface's first subnet when a peer is created with a generated key
+  pair and no `allowed_ips` — a narrow exception, moving one line of product.md.
+- **R-16 — Moving the interfaces configured by hand.** The agent manages only what it creates,
+  and adoption waits in B-10. An interface can still move without re-keying a client: disable its
+  `wg-quick@` unit, move its file out of `/etc/wireguard/`, create the interface through the agent
+  with the same private key, addresses and port, and add each peer with its public and preshared
+  keys. Clients see the same key, address and port. The P3 guide can document it; a CLI helper
+  reading the moved file is the next step up; adoption the one after.

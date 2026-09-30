@@ -61,14 +61,12 @@ requirement marked `Implemented` has at least one referencing test.
 | [SPEC-10](SPEC-10-lifecycle.md) | Lifecycle: upgrade, backup, DR | `LIF` | **Draft** | Backlog B-02 |
 | [SPEC-11](SPEC-11-diagnostics.md) | Diagnostics and node overview | `DIA` | Accepted | Backlog B-06, B-10 |
 | [SPEC-12](SPEC-12-cli.md) | Command line surface | `CLI` | Accepted | P1, P2 |
-| [SPEC-13](SPEC-13-applying-changes.md) | Applying a change through wg and wg-quick | `APL` | **Review** | P1 |
+| [SPEC-13](SPEC-13-applying-changes.md) | Applying a change through wg and wg-quick | `APL` | Accepted | P1 |
 
 The phases are those of the [roadmap](../60-planning/roadmap.md); a backlog entry names the
 [backlog](../60-planning/backlog.md) block holding the module's deferred requirements.
 
-SPEC-13 is `Review`: it was written for the wrapper of
-[ADR-0013](../10-decisions/ADR-0013-drive-wg-and-wg-quick.md) and awaits approval before P1
-implements it. SPEC-10 remains `Draft`. Three of its decisions are unsettled — export encryption,
+SPEC-10 remains `Draft`. Three of its decisions are unsettled — export encryption,
 partial import and downward migration — and all three wait with B-02. Approving a module whose
 own text says *Undecided* would drain the status vocabulary of meaning, so it waits for those
 answers.
@@ -92,7 +90,7 @@ graph RL
   SPEC10["SPEC-10<br/>Lifecycle<br/>(backlog · Draft)"]
   SPEC11["SPEC-11<br/>Diagnostics<br/>(backlog)"]
   SPEC12["SPEC-12<br/>CLI<br/>(P1–P2)"]
-  SPEC13["SPEC-13<br/>Applying changes<br/>(P1 · Review)"]
+  SPEC13["SPEC-13<br/>Applying changes<br/>(P1)"]
 
   SPEC02 --> SPEC01
   SPEC03 --> SPEC01
@@ -118,7 +116,7 @@ graph RL
   SPEC13 --> SPEC03
 
   classDef draft stroke-dasharray: 5 5
-  class SPEC10,SPEC13 draft
+  class SPEC10 draft
 ```
 
 SPEC-01 carries no dependency, which is why it is read first. Two edges point from a P1 module

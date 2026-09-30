@@ -34,6 +34,7 @@ Where the reasons behind the system's shape are recorded. Specs state *what*; AD
 | [ADR-0013](ADR-0013-drive-wg-and-wg-quick.md) | Drive WireGuard through wg and wg-quick in v1 | Accepted | SPEC-01, SPEC-02, SPEC-03, SPEC-05, SPEC-06, SPEC-09, SPEC-12 |
 | [ADR-0014](ADR-0014-rest-api-described-by-openapi.md) | A REST API whose contract is an OpenAPI document | Accepted | SPEC-01, SPEC-04, SPEC-12 |
 | [ADR-0015](ADR-0015-network-listener-with-a-shared-secret.md) | A network listener authenticated by one shared secret | Accepted | SPEC-04, SPEC-05, SPEC-09, SPEC-12 |
+| [ADR-0016](ADR-0016-dotnet-nativeaot-build.md) | One NativeAOT binary on .NET 10 for linux-x64 against glibc | Accepted | SPEC-09 |
 
 ## Numbering
 

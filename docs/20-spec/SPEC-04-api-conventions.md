@@ -54,6 +54,8 @@ test compares what the server exposes with it.
 
 A resource carries its status under `REQ-RES-001`, so reading one needs no separate status
 operation, and `ListPeers` returns every peer of an interface with its status in one call.
+`ListInterfaces` returns the interfaces desired state describes — the ones the agent created;
+the interfaces of other parties join it with adoption, in backlog B-10.
 
 The operations that arrive later — RotateInterfaceKey, AdoptInterface, ReleaseInterface,
 BatchUpdatePeers, GenerateClientConfig, GenerateKeyPair, DiagnoseInterface, GetOverview,

@@ -226,9 +226,9 @@ those checks, which are deferred under `B-06` in the [backlog](../60-planning/ba
 Adding a value to the enum later is additive and does not break a generated client, so the set
 grows without a package version bump.
 
-`REQ-DIA-049` fixes a filesystem predicate because `REQ-SEC-041` forbids the agent from
-executing a child process, which rules out asking `systemctl`. Enablement is a symlink, so the
-question is answerable by reading directories. `REQ-DIA-050` keeps an unreadable directory from
+`REQ-DIA-049` fixes a filesystem predicate rather than a question to systemd. Enablement is a
+symlink, so the question is answerable by reading directories, on a node where no manager
+could be asked. `REQ-DIA-050` keeps an unreadable directory from
 presenting as a pass: an undetermined answer is reported as undetermined, and `REQ-RCN-064`
 blocks only on `FAIL`, so adoption is not refused for a question the report could not ask.
 
@@ -243,7 +243,7 @@ from altering state, and this report is diagnostics, so it inherits that guarant
 `REQ-DIA-047` mirrors `REQ-DIA-024`. Adoption reads the interface private key and every
 preshared key from the kernel under `REQ-RCN-061` and `REQ-RCN-062`, so a report naming the
 fields it would store would otherwise disclose exactly what `REQ-RES-013`, `REQ-RES-022`,
-`REQ-KEY-002` and `REQ-SEC-050` forbid in any output.
+and `REQ-SEC-050` forbid in any output.
 
 `REQ-DIA-043` names the enabled unit and nothing else. A `wg-quick` configuration file survives
 `systemctl disable` and describes an interface nobody is starting, so treating the file's

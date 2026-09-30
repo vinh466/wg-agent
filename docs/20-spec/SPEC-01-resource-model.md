@@ -148,7 +148,7 @@ removes the interface from the store under `REQ-RCN-071`, so the agent has nothi
 
 `condition` and `warnings` answer different questions, which is why they are two fields rather
 than one list. `condition` is the lifecycle state, and the three values are mutually exclusive —
-`REQ-API-021` and `REQ-RCN-040` both name `DEGRADED` as one value, not one entry among several.
+`REQ-RCN-040` names `DEGRADED` as one value, not one entry among several.
 `warnings` is the output of `REQ-VAL-002`, and a resource can be `READY` while carrying several
 of them.
 
@@ -257,6 +257,15 @@ nowhere to appear.
 The qualifier matters for the same reason `REQ-RES-001` carries one: `revision`, `condition` and
 `warnings` are agent records, and reading them from the kernel is not possible. The rule exists
 for the traffic counters, which must never be accumulated in the agent.
+
+> **REQ-RES-036** — When an interface's device does not exist, the kernel-sourced fields of its
+> status and of its peers' status MUST be null.
+
+A disabled interface has no device under `REQ-APL-004`, and an interface somebody removed by hand
+has none either. Reporting `0` for its counters or a stale port would present an absence as a
+reading; null says that the kernel holds nothing to read. `public_key` is not kernel-sourced — it
+derives from the stored private key — so it stays reported, and `online` follows from a null
+`last_handshake_at` under `REQ-RES-025`.
 
 > **REQ-RES-025** — The agent MUST compute `online` as
 > `last_handshake_at != null AND (now - last_handshake_at) < peer_online_threshold`,

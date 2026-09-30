@@ -116,7 +116,9 @@ the agent derives it rather than leaving each caller to work it out.
 
 The generated private key exists only in that response (`REQ-KEY-012`), so the response is the one
 moment a complete client configuration can be built; a configuration generated later for the same
-peer could carry no private key. The routing modes below, whose `AUTO` mode reads
+peer could carry no private key. The caller keeps the file — an operator, or the orchestrator
+above the agent: the agent stores no copy, and a lost file is replaced by removing the peer and
+creating it again. The routing modes below, whose `AUTO` mode reads
 `forward_policy`, arrive with [SPEC-02](SPEC-02-forward-policy.md); until then `REQ-KEY-044` fixes
 the result.
 

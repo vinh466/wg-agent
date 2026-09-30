@@ -2,8 +2,8 @@
 id: SPEC-13
 title: Applying a change through wg and wg-quick
 prefix: APL
-status: Review
-version: 0.1
+status: Accepted
+version: 1.0
 owner: Vinh Nguyen
 created: 2026-09-30
 updated: 2026-09-30
@@ -39,6 +39,14 @@ The directory is not a choice: `wg-quick@` reads its configuration there, and on
 AppArmor confines `wg` and `wg-quick` to it. Files the operator keeps beside the agent's own are
 the operator's, as the links of `REQ-RCN-030` are.
 
+> **REQ-APL-009** — A configuration file the agent writes MUST be owned by root with mode `0600`,
+> and replaced atomically.
+
+The file holds the interface's private key and every preshared key, as the store does under
+`REQ-RCN-004`. An atomic replacement — a temporary file in the same directory, renamed over the
+old one — is what lets `wg-quick` never read half a file, and what leaves the previous version
+intact for `REQ-APL-008` to restore.
+
 > **REQ-APL-003** — A configuration file the agent renders MUST carry only the keys
 > `PrivateKey`, `ListenPort`, `Address` and `MTU` under `[Interface]`, and `PublicKey`,
 > `PresharedKey`, `AllowedIPs`, `Endpoint` and `PersistentKeepalive` under `[Peer]`.
@@ -48,6 +56,10 @@ the agent writes. `PreUp`, `PostUp`, `PreDown` and `PostDown` run shell as root 
 brings the interface up; `SaveConfig` would let `wg-quick` rewrite a file the agent owns; `DNS`
 and `Table` belong to client concerns and to fields deferred with
 [SPEC-02](SPEC-02-forward-policy.md). Labels stay in the store.
+
+Every interface file carries `ListenPort`, taken from the spec or from the default of
+[SPEC-01](SPEC-01-resource-model.md): a file without it lets the kernel choose a new port each
+time `wg-quick` brings the interface up.
 
 > **REQ-APL-004** — An interface's unit MUST be enabled and active exactly when the interface's
 > `enabled` is true.
@@ -68,14 +80,15 @@ cost no packet, and the other peer kept its handshake and its learned endpoint. 
 file carries is written again at each synchronisation, so a peer configured with one returns to
 it — the case of a site-to-site peer, whose address is static.
 
-> **REQ-APL-006** — A change to the `addresses` or `mtu` of an enabled interface, or to one of
-> its peers holding an `allowed_ips` entry outside the interface's subnets, MUST restart the
-> interface's unit.
+> **REQ-APL-006** — On an enabled interface, a change to its `addresses` or `mtu`, or the
+> addition, change or removal of a peer holding an `allowed_ips` entry outside the interface's
+> subnets, MUST restart the interface's unit.
 
 `wg syncconf` configures WireGuard alone. Addresses, the MTU and the routes for allowed IPs are
 set by `wg-quick` when the interface comes up, and a peer routed outside the interface's subnets
-has a route only after `up`. A change to `listen_port` or `private_key` synchronises without a
-restart, although a new private key ends every session by its nature.
+has a route only after `up`, and keeps it until `down`. A change to `listen_port` or `private_key`
+synchronises without a restart, although a new private key ends every session by its nature. On
+a disabled interface a change rewrites the file alone; the unit applies it when enabled.
 
 > **REQ-APL-007** — The response to a write that restarted an interface's unit MUST state that
 > the interface's sessions were interrupted.
@@ -94,8 +107,10 @@ says so.
 
 ## 5. Limits accepted
 
-The agent corrects no drift. A hand edit to a file the agent created, or a `wg set` against one
-of its interfaces, persists until the agent next writes that interface, and is then replaced.
+The agent corrects no drift, and each write replaces the whole file. A hand edit to a file the
+agent created, or a `wg set` against one of its interfaces, persists until the agent next writes
+that interface, and is then lost — by the operator's decision of 2026-09-30, the agent neither
+detects nor preserves it. A change the agent should keep belongs in the spec.
 Continuous reconciliation is specified in [SPEC-03](SPEC-03-state-reconcile.md) sections 3 to 5
 and delivered later.
 
@@ -106,5 +121,4 @@ host once, for every interface.
 
 ## 6. Open questions
 
-- Whether the agent should detect a hand edit to a file it created, and refuse to overwrite it,
-  rather than replace it under section 5.
+None.

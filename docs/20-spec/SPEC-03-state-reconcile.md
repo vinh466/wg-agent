@@ -327,8 +327,8 @@ implicit takeover.
 `REQ-RCN-061` is what keeps established clients connected: an interface key that survives
 adoption leaves every client configuration valid. Generating one instead would disconnect every
 peer as onboarding completes, which is the outcome `REQ-KEY-004` warns about for rotation. The
-key is stored, never returned — `REQ-RES-013` and `REQ-KEY-002` apply to an adopted interface
-exactly as they do to a created one.
+key is stored, never returned — `REQ-RES-013` applies to an adopted interface
+exactly as it does to a created one.
 
 `REQ-RCN-063` accepts a known loss. A device dump does not distinguish an endpoint the kernel
 learned from a handshake from one an operator configured for a site-to-site peer, so adoption

@@ -8,7 +8,7 @@ owner: Vinh Nguyen
 created: 2026-08-03
 updated: 2026-09-30
 depends_on: [SPEC-05]
-adrs: [ADR-0010, ADR-0013, ADR-0015]
+adrs: [ADR-0010, ADR-0013, ADR-0015, ADR-0016]
 milestone: P1–P3
 ---
 
@@ -156,6 +156,8 @@ cannot disturb the host.
 ## 5. Packaging
 
 > **REQ-CFG-044** — The binary MUST be published with NativeAOT for `linux-x64` against glibc.
+
+[ADR-0016](../10-decisions/ADR-0016-dotnet-nativeaot-build.md) records the reasons.
 
 > **REQ-CFG-021** — The `.deb` package MUST include the systemd unit and the configuration file,
 > and depend on `wireguard-tools` and `libc6 (>= 2.34)`.
