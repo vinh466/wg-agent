@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using WgAgent.Core;
 using WgAgent.Platform.Linux;
 
@@ -15,7 +16,7 @@ internal static class Authentication
     private const string HealthPath = "/v1/health";
     private const string Scheme = "Bearer ";
 
-    public static async Task Apply(HttpContext context, TokenFile tokenFile, RequestDelegate next)
+    public static async Task Apply(HttpContext context, TokenFile tokenFile, ILogger logger, RequestDelegate next)
     {
         if (HttpMethods.IsGet(context.Request.Method) && context.Request.Path.Equals(HealthPath, StringComparison.Ordinal))
         {
@@ -25,6 +26,7 @@ internal static class Authentication
 
         if (!Authenticated(context, tokenFile))
         {
+            logger.LogWarning("authentication failed {reason} {path}", ReasonCodes.TokenInvalid, context.Request.Path.Value);
             await Problems.Result(ReasonCodes.TokenInvalid, "A valid bearer token is required.").ExecuteAsync(context);
             return;
         }

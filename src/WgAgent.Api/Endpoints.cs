@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using WgAgent.Core;
 using WgAgent.Platform;
 using WgAgent.Service;
@@ -14,9 +15,9 @@ namespace WgAgent.Api;
 /// </summary>
 internal static class Endpoints
 {
-    public static void Map(IEndpointRouteBuilder v1, AgentService service, TimeProvider clock, DateTimeOffset startedAt)
+    public static void Map(IEndpointRouteBuilder v1, AgentService service, TimeProvider clock, DateTimeOffset startedAt, ILogger logger)
     {
-        v1.MapPost("/interfaces", Handle(async c =>
+        v1.MapPost("/interfaces", Handle(logger, async c =>
         {
             var body = await Bodies.Read(c, ApiJsonContext.Default.CreateInterfaceRequest);
             if (body.Name is null) throw new AgentException(ReasonCodes.RequestMalformed, "name is required.");
@@ -24,13 +25,13 @@ internal static class Endpoints
             return Created($"/v1/interfaces/{body.Name}", new InterfaceWriteResult { Interface = ApiInterface.From(result.Resource), Restarted = result.Restarted }, ApiJsonContext.Default.InterfaceWriteResult);
         }));
 
-        v1.MapGet("/interfaces", Handle(_ => Task.FromResult(
+        v1.MapGet("/interfaces", Handle(logger, _ => Task.FromResult(
             Ok(service.ListInterfaces().Select(ApiInterface.From).ToList() as IReadOnlyList<ApiInterface>, ApiJsonContext.Default.IReadOnlyListApiInterface))));
 
-        v1.MapGet("/interfaces/{name}", Handle(c => Task.FromResult(
+        v1.MapGet("/interfaces/{name}", Handle(logger, c => Task.FromResult(
             Ok(ApiInterface.From(service.GetInterface(Name(c))), ApiJsonContext.Default.ApiInterface))));
 
-        v1.MapPut("/interfaces/{name}", Handle(async c =>
+        v1.MapPut("/interfaces/{name}", Handle(logger, async c =>
         {
             var name = Name(c);
             var body = await Bodies.Read(c, ApiJsonContext.Default.UpdateInterfaceRequest);
@@ -40,13 +41,13 @@ internal static class Endpoints
             return Ok(new InterfaceWriteResult { Interface = ApiInterface.From(result.Resource), Restarted = result.Restarted }, ApiJsonContext.Default.InterfaceWriteResult);
         }));
 
-        v1.MapDelete("/interfaces/{name}", Handle(c =>
+        v1.MapDelete("/interfaces/{name}", Handle(logger, c =>
         {
             service.DeleteInterface(Name(c));
             return Task.FromResult(Results.NoContent());
         }));
 
-        v1.MapPost("/interfaces/{name}/peers", Handle(async c =>
+        v1.MapPost("/interfaces/{name}/peers", Handle(logger, async c =>
         {
             var name = Name(c);
             var body = await Bodies.Read(c, ApiJsonContext.Default.CreatePeerRequest);
@@ -62,13 +63,13 @@ internal static class Endpoints
             return Created($"/v1/interfaces/{name}/peers/{FromStandard(result.Peer.PublicKey)}", dto, ApiJsonContext.Default.CreatePeerResult);
         }));
 
-        v1.MapGet("/interfaces/{name}/peers", Handle(c => Task.FromResult(
+        v1.MapGet("/interfaces/{name}/peers", Handle(logger, c => Task.FromResult(
             Ok(service.ListPeers(Name(c)).Select(ApiPeer.From).ToList() as IReadOnlyList<ApiPeer>, ApiJsonContext.Default.IReadOnlyListApiPeer))));
 
-        v1.MapGet("/interfaces/{name}/peers/{public_key}", Handle(c => Task.FromResult(
+        v1.MapGet("/interfaces/{name}/peers/{public_key}", Handle(logger, c => Task.FromResult(
             Ok(ApiPeer.From(service.GetPeer(Name(c), Key(c))), ApiJsonContext.Default.ApiPeer))));
 
-        v1.MapPut("/interfaces/{name}/peers/{public_key}", Handle(async c =>
+        v1.MapPut("/interfaces/{name}/peers/{public_key}", Handle(logger, async c =>
         {
             var name = Name(c);
             var key = Key(c);
@@ -79,13 +80,13 @@ internal static class Endpoints
             return Ok(new PeerWriteResult { Peer = ApiPeer.From(result.Resource), Restarted = result.Restarted }, ApiJsonContext.Default.PeerWriteResult);
         }));
 
-        v1.MapDelete("/interfaces/{name}/peers/{public_key}", Handle(c =>
+        v1.MapDelete("/interfaces/{name}/peers/{public_key}", Handle(logger, c =>
         {
             service.DeletePeer(Name(c), Key(c));
             return Task.FromResult(Results.NoContent());
         }));
 
-        v1.MapGet("/version", Handle(_ =>
+        v1.MapGet("/version", Handle(logger, _ =>
         {
             var (version, commit) = BuildInfo.Current();
             return Task.FromResult(Ok(new VersionResponse
@@ -103,11 +104,15 @@ internal static class Endpoints
     }
 
     /// <summary>Wraps a handler so a refused operation becomes its problem document (REQ-API-082).</summary>
-    private static RequestDelegate Handle(Func<HttpContext, Task<IResult>> body) => async context =>
+    private static RequestDelegate Handle(ILogger logger, Func<HttpContext, Task<IResult>> body) => async context =>
     {
         IResult result;
         try { result = await body(context); }
-        catch (AgentException error) { result = Problems.Result(error); }
+        catch (AgentException error)
+        {
+            logger.LogWarning(error, "request refused {reason}", error.Code);   // REQ-OBS-011: reason and error
+            result = Problems.Result(error);
+        }
         await result.ExecuteAsync(context);
     };
 

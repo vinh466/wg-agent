@@ -25,6 +25,7 @@ internal static class ServeCommand
                     Store = new StateStore(run.Config.StatePath),
                     Token = new TokenFile(run.Config.TokenFile),
                     ListenAddress = run.Config.ListenAddress,
+                    LogLevel = run.Config.LogLevel,
                     Clock = context.Clock,
                 };
                 return Server.Run(options, context.Error);

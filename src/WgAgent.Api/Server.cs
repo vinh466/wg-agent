@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WgAgent.Core.Store;
@@ -16,6 +17,7 @@ public sealed record ServerOptions
     public required string ListenAddress { get; init; }
     public Func<bool> HasNetAdmin { get; init; } = Capabilities.HasNetAdmin;
     public TimeProvider Clock { get; init; } = TimeProvider.System;
+    public string LogLevel { get; init; } = "info";
 }
 
 /// <summary>
@@ -32,7 +34,9 @@ public static class Server
             error.WriteLine($"wg-agent: {failure.Reason}: {failure.Message}");
             return 1;
         }
-        Build(options).Run();   // blocks until SIGTERM; graceful shutdown drains in flight (REQ-API-073)
+        var app = Build(options);
+        app.Logger.LogInformation("serving on {listen_address}", options.ListenAddress);
+        app.Run();   // blocks until SIGTERM; graceful shutdown drains in flight (REQ-API-073)
         return 0;
     }
 
@@ -43,10 +47,16 @@ public static class Server
         builder.Services.ConfigureHttpJsonOptions(json =>
             json.SerializerOptions.TypeInfoResolverChain.Insert(0, ApiJsonContext.Default));
 
+        // Structured JSON logs on stdout (REQ-OBS-010, REQ-OBS-011).
+        builder.Logging.ClearProviders();
+        builder.Services.AddSingleton<Microsoft.Extensions.Logging.Console.ConsoleFormatter, JsonLogFormatter>();
+        builder.Logging.AddConsole(console => console.FormatterName = JsonLogFormatter.FormatterName);
+        builder.Logging.SetMinimumLevel(JsonLogFormatter.Minimum(options.LogLevel));
+
         var app = builder.Build();
         app.Urls.Add($"http://{options.ListenAddress}");
-        app.Use((context, next) => Authentication.Apply(context, options.Token, next));   // REQ-SEC-071
-        Endpoints.Map(app.MapGroup("/v1"), options.Service, options.Clock, options.Clock.GetUtcNow());
+        app.Use((context, next) => Authentication.Apply(context, options.Token, app.Logger, next));   // REQ-SEC-071
+        Endpoints.Map(app.MapGroup("/v1"), options.Service, options.Clock, options.Clock.GetUtcNow(), app.Logger);
         return app;
     }
 }
