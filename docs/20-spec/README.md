@@ -53,10 +53,10 @@ requirement marked `Implemented` has at least one referencing test.
 | [SPEC-02](SPEC-02-forward-policy.md) | Forward policy and NAT | `FWD` | Accepted | Backlog B-04 |
 | [SPEC-03](SPEC-03-state-reconcile.md) | Desired state and reconcile | `RCN` | Implemented | P1; reconcile B-09, adoption B-10 |
 | [SPEC-04](SPEC-04-api-conventions.md) | API conventions, concurrency, errors | `API` | Implemented | P2 |
-| [SPEC-05](SPEC-05-security.md) | Security, authentication, authorization | `SEC` | Accepted | P1 to P3 |
+| [SPEC-05](SPEC-05-security.md) | Security, authentication, authorization | `SEC` | Implemented | P1 to P3 |
 | [SPEC-06](SPEC-06-key-management.md) | Key management | `KEY` | Implemented | P1 |
 | [SPEC-07](SPEC-07-validation.md) | Validation | `VAL` | Implemented | P1 |
-| [SPEC-08](SPEC-08-observability.md) | Metrics, logs, audit | `OBS` | Accepted | Logs P3; the rest B-01 |
+| [SPEC-08](SPEC-08-observability.md) | Metrics, logs, audit | `OBS` | Implemented | Logs P3; metrics and audit B-01 |
 | [SPEC-09](SPEC-09-config-deployment.md) | Configuration, packaging, deployment | `CFG` | Accepted | P1 to P3 |
 | [SPEC-10](SPEC-10-lifecycle.md) | Lifecycle: upgrade, backup, DR | `LIF` | **Draft** | Backlog B-02 |
 | [SPEC-11](SPEC-11-diagnostics.md) | Diagnostics and node overview | `DIA` | Accepted | Backlog B-06, B-10 |

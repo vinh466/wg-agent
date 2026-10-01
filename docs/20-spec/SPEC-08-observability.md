@@ -2,11 +2,11 @@
 id: SPEC-08
 title: Metrics, logs and audit
 prefix: OBS
-status: Accepted
+status: Implemented
 version: 1.3
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-06
+updated: 2026-10-01
 depends_on: [SPEC-01, SPEC-03]
 adrs: []
 milestone: M3

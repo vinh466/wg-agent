@@ -13,18 +13,25 @@ public sealed class Node : IDisposable
 
     public Node()
     {
-        var binary = Environment.GetEnvironmentVariable("WGAGENT_TEST_BINARY");
-        if (string.IsNullOrEmpty(binary) || !File.Exists(Path.Combine(binary, "wg-agent")))
-            throw new InvalidOperationException("WGAGENT_TEST_BINARY must name the directory of a published wg-agent; run `make test-integration`.");
-
         Docker(TimeSpan.FromMinutes(10), "build", "-q", "-t", Image, Path.Combine(AppContext.BaseDirectory, "Node"));
         Docker(TimeSpan.FromMinutes(1), "run", "-d", "--name", Container, "--privileged", "--tmpfs", "/run", "--tmpfs", "/run/lock", Image);
         WaitForSystemd();
-        Docker(TimeSpan.FromMinutes(1), "cp", binary, $"{Container}:/opt/wg-agent");
-        Must("ln -s /opt/wg-agent/wg-agent /usr/local/bin/wg-agent");
+
+        // The non-packaging tiers symlink a published binary in; the packaging tier installs a .deb
+        // instead and so leaves WGAGENT_TEST_BINARY unset.
+        var binary = Environment.GetEnvironmentVariable("WGAGENT_TEST_BINARY");
+        if (!string.IsNullOrEmpty(binary) && File.Exists(Path.Combine(binary, "wg-agent")))
+        {
+            Docker(TimeSpan.FromMinutes(1), "cp", binary, $"{Container}:/opt/wg-agent");
+            Must("ln -s /opt/wg-agent/wg-agent /usr/local/bin/wg-agent");
+        }
     }
 
     public void Dispose() => Docker(TimeSpan.FromMinutes(1), "rm", "-f", Container);
+
+    /// <summary>Copies a host file into the container.</summary>
+    public void CopyIn(string hostPath, string containerPath) =>
+        Docker(TimeSpan.FromMinutes(1), "cp", hostPath, $"{Container}:{containerPath}");
 
     public sealed record Result(int Code, string Out, string Error);
 

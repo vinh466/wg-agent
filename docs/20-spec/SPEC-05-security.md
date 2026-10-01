@@ -2,11 +2,11 @@
 id: SPEC-05
 title: Security, authentication and authorization
 prefix: SEC
-status: Accepted
+status: Implemented
 version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-30
+updated: 2026-10-01
 depends_on: [SPEC-04]
 adrs: [ADR-0007, ADR-0013, ADR-0015, ADR-0017]
 milestone: P1–P3

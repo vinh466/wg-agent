@@ -188,7 +188,7 @@ project yet.
 | Integration | `wg` and `wg-quick` in a container, with two network namespaces joined by a veth pair so a peer really handshakes — the arrangement that measured `REQ-APL-005` — see [running the tests](../50-guides/running-tests.md) |
 | Concurrency | The CLI and the daemon writing at once; assert the serialisation `REQ-RCN-042` requires |
 | Security | Scan every response and log for leaked secrets (`REQ-SEC-051`), and every child process's argument vector for a key (`REQ-SEC-089`) |
-| Packaging | The `.deb` under each supported distribution's own systemd as PID 1 — P3 |
+| Packaging | The `.deb` under each supported distribution's own systemd as PID 1 |
 | Compatibility | Debian 13 and Ubuntu 24.04, and the later stable and LTS releases |
 
 Every test names the REQ ID it verifies, per the convention in

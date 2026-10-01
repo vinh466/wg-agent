@@ -9,13 +9,13 @@ leaked.
 | Documentation | `docs/check-docs.sh`, `check-traceability.sh`, `check-mermaid.sh` | nothing (mermaid needs Docker) | the docs themselves |
 | Unit | `make test` | the .NET SDK | everything above `WgAgent.Platform` |
 | Integration | `make test-integration` | the .NET SDK and Docker | the published binary against real `wg`, `wg-quick@` units and peers that handshake |
-| Packaging | the `.deb` under each supported distribution's systemd | Docker | the unit, its confinement, the maintainer scripts — P3 |
+| Packaging | `make test-packaging` | the .NET SDK and Docker | the `.deb` installed under systemd: the unit, its confinement, the maintainer scripts |
 
 ```mermaid
 graph TD
   C["docs checks<br/>docs + traceability + mermaid"] --> U["dotnet test<br/>unit, fake platform"]
   U --> I["integration<br/>systemd container, wg-quick@ units"]
-  I --> P["packaging<br/>.deb per distribution, P3"]
+  I --> P["packaging<br/>.deb under systemd"]
 
   classDef none fill:#f8f8f8,stroke:#999
   classDef host fill:#eef6ff,stroke:#4a7ebb
@@ -24,16 +24,17 @@ graph TD
   class C none
   class U host
   class I ctr
-  class P off
+  class P ctr
 ```
 
 Each tier assumes the one above it passes: a failing unit tier makes an integration failure
 uninformative, because the cause could be either layer.
 
-The documentation, unit and integration tiers run; the packaging tier arrives with P3.
-`make test-integration` publishes the binary self-contained rather than with NativeAOT, which needs
-clang, and hands its directory to the tests in `WGAGENT_TEST_BINARY`. The code is the same either
-way; the packaging tier is where the NativeAOT binary is tested.
+All four tiers run. `make test-integration` publishes the binary self-contained rather than with
+NativeAOT, which needs clang, and hands its directory to the tests in `WGAGENT_TEST_BINARY`.
+`make test-packaging` builds the real NativeAOT `.deb` in the SDK image, then installs it under
+systemd in a container and hands its path in `WGAGENT_DEB`; the packaging tier is where the
+NativeAOT binary is exercised.
 
 ## Why the integration tier runs systemd
 
