@@ -1,0 +1,16 @@
+# /etc/default/wg-agent — every key, commented out at its default (REQ-CFG-038).
+# The agent reads this file itself; a line is WG_AGENT_<PATH>=<value>, read as written.
+
+# Host clients reach this node at; the port is each interface's own — REQ-KEY-037.
+#WG_AGENT_NODE_ENDPOINT=
+
+# Loopback unless set; any other address belongs on a private network — REQ-SEC-084, REQ-CFG-022.
+#WG_AGENT_LISTEN_ADDRESS=127.0.0.1:9585
+
+# One token, mode 0600, owned by root — REQ-SEC-074, REQ-SEC-082.
+#WG_AGENT_TOKEN_FILE=/etc/wg-agent/token
+
+#WG_AGENT_STATE_PATH=/var/lib/wg-agent/state.json
+#WG_AGENT_APPLY_TIMEOUT=10s
+#WG_AGENT_PEER_ONLINE_THRESHOLD=180s
+#WG_AGENT_LOG_LEVEL=info

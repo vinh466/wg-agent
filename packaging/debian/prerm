@@ -1,0 +1,13 @@
+#!/bin/sh
+# REQ-CFG-025: stop the service before any file is removed.
+set -e
+
+case "$1" in
+  remove|deconfigure|upgrade)
+    if [ -d /run/systemd/system ]; then
+      systemctl stop wg-agent.service || true
+    fi
+    ;;
+esac
+
+exit 0

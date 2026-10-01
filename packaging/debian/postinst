@@ -1,0 +1,22 @@
+#!/bin/sh
+# REQ-CFG-045: generate the token when absent; REQ-CFG-022: leave the listener on loopback.
+set -e
+
+TOKEN=/etc/wg-agent/token
+
+case "$1" in
+  configure)
+    install -d -m 0700 /etc/wg-agent
+    if [ ! -s "$TOKEN" ]; then
+      # Generated, not printed, so it never reaches the install log (REQ-SEC-076).
+      /usr/bin/wg-agent token rotate --token-file "$TOKEN" >/dev/null
+    fi
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload || true
+      systemctl enable wg-agent.service >/dev/null 2>&1 || true
+      systemctl start wg-agent.service || true
+    fi
+    ;;
+esac
+
+exit 0

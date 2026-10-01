@@ -1,0 +1,32 @@
+# The hardened unit of SPEC-09 section 4 — REQ-SEC-031, REQ-SEC-086, REQ-CFG-043. The agent reads
+# /etc/default/wg-agent itself (REQ-CFG-037), so there is no EnvironmentFile (REQ-CFG-004 struck).
+[Unit]
+Description=wg-agent WireGuard control plane
+Documentation=https://github.com/VinhNguyenV/wg-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/wg-agent serve
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/wireguard
+StateDirectory=wg-agent
+StateDirectoryMode=0700
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+#!/bin/sh
+# REQ-CFG-026: purge removes config, token and store. REQ-CFG-027: never delete a WireGuard link.
+# REQ-CFG-028: print the links left behind.
+set -e
+
+case "$1" in
+  remove)
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload || true
+      systemctl disable wg-agent.service >/dev/null 2>&1 || true
+    fi
+    ;;
+  purge)
+    rm -f /etc/wg-agent/token
+    rm -rf /etc/wg-agent
+    rm -f /etc/default/wg-agent
+    rm -rf /var/lib/wg-agent
+
+    links=$(ls /etc/wireguard/*.conf 2>/dev/null | sed 's#.*/##; s#\.conf$##' | tr '\n' ' ' | sed 's/ $//')
+    if [ -n "$links" ]; then
+      echo "wg-agent: the WireGuard interfaces were left in place: $links"
+      echo "wg-agent: their files remain under /etc/wireguard/ and their wg-quick@ units keep running."
+    fi
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload || true
+    fi
+    ;;
+esac
+
+exit 0
