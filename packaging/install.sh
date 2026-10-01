@@ -2,13 +2,13 @@
 # wg-agent installer — install, update or uninstall the agent from its GitHub release.
 # REQ-CFG-052 (install/update/uninstall), REQ-CFG-053 (verify the SHA256 before installing).
 #
-#   curl -fsSL https://raw.githubusercontent.com/VinhNguyenV/wg-agent/main/packaging/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/vinh466/wg-agent/main/packaging/install.sh | sudo bash
 #   sudo ./install.sh --uninstall
 #
 # Options: --uninstall, --version <tag>, --repo <owner/name>.
 set -euo pipefail
 
-REPO=${WG_AGENT_REPO:-VinhNguyenV/wg-agent}
+REPO=${WG_AGENT_REPO:-vinh466/wg-agent}
 ACTION=install
 VERSION=latest
 

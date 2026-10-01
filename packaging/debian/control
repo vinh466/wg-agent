@@ -5,7 +5,7 @@ Maintainer: wg-agent maintainers <noreply@github.com>
 Section: net
 Priority: optional
 Depends: wireguard-tools, libc6 (>= 2.34)
-Homepage: https://github.com/VinhNguyenV/wg-agent
+Homepage: https://github.com/vinh466/wg-agent
 Description: WireGuard control plane agent for one Linux node
  Manages the WireGuard interfaces of one node through wg and wg-quick, from a
  CLI on the node and a REST API behind one bearer token. It creates interfaces,

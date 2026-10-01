@@ -2,7 +2,7 @@
 # /etc/default/wg-agent itself (REQ-CFG-037), so there is no EnvironmentFile (REQ-CFG-004 struck).
 [Unit]
 Description=wg-agent WireGuard control plane
-Documentation=https://github.com/VinhNguyenV/wg-agent
+Documentation=https://github.com/vinh466/wg-agent
 After=network-online.target
 Wants=network-online.target
 
