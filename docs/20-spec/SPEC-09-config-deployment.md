@@ -6,9 +6,9 @@ status: Accepted
 version: 2.0
 owner: Vinh Nguyen
 created: 2026-08-03
-updated: 2026-09-30
+updated: 2026-10-01
 depends_on: [SPEC-05]
-adrs: [ADR-0013, ADR-0015, ADR-0016, ADR-0018]
+adrs: [ADR-0013, ADR-0015, ADR-0016, ADR-0018, ADR-0019]
 milestone: P1–P3
 ---
 
@@ -223,6 +223,30 @@ created keep running under their `wg-quick@` units, and their files stay in `/et
 the operator's. `REQ-CFG-028` keeps that from becoming a silent leak — an operator learns what
 remains as it becomes theirs to handle.
 Reasoning in [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md).
+
+### 5.3. Release and install
+
+Under [ADR-0019](../10-decisions/ADR-0019-install-script-over-released-deb.md) the public repository
+is distributed by an install script over a released `.deb`, reviving the capability the struck
+`REQ-CFG-029` to `REQ-CFG-036` described, under new numbers.
+
+> **REQ-CFG-051** — A release pipeline MUST build the `.deb` and a `SHA256SUMS` file and publish them
+> as a release on a version tag.
+
+> **REQ-CFG-052** — An install script MUST install, update and uninstall the agent, fetching the
+> released `.deb` rather than requiring the repository.
+
+> **REQ-CFG-053** — The install script MUST verify the `.deb` against its published SHA256 before
+> installing it.
+
+> **REQ-CFG-054** — The install script's uninstall MUST remove the package through the package
+> manager, so `REQ-CFG-027` and `REQ-CFG-028` govern the WireGuard links.
+
+The script is the one path for a node that never built the project; `update` repeats the fetch and
+install, and `apt upgrade` is not expected to reach the agent. Integrity is the SHA256 of
+`REQ-CFG-053`, fetched with the artifact over HTTPS; a signing key and an APT repository stay in
+ADR-0019's conditions for revisiting. Removal delegates to the package manager, so a link the agent
+created survives an uninstall exactly as `REQ-CFG-027` requires.
 
 ## 6. Removed requirements
 

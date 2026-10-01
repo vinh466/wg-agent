@@ -36,7 +36,8 @@ Where the reasons behind the system's shape are recorded. Specs state *what*; AD
 | [ADR-0015](ADR-0015-network-listener-with-a-shared-secret.md) | A network listener authenticated by one shared secret | Accepted | SPEC-04, SPEC-05, SPEC-09, SPEC-12 |
 | [ADR-0016](ADR-0016-dotnet-nativeaot-build.md) | One NativeAOT binary on .NET 10 for linux-x64 against glibc | Accepted | SPEC-09 |
 | [ADR-0017](ADR-0017-operator-hooks-through-the-cli.md) | Operator hooks through the CLI, carrying ADR-0013 forward | Accepted | SPEC-01, SPEC-04, SPEC-05, SPEC-07, SPEC-12, SPEC-13 |
-| [ADR-0018](ADR-0018-deb-installed-by-the-operator.md) | Distribution by a .deb the operator installs | Accepted | SPEC-09, SPEC-12 |
+| [ADR-0018](ADR-0018-deb-installed-by-the-operator.md) | Distribution by a .deb the operator installs | Superseded by [ADR-0019](ADR-0019-install-script-over-released-deb.md) | SPEC-09, SPEC-12 |
+| [ADR-0019](ADR-0019-install-script-over-released-deb.md) | Distribution by an install script over a released .deb | Accepted | SPEC-09 |
 
 ## Numbering
 

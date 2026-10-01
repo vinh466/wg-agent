@@ -34,7 +34,7 @@ than implemented as it stands.
 |---|---|---|
 | B-01 | Metrics and audit | 10 |
 | B-02 | Backup, restore, upgrade and migration | 15 |
-| B-03 | Install script and release pipeline — not planned | 0 |
+| B-03 | Install script and release pipeline — returned in P3 (ADR-0019) | 0 |
 | B-04 | Forward policy and NAT | 33 |
 | B-05 | API scaffolding for several writers | 15 |
 | B-06 | Diagnostics and the node overview | 16 |
@@ -76,12 +76,13 @@ restores. The audit's section 4.6 lists the gaps SPEC-10 carries.
 
 ---
 
-## B-03 — Install script and release pipeline: not planned
+## B-03 — Install script and release pipeline: returned in P3
 
-Struck on 2026-09-30 with [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md):
-the agent is an internal tool, installed by its operator through the package manager, so nothing
-is released for anyone to download. The eight requirements are in the removed section of
-[SPEC-09](../20-spec/SPEC-09-config-deployment.md).
+Struck on 2026-09-30 with ADR-0018, then revived on 2026-10-01 with
+[ADR-0019](../10-decisions/ADR-0019-install-script-over-released-deb.md) once the repository went
+public. The capability is delivered in P3 under new numbers — `REQ-CFG-051` to `REQ-CFG-054` in
+[SPEC-09](../20-spec/SPEC-09-config-deployment.md) section 5.3; the eight struck requirements
+(`REQ-CFG-029` to `REQ-CFG-036`) stay struck. Only the APT repository remains unplanned.
 
 ---
 
@@ -231,10 +232,10 @@ the moment peers must be isolated from each other.
 ## Not planned
 
 Struck rather than deferred, because the agent is an internal tool — the operator's decision of
-2026-09-30: the install script and release pipeline (formerly B-03), the compatibility gate in CI,
-and roles and several principals (formerly part of B-08). The positioning towards Terraform
-providers, Kubernetes operators and VPN platforms went from
-[product.md](../00-overview/product.md) with them.
+2026-09-30: the compatibility gate in CI, and roles and several principals (formerly part of
+B-08). The positioning towards Terraform providers, Kubernetes operators and VPN platforms went
+from [product.md](../00-overview/product.md) with them. The install script and release pipeline
+(formerly B-03) returned to P3 on 2026-10-01 with ADR-0019; an APT repository stays unplanned.
 
 ## What is not in this file
 

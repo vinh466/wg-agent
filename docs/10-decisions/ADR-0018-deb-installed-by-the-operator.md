@@ -1,12 +1,12 @@
 ---
 id: ADR-0018
 title: Distribution by a .deb the operator installs
-status: Accepted
+status: Superseded
 owner: Vinh Nguyen
 created: 2026-09-30
 updated: 2026-09-30
 supersedes: [ADR-0010]
-superseded_by: null
+superseded_by: ADR-0019
 affects: [SPEC-09, SPEC-12]
 ---
 

@@ -56,7 +56,7 @@ than messages: idempotent writes, stable identifiers, and errors distinguishable
 - Runtime state read from `wg show`
 - Durable desired state, with interfaces restored at boot by their `wg-quick@` units
 - A CLI on the node and a REST API behind one token
-- A `.deb` package the operator installs
+- A `.deb`, and an install script that installs, updates and removes it from the GitHub release
 
 ## Later — the backlog
 
@@ -80,7 +80,7 @@ written; the [backlog](../60-planning/backlog.md) says when each returns.
 | Host DNS management | Client-side concern |
 | IPv6 | Deferred — [ADR-0005](../10-decisions/ADR-0005-ipv4-only-in-v1.md) |
 | Roles, several tokens, mutual TLS, node enrollment | Not planned — one operator, one token |
-| An install script, a release pipeline, an APT repository | Not planned — [ADR-0018](../10-decisions/ADR-0018-deb-installed-by-the-operator.md) |
+| An APT repository with `apt upgrade` | Not planned — [ADR-0019](../10-decisions/ADR-0019-install-script-over-released-deb.md); an install script and a released `.deb` deliver install, update and uninstall |
 | Published clients, a compatibility gate in CI | Not planned — no client outside the operator's own |
 | Zero-downtime interface key rotation | Deferred. `REQ-KEY-004` warns that rotation disconnects peers |
 | Userspace WireGuard (boringtun), network namespaces | Deferred |
