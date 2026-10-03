@@ -96,3 +96,7 @@ It runs `wg` and `systemctl` as its only child processes; `wg-quick` runs in its
 **P1–P3 delivered** — core, CLI, REST API and packaging. The unit, integration and packaging test
 tiers pass, and the binary publishes NativeAOT with no trim or AOT warning. See the
 [roadmap](docs/60-planning/roadmap.md) for what each phase covered and what comes next.
+
+## License
+
+[MIT](LICENSE) © 2026 Vinh Nguyen
