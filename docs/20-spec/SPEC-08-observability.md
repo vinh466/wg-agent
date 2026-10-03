@@ -9,7 +9,7 @@ created: 2026-08-03
 updated: 2026-10-01
 depends_on: [SPEC-01, SPEC-03]
 adrs: []
-milestone: M3
+milestone: P3 logs; Backlog B-01 metrics and audit
 ---
 
 # SPEC-08: Metrics, logs and audit

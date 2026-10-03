@@ -9,7 +9,7 @@ created: 2026-08-03
 updated: 2026-08-05
 depends_on: [SPEC-03, SPEC-06, SPEC-09]
 adrs: [ADR-0001]
-milestone: M3
+milestone: Backlog B-02
 ---
 
 # SPEC-10: Lifecycle — upgrade, backup, restore

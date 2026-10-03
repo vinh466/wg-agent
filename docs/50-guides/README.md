@@ -7,18 +7,19 @@ either — use [40-concepts](../40-concepts/).
 
 ## Available
 
+- [Getting started](getting-started.md) — install, create an interface, add a peer, use the API
+- [Importing an existing interface](importing-an-existing-interface.md) — bring a hand-made
+  `wg-quick` setup under the agent, once
 - [Choosing a topology](topology-patterns.md) — four common configurations and how to select one
 - [Running the tests](running-tests.md) — the four tiers, and what each one needs
 
-## Planned
+## Later
 
-| Guide | Milestone |
+Guides that arrive with the features they describe — see the [backlog](../60-planning/backlog.md):
+
+| Guide | Arrives with |
 |---|---|
-| Installing, updating and removing the agent | M2 |
-| Issuing and rotating API tokens | M2 |
-| Reaching an agent from another host through a tunnel | M2 |
-| Reading the node overview | M1 |
-| Diagnosing connectivity failures | M1 |
-| Backup and restore onto a new node | M3 |
-| Upgrading the agent | M3 |
-| Terraform integration | M5 |
+| Reading the node overview | Diagnostics — backlog B-06 |
+| Diagnosing connectivity failures | Diagnostics — backlog B-06 |
+| Backup and restore onto a new node | Lifecycle — backlog B-02 |
+| Reaching an agent across an untrusted network | Transport security (TLS) — backlog B-08 |

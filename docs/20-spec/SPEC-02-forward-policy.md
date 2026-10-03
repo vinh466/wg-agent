@@ -9,7 +9,7 @@ created: 2026-08-03
 updated: 2026-09-05
 depends_on: [SPEC-01]
 adrs: [ADR-0006, ADR-0008, ADR-0011]
-milestone: M2
+milestone: Backlog B-04
 ---
 
 # SPEC-02: Forward policy and NAT

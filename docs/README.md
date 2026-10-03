@@ -161,7 +161,7 @@ created: 2026-08-03
 updated: 2026-08-04
 depends_on: [SPEC-01]
 adrs: [ADR-0006]
-milestone: M4
+milestone: Backlog B-04
 ---
 ```
 

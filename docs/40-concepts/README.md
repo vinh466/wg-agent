@@ -10,10 +10,12 @@ here is the bug.
 - [Connectivity model](connectivity-model.md) — the hardest concept in the system. Read it
   before configuring multiple interfaces
 
-## Planned
+## Later
 
-| Document | Milestone |
+Concepts that arrive with the features they explain — see the [backlog](../60-planning/backlog.md):
+
+| Document | Arrives with |
 |---|---|
-| Desired state and drift | M1 |
-| Key lifecycle | M1 |
-| Data plane and control plane boundary | M3 |
+| Desired state and drift | Continuous reconcile — backlog B-09 |
+| Key lifecycle | Key rotation — backlog B-02 |
+| Data plane and control plane boundary | Already explained in [architecture](../00-overview/architecture.md) |

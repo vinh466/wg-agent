@@ -9,7 +9,7 @@ created: 2026-08-03
 updated: 2026-09-29
 depends_on: [SPEC-02, SPEC-03]
 adrs: [ADR-0008, ADR-0011]
-milestone: M1
+milestone: Backlog B-06
 ---
 
 # SPEC-11: Diagnostics
@@ -286,8 +286,8 @@ The agent already reads every input these checks need in order to reconcile. Thi
 mainly re-presents that data in a form useful to a human, making the cost low relative to the
 operational value.
 
-That is the basis for scheduling it in M1 rather than M4: it is needed once the topology
-patterns in [SPEC-02](SPEC-02-forward-policy.md) are first tested.
+That is why it is scheduled with the forward-policy work rather than after it: the report is
+needed once the topology patterns in [SPEC-02](SPEC-02-forward-policy.md) are first tested.
 
 ## 7. Open questions
 
