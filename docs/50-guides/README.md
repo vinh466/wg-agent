@@ -8,6 +8,7 @@ either — use [40-concepts](../40-concepts/).
 ## Available
 
 - [Getting started](getting-started.md) — install, create an interface, add a peer, use the API
+- [CLI reference](cli-reference.md) — every subcommand with an example, for looking up mid-task
 - [Importing an existing interface](importing-an-existing-interface.md) — bring a hand-made
   `wg-quick` setup under the agent, once
 - [Choosing a topology](topology-patterns.md) — four common configurations and how to select one

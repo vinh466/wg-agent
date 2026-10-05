@@ -8,6 +8,11 @@ It replaces editing `wg-quick` files by hand: create interfaces, add and remove 
 its `.conf`, read status — and it refuses the configurations WireGuard would otherwise accept and
 then silently mishandle.
 
+Think of it as the automation layer you would otherwise write yourself. It owns one node's
+interfaces and nothing more: *which* addresses, *which* peers and *which* nodes remain your
+decision, or that of the orchestrator above it. One agent per node, reached the same way whether
+you are at the node's shell or scripting against a fleet.
+
 > Internal tool · IPv4 only · Debian 13+ / Ubuntu 24.04 LTS+ (amd64) · one bearer token over plain
 > HTTP on a network you control.
 
@@ -62,7 +67,8 @@ curl -H "Authorization: Bearer $TOKEN" http://NODE:9585/v1/interfaces
 Already running WireGuard by hand? Bring it under the agent in one command —
 see **[Importing an existing interface](docs/50-guides/importing-an-existing-interface.md)**.
 
-New here? Start with **[Getting started](docs/50-guides/getting-started.md)**.
+New here? Start with **[Getting started](docs/50-guides/getting-started.md)**. Looking up a command
+mid-task? The **[CLI reference](docs/50-guides/cli-reference.md)** has every one with an example.
 
 ## What's in this release
 
